@@ -1,0 +1,10 @@
+[expr]          : [bin_expr]
+
+[bin_expr]      : [bin_expr] * [bin_expr] | prec = 2
+                : [bin_expr] / [bin_expr] | prec = 2
+                : [bin_expr] + [bin_expr] | prec = 1
+                : [bin_expr] - [bin_expr] | prec = 1
+                : [atom]
+
+[atom]          : int_lit
+                : ([bin_expr])
