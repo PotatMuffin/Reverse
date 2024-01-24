@@ -55,8 +55,8 @@ TT_CLBRACK   = 262 ; ]
 TT_INTLIT    = 512
 TT_NEWLINE   = 1024 ; \n
 
-op_precedence db 0, 1, 1, 2, 2
-            ;       +  -  *  /
+op_prec db 0, 1, 1, 2, 2
+   ;       +  -  *  /
 
 ; struct node_root
 ; {

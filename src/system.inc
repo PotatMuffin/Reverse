@@ -72,7 +72,8 @@ macro node_root children
 {
     mov rax, [memory_pointer]
     mov word [rax], NODE_ROOT
-    mov qword [rax + 2] children
+    mov rbx, children
+    mov qword [rax + 2] rbx
     add [memory_pointer], node_root_size
 }
 
@@ -80,9 +81,12 @@ macro node_bin_expr left, op, right
 {
     mov rax, [memory_pointer]
     mov word [rax], NODE_BINEXPR
-    mov qword [rax + 2], left
-    mov qword [rax + 10], op
-    mov qword [rax + 18], right
+    mov rbx, left
+    mov qword [rax + 2], rbx
+    mov rbx, op
+    mov qword [rax + 10], rbx
+    mov rbx, right
+    mov qword [rax + 18], rbx
     add [memory_pointer], node_bin_expr_size
 }
 
@@ -90,7 +94,8 @@ macro node_lit token
 {
     mov rax, [memory_pointer]
     mov word [rax], NODE_BINEXPR
-    mov qword [rax + 2], token
+    mov rbx, token
+    mov qword [rax + 2], rbx
     add [memory_pointer], node_lit_size
 }
 
