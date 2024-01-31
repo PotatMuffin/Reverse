@@ -117,18 +117,25 @@ init_memory:
     ret
 
 read_file: ; char* read_file(int fd)
-    fstat rdi, stat
-    
-    mov rcx, [memory_pointer]
-    mov r11, qword [stat + 48]
-    inc r11
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov [rbp - 8], rdi
 
-    read rdi, rcx, r11
+    fstat [rbp - 8], stat
+    mov rbx, qword [stat + 48]
+    inc rbx
+    mov [rbp - 16], rbx
+    mov rbx, [memory_pointer]
+    mov [rbp - 24], rbx
 
-    mov rax, rcx
-    add rcx, r11
-    mov [memory_pointer], rcx
+    read [rbp - 8], [rbp - 24], [rbp - 16]
 
+    mov rax, [rbp - 24]
+    mov rbx, [rbp - 16]
+    add qword [memory_pointer], rbx
+
+    leave
     ret
 
 print: ; void print(char* ptr)
