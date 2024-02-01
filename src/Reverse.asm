@@ -42,6 +42,11 @@ main:
     mov rdi, [rbp - 24]
     call parse
 
+    mov rdi, rax
+    call display_ast
+    mov rdi, suffix
+    call print
+
     exit_process 0
 
 segment readable writeable

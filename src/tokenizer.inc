@@ -95,28 +95,28 @@ tokenize: ; void* tokenize(char* buf)
     cmp [rbp - 29], byte '{'
     jne tokif10
 
-    mov [r13], word TT_OPBRACE
+    mov [r13], word TT_BRACEL
     jmp tokloopcontinue
 
     tokif10:
     cmp [rbp - 29], byte '}'
     jne tokif11
 
-    mov [r13], word TT_CLBRACE
+    mov [r13], word TT_BRACER
     jmp tokloopcontinue
 
     tokif11:
     cmp [rbp - 29], byte '['
     jne tokif12
 
-    mov [r13], word TT_OPBRACK
+    mov [r13], word TT_BRACKL
     jmp tokloopcontinue
 
     tokif12:
     cmp [rbp - 29], byte ']'
     jne tokif13
 
-    mov [r13], word TT_CLBRACK
+    mov [r13], word TT_BRACKR
     jmp tokloopcontinue
 
     tokif13:

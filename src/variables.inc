@@ -10,8 +10,8 @@ stat rb 144
 usage_suffix db "Usage: ", 0
 usage db " <source> [output]", 10, 0
 
-node_bin_expr_prefix db '(',0
-node_bin_expr_sufix db ')', 0
+_parenl db '(',0
+_parenr db ')',0
 space db ' ', 0
 
 default_memory_setting = 1024 * 1024 * 16
@@ -52,10 +52,10 @@ TT_ANGBRACKR = 6 ; >
 TT_BSLASH    = 256 ; \
 TT_PARENL    = 257 ; (
 TT_PARENR    = 258 ; )
-TT_OPBRACE   = 259 ; {
-TT_CLBRACE   = 260 ; }
-TT_OPBRACK   = 261 ; [
-TT_CLBRACK   = 262 ; ]
+TT_BRACEL    = 259 ; {
+TT_BRACER    = 260 ; }
+TT_BRACKL    = 261 ; [
+TT_BRACKR    = 262 ; ]
 TT_INTLIT    = 512
 TT_NEWLINE   = 1024 ; \n
 

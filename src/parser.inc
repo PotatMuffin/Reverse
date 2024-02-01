@@ -1,7 +1,7 @@
 parse: ; void parse(token* tokens)
     push rbp
     mov rbp, rsp
-    sub rsp, 8
+    sub rsp, 16
     mov [rbp - 8], rdi
 
     parseloop1:
@@ -19,9 +19,12 @@ parse: ; void parse(token* tokens)
         
         lea rdi, qword [rbp - 8]
         call parse_expr
+        mov [rbp - 16], rax
 
-        mov rdi, rax
-        call display_ast
+        xor rdi, rdi
+        mov rbx, [rbp - 8]
+        mov di, word [rbx]
+        call display_number
 
         mov rbx, [rbp - 8]
         cmp word [rbx], TT_NEWLINE
@@ -34,6 +37,7 @@ parse: ; void parse(token* tokens)
 
     parseret:
 
+    mov rax, [rbp - 16]
     leave 
     ret
 
@@ -91,13 +95,6 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
         node_bin_expr [rbp - 17], [rbp - 33], [rbp - 25]
         mov [rbp - 17], rax
 
-        mov rbx, [rbp - 33]
-        xor rdi, rdi
-        mov di, word [rbx]
-        call display_number
-        mov rdi, suffix
-        call print
-
         jmp pbeLoop1
 
     pbeRet:
@@ -125,6 +122,21 @@ parse_atom: ; void* parse_atom(token** Ptokens)
 
     paL1:
 
+    cmp word [rbx], TT_PARENL
+    jne paL2
+    
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+
+    mov rdi, [rbp - 8]
+    call parse_bin_expr
+
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    jmp paRet
+
+    paL2:
+
     paRet:
 
     leave 
@@ -149,7 +161,7 @@ display_ast: ; void display_ast(void* node)
     cmp word [rbx], NODE_BINEXPR
     jne daL2
 
-    mov rdi, node_bin_expr_prefix
+    mov rdi, _parenl
     call print
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
@@ -168,7 +180,7 @@ display_ast: ; void display_ast(void* node)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 18]
     call display_ast
-    mov rdi, node_bin_expr_sufix
+    mov rdi, _parenr
     call print
 
     daL2:
