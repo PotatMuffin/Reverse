@@ -21,9 +21,7 @@ parse: ; void parse(token* tokens)
         call parse_expr
 
         mov rdi, rax
-        call display_number
-        mov rdi, suffix
-        call print
+        call display_ast
 
         mov rbx, [rbp - 8]
         cmp word [rbx], TT_NEWLINE
@@ -55,9 +53,9 @@ parse_expr: ; void* parse_expr(token** Ptokens)
 parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
     push rbp
     mov rbp, rsp
-    sub rsp, 33
-    mov [rbp - 8], rdi
-    mov [rbp - 9], sil
+    sub rsp, 34
+    mov [rbp - 8], rdi ; Ptokens
+    mov [rbp - 9], sil ; min_prec
 
     mov rdi, [rbp - 8]
     call parse_atom
@@ -76,6 +74,7 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
         mov bx, word [rbx]
         and rbx, 0FFFFh
         mov al, [op_prec + rbx]
+        mov [rbp - 34], al ; prec
 
         cmp al, byte [rbp - 9]
         jl pbeRet
@@ -84,7 +83,7 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
         add qword [rbx], tok_len
 
         mov rdi, [rbp - 8]
-        mov sil, byte [rbp - 9]
+        mov sil, byte [rbp - 34]
         inc sil
         call parse_bin_expr
         mov [rbp - 25], rax ; right
@@ -129,4 +128,51 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     paRet:
 
     leave 
+    ret
+
+display_ast: ; void display_ast(void* node)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 8
+    mov [rbp - 8], rdi
+
+    mov rbx, [rbp - 8]
+    cmp word [rbx], NODE_LIT
+    jne daL1
+
+    mov rbx, qword [rbx + 2]
+    mov rdi, qword [rbx + 2]
+    call display_number
+    jmp daRet
+    
+    daL1:
+    cmp word [rbx], NODE_BINEXPR
+    jne daL2
+
+    mov rdi, node_bin_expr_prefix
+    call print
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    call display_ast
+
+    mov rdi, space
+    call print
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 10]
+    xor rdi, rdi
+    mov di, word [rbx]
+    call display_number
+    mov rdi, space
+    call print
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 18]
+    call display_ast
+    mov rdi, node_bin_expr_sufix
+    call print
+
+    daL2:
+    
+    daRet:
+    leave
     ret

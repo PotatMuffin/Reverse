@@ -93,7 +93,7 @@ macro node_bin_expr left, op, right
 macro node_lit token
 {
     mov rax, [memory_pointer]
-    mov word [rax], NODE_BINEXPR
+    mov word [rax], NODE_LIT
     mov rbx, token
     mov qword [rax + 2], rbx
     add [memory_pointer], node_lit_size

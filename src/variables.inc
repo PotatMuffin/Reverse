@@ -10,6 +10,10 @@ stat rb 144
 usage_suffix db "Usage: ", 0
 usage db " <source> [output]", 10, 0
 
+node_bin_expr_prefix db '(',0
+node_bin_expr_sufix db ')', 0
+space db ' ', 0
+
 default_memory_setting = 1024 * 1024 * 16
 STDIN      = 0
 STDOUT     = 1

@@ -1,15 +1,11 @@
-format ELF64
+format ELF64 executable
 
-section '.text' executable
-public _start
-public read_file
-public tokenize
-
+segment readable executable
 include "system.inc"
 include "tokenizer.inc"
 include "parser.inc"
-_start:
 
+entry $
 check_param_count:
     mov rax, [rsp]
     cmp rax, 2
@@ -43,12 +39,11 @@ main:
     mov rdi, [rbp - 16]
     call tokenize
     mov [rbp - 24], rax
-    
     mov rdi, [rbp - 24]
     call parse
 
     exit_process 0
 
-section '.data' writeable
+segment readable writeable
 include "variables.inc"
 include "errors.inc"
