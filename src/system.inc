@@ -159,30 +159,18 @@ print: ; void print(char* ptr)
 display_number: ; void display_number(long number)
     push rbp
     mov rbp, rsp
-    sub rsp, 28
+    sub rsp, 29
 
     mov [rbp - 28], rdi
+    cmp qword [rbp - 28], 0
+    setl byte [rbp - 29]
 
     xor rbx, rbx
-    xor r15, r15
     mov rcx, rbp
-
-    cmp qword [rbp - 28], 0
-    jge L3
-
-    mov r15, -1
-
-    L3:
-    cmp qword [rbp - 28], 0
-    jne display_loop
-    dec rcx
-    inc rbx
-    mov [rcx], byte '0'
-    jmp display_print
 
     display_loop:
         mov rax, [rbp - 28]
-        mov rdx, r15
+        cqo
         mov r10, 10
         idiv r10
         mov [rbp - 28], rax
@@ -201,7 +189,7 @@ display_number: ; void display_number(long number)
         cmp rax, 0
         jnz display_loop
 
-    cmp r15, 0
+    cmp byte [rbp - 29], 0
     jz display_print
 
     dec rcx

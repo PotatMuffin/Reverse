@@ -21,11 +21,6 @@ parse: ; void parse(token* tokens)
         call parse_expr
         mov [rbp - 16], rax
 
-        xor rdi, rdi
-        mov rbx, [rbp - 8]
-        mov di, word [rbx]
-        call display_number
-
         mov rbx, [rbp - 8]
         cmp word [rbx], TT_NEWLINE
         je parseloop1
@@ -124,11 +119,12 @@ parse_atom: ; void* parse_atom(token** Ptokens)
 
     cmp word [rbx], TT_PARENL
     jne paL2
-    
+
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
 
     mov rdi, [rbp - 8]
+    mov sil, 0
     call parse_bin_expr
 
     mov rbx, [rbp - 8]

@@ -159,6 +159,7 @@ tokenize: ; void* tokenize(char* buf)
         inc qword [rbp - 28]
         jmp L1
     L2:
+    
     mov qword [r13 + 2], rax
     mov rdi, rax
     jmp tokloopcontinue
