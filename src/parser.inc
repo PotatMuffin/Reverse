@@ -155,34 +155,31 @@ parse_atom: ; void* parse_atom(token** Ptokens)
 display_ast: ; void display_ast(void* node)
     push rbp
     mov rbp, rsp
-    sub rsp, 8
+    sub rsp, 16
     mov [rbp - 8], rdi
 
-    mov rbx, [rbp - 8]
+    mov rbx, qword [rbp - 8]
     cmp word [rbx], NODE_ROOT
     jne daL0
+    
     mov rbx, qword [rbx + 2]
-
     daloop1:
     cmp qword [rbx + 8], 0
-    je daloop1end
+    je daloop2
     mov rbx, qword [rbx + 8]
-
-    daloop1end:
-    mov rbx, qword [rbx + 8]
+    jmp daloop1
 
     daloop2:
-    push rbx
-
+    mov qword [rbp - 16], rbx
     mov rdi, [rbx]
     call display_ast
     mov rdi, suffix
     call print
+    mov rbx, qword [rbp - 16]
 
-    pop rbx
     cmp qword [rbx + 16], 0
     je daRet
-    mov rbx, [rbx + 16]
+    mov rbx, qword [rbx + 16]
     jmp daloop2
 
     daL0:
