@@ -66,8 +66,9 @@ op_prec db 0, 1, 1, 2, 2
 ; {
 ;   short type
 ;   void* children
+;   long child_count
 ; }
-node_root_size = 10
+node_root_size = 18
 
 ; struct node_bin_expr
 ; {

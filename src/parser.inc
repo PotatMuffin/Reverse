@@ -1,8 +1,11 @@
 parse: ; void parse(token* tokens)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 24
     mov [rbp - 8], rdi
+
+    node_root
+    mov [rbp - 16], rax
 
     parseloop1:
         parseloop2:
@@ -19,7 +22,18 @@ parse: ; void parse(token* tokens)
         
         lea rdi, qword [rbp - 8]
         call parse_expr
-        mov [rbp - 16], rax
+        mov [rbp - 24], rax
+
+        linked_list_item qword [rbp - 24]
+        mov rbx, qword [rbp - 16]
+        mov rcx, qword [rbx + 2]
+        cmp rcx, 0
+        je PL1
+        mov qword [rax + 8], rcx
+        mov qword [rcx + 16], rax
+        PL1:
+        mov qword [rbx + 2], rax
+        inc qword [rbx + 10]
 
         mov rbx, [rbp - 8]
         cmp word [rbx], TT_NEWLINE
@@ -145,6 +159,33 @@ display_ast: ; void display_ast(void* node)
     mov [rbp - 8], rdi
 
     mov rbx, [rbp - 8]
+    cmp word [rbx], NODE_ROOT
+    jne daL0
+    mov rbx, qword [rbx + 2]
+
+    daloop1:
+    cmp qword [rbx + 8], 0
+    je daloop1end
+    mov rbx, qword [rbx + 8]
+
+    daloop1end:
+    mov rbx, qword [rbx + 8]
+
+    daloop2:
+    push rbx
+
+    mov rdi, [rbx]
+    call display_ast
+    mov rdi, suffix
+    call print
+
+    pop rbx
+    cmp qword [rbx + 16], 0
+    je daRet
+    mov rbx, [rbx + 16]
+    jmp daloop2
+
+    daL0:
     cmp word [rbx], NODE_LIT
     jne daL1
 

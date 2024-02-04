@@ -68,17 +68,30 @@ macro check_memory required
     jg no_memory_error
 }
 
-macro node_root children
+macro linked_list_item item
 {
+    check_memory 24
+    mov rax, [memory_pointer]
+    mov rbx, item
+    mov qword [rax], rbx ; data
+    mov qword [rax + 8], 0 ; next
+    mov qword [rax + 16], 0 ; previous
+    add [memory_pointer], 24
+}
+
+macro node_root
+{
+    check_memory node_root_size
     mov rax, [memory_pointer]
     mov word [rax], NODE_ROOT
-    mov rbx, children
-    mov qword [rax + 2] rbx
+    mov qword [rax + 2], 0
+    mov qword [rax + 10], 0
     add [memory_pointer], node_root_size
 }
 
 macro node_bin_expr left, op, right
-{
+{   
+    check_memory node_bin_expr_size
     mov rax, [memory_pointer]
     mov word [rax], NODE_BINEXPR
     mov rbx, left
@@ -92,6 +105,7 @@ macro node_bin_expr left, op, right
 
 macro node_lit token
 {
+    check_memory node_lit_size
     mov rax, [memory_pointer]
     mov word [rax], NODE_LIT
     mov rbx, token

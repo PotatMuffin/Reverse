@@ -44,8 +44,6 @@ main:
 
     mov rdi, rax
     call display_ast
-    mov rdi, suffix
-    call print
 
     exit_process 0
 
