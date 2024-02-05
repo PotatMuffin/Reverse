@@ -161,7 +161,10 @@ display_ast: ; void display_ast(void* node)
     mov rbx, qword [rbp - 8]
     cmp word [rbx], NODE_ROOT
     jne daL0
-    
+
+    cmp qword [rbx + 10], 0
+    je daRet    
+
     mov rbx, qword [rbx + 2]
     daloop1:
     cmp qword [rbx + 8], 0
