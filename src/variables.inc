@@ -12,7 +12,14 @@ usage db " <source> [output]", 10, 0
 
 _parenl db '(',0
 _parenr db ')',0
-space db ' ', 0
+_int db 'int',0
+space db ' ',0
+comma db ',',0
+quote db "'",0
+suffix db ".",10,0
+lineprefix db "[",0
+linesuffix db "] ",0
+_or db 'or',0
 
 default_memory_setting = 1024 * 1024 * 16
 STDIN      = 0

@@ -179,7 +179,7 @@ tokenize: ; void* tokenize(char* buf)
     lea r14, [r11 + r12]
     printmany _error, illegalchar
     write STDOUT, r14, 1
-    printmany stringsuffix, suffix
+    printmany quote, suffix
     exit_process 1
 
     tokloopcontinue:
@@ -193,6 +193,8 @@ tokenize: ; void* tokenize(char* buf)
 
     mov rax, [rbp - 20]
     mov [r13], word TT_EOF
+    mov ebx, dword [rbp - 12]
+    mov dword [r13 + 10], ebx
     add [memory_pointer], tok_len
 
     leave 

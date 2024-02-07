@@ -142,10 +142,26 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     call parse_bin_expr
 
     mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_PARENR
+    je paL3
+
+    mov rdi, rbx
+    pushmany 0, _parenr
+    mov rsi, rsp
+    call syntax_error_expected
+
+    paL3:
+    mov rbx, [rbp - 8]
     add qword [rbx], tok_len
     jmp paRet
 
     paL2:
+
+    mov rdi, rbx
+    pushmany 0, _parenl, _int
+    mov rsi, rsp
+    call syntax_error_expected
 
     paRet:
 
@@ -166,20 +182,22 @@ display_ast: ; void display_ast(void* node)
     je daRet    
 
     mov rbx, qword [rbx + 2]
+    ; go to the last item in the list
     daloop1:
     cmp qword [rbx + 8], 0
     je daloop2
     mov rbx, qword [rbx + 8]
     jmp daloop1
-
+    
     daloop2:
+    ; print current tree
     mov qword [rbp - 16], rbx
     mov rdi, [rbx]
     call display_ast
     mov rdi, suffix
     call print
     mov rbx, qword [rbp - 16]
-
+    ; go back one item
     cmp qword [rbx + 16], 0
     je daRet
     mov rbx, qword [rbx + 16]

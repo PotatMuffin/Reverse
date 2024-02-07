@@ -54,6 +54,23 @@ macro exit_process code
     syscall
 }
 
+macro print_tok_pos token
+{
+    mov rdi, lineprefix
+    call print
+    mov rbx, token
+    xor rdi, rdi
+    mov edi, dword [rbx + 10]
+    call display_number
+    mov rdi, linesuffix
+    call print
+}
+
+macro pushmany [arg]
+{
+    push arg
+}
+
 macro printmany [arg]
 {
     mov rdi, arg
@@ -252,17 +269,43 @@ no_memory_error:
     printmany _error, outofmemory, suffix
     exit_process 1
 syntax_error_token: ; syntax_error_token(token* token)
+    push rbp
     mov rbp, rsp
     sub rsp, 8
-    mov [rbp - 8], rdi
+    mov qword [rbp - 8], rdi
+    print_tok_pos [rbp - 8]
+    printmany syntaxerrorsuffix, syntaxerrortoken, suffix
+    exit_process 1
+syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov qword [rbp - 8], rdi
+    mov qword [rbp - 16], rsi
+    mov qword [rbp - 24], 0
 
-    mov rdi, lineprefix
-    call print
-    mov rbx, [rbp - 8]
-    xor rdi, rdi
-    mov edi, dword [rbx + 10]
-    call display_number
-    mov rdi, linesuffix
-    call print
-    printmany syntaxerrortoken, suffix
+    print_tok_pos [rbp - 8]
+    printmany syntaxerrorsuffix, syntaxerrorexpected
+
+    seeloop:
+        mov rbx, qword [rbp - 16]
+        mov rcx, qword [rbp - 24]
+        imul rcx, 8
+        add rbx, rcx
+        
+        cmp qword [rbx + 8], 0
+        jne seeL2
+        cmp rcx, 0
+        je seeL1
+        printmany _or, space
+        seeL1:
+        printmany qword [rbx], suffix
+        jmp seeRet
+
+        seeL2: 
+        printmany qword [rbx], comma, space
+        inc qword [rbp - 24]
+        jmp seeloop
+
+    seeRet:
     exit_process 1
