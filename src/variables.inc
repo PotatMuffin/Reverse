@@ -26,6 +26,23 @@ STDIN      = 0
 STDOUT     = 1
 STDERR     = 2
 
+S_ISUID    = 4000o
+S_ISGID    = 2000o
+S_ISVTX    = 1000o
+S_IRUSR    = 0400o
+S_IWUSR    = 0200o
+S_IXUSR    = 0100o
+S_IRGRP    = 0040o
+S_IWGRP    = 0020o
+S_IXGRP    = 0010o
+S_IROTH    = 0004o
+S_IWOTH    = 0002o
+S_IXOTH    = 0001o
+default_open_mode = S_IRUSR + S_IWUSR + S_IRGRP + S_IWGRP + S_IROTH
+
+O_RDONLY    = 0
+O_WRONLY    = 1
+O_RDWR      = 2
 O_CREAT     = 64
 O_NOCTTY    = 256
 O_EXCL      = 128
@@ -38,6 +55,7 @@ O_DIRECTORY = 16384
 O_NOFOLLOW  = 32768
 O_CLOEXEC   = 524288
 O_SYNC      = 1052672
+default_open_flags = O_WRONLY + O_CREAT + O_TRUNC
 
 whitespaces db 9, 11, 12, 13, 32, 0
 

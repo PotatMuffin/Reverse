@@ -168,6 +168,27 @@ read_file: ; char* read_file(int fd)
 
     leave
     ret
+fprint: ; void fprint(long fd, char* ptr)
+    push rbp
+    mov rbp, rsp
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    xor rdx, rdx
+
+    fprintloopstart:
+        mov al, byte [rsi + rdx]
+        cmp al, 0 
+        je fprintloopend
+
+        inc rdx
+        jmp fprintloopstart 
+
+    fprintloopend:
+
+    write [rbp - 8], [rbp - 16], rdx
+
+    leave
+    ret
 
 print: ; void print(char* ptr)
     xor rdx, rdx
@@ -175,7 +196,7 @@ print: ; void print(char* ptr)
 
     printloopstart:
 
-    mov al, [rsi + rdx]
+    mov al, byte [rsi + rdx]
     cmp al, 0
     je printloopend
 
