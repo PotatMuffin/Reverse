@@ -161,15 +161,13 @@ tokenize: ; void* tokenize(char* buf)
     L2:
     
     mov qword [r13 + 2], rax
-    mov rdi, rax
     jmp tokloopcontinue
 
     tokif16:
     
     mov rdi, lineprefix
     call print
-    xor rdi, rdi
-    mov edi, dword [rbp - 12]
+    movsxd rdi, dword [rbp - 12]
     call display_number
     mov rdi, linesuffix
     call print

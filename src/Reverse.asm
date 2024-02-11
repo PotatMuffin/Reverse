@@ -4,6 +4,7 @@ segment readable executable
 include "system.inc"
 include "tokenizer.inc"
 include "parser.inc"
+include "generator.inc"
 
 entry $
 check_param_count:
@@ -18,13 +19,21 @@ get_params:
     mov rbx, [rsp + 16]
     mov [source], rbx
 
+    cmp rax, 3
+    jl L7
+    mov rbx, [rsp + 24]
+    mov [output], rbx
+    jmp main
+    L7:
+    mov [output], outfilename
+
 main:
     mov rbp, rsp
-    sub rsp, 24
+    sub rsp, 32
 
     call init_memory
     
-    open [source], 0, 0
+    open [source], O_RDONLY, 0
     mov [rbp - 8], rax
     
     cmp rax, 0
@@ -41,9 +50,13 @@ main:
     mov [rbp - 24], rax
     mov rdi, [rbp - 24]
     call parse
+    mov [rbp - 32], rax
 
-    mov rdi, rax
+    mov rdi, [rbp - 32]
     call display_ast
+
+    mov rdi, [rbp - 32]
+    call generate
 
     exit_process 0
 

@@ -213,7 +213,7 @@ display_ast: ; void display_ast(void* node)
     jmp daRet
     
     daL1:
-    cmp word [rbx], NODE_BINEXPR
+    cmp word [rbx], NODE_BINOP
     jne daL2
 
     mov rdi, _parenl
@@ -226,8 +226,7 @@ display_ast: ; void display_ast(void* node)
     call print
     mov rbx, [rbp - 8]
     mov rbx, [rbx + 10]
-    xor rdi, rdi
-    mov di, word [rbx]
+    movsx rdi, word [rbx]
     call display_number
     mov rdi, space
     call print

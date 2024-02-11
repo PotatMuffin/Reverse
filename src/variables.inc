@@ -5,14 +5,17 @@ memory_setting dq ?
 
 source rq 1
 output rq 1
+outputfd rq 1
 
 stat rb 144
 usage_suffix db "Usage: ", 0
 usage db " <source> [output]", 10, 0
+outfilename db "out.asm",0
 
 _parenl db '(',0
 _parenr db ')',0
 _int db 'int',0
+newline db 10,0
 space db ' ',0
 comma db ',',0
 quote db "'",0
@@ -112,5 +115,50 @@ node_bin_expr_size = 26
 node_lit_size = 10
 
 NODE_ROOT    = 1
-NODE_BINEXPR = 2
+NODE_BINOP   = 2
 NODE_LIT     = 3
+
+_rax db 'rax',0
+_eax db 'eax',0
+_ax db 'ax',0,0
+_al db 'al',0,0
+
+_rbx db 'rbx',0
+_ebx db 'ebx',0
+_bx db 'bx',0,0
+_bl db 'bl',0,0
+
+_rcx db 'rcx',0
+_ecx db 'ecx',0
+_cx db 'cx',0,0
+_cl db 'cl',0,0
+
+_rdx db 'rdx',0
+_edx db 'edx',0
+_dx db 'dx',0,0
+_dl db 'dl',0,0
+
+_rsi db 'rsi',0
+_esi db 'esi',0
+_si db 'si',0,0
+_sil db 'sil',0
+
+_rdi db 'rdi',0
+_edi db 'edi',0
+_di db 'di',0,0
+_dil db 'dil',0
+
+_mov db 'mov ',0
+_add db 'add ',0
+_sub db 'sub ',0
+_imul db 'imul ',0
+_idiv db 'idiv ',0
+
+_format db 'format ELF64 executable',10,0
+_segment db 'segment ',0
+_executable db 'readable executable',10,0
+_writeable db 'readable writeable',10,0
+_entry db 'entry $',10,0
+_exit db 'mov rdi, 0', 10
+      db 'mov rax, 60',10
+      db 'syscall',0

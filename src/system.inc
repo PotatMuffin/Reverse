@@ -59,8 +59,7 @@ macro print_tok_pos token
     mov rdi, lineprefix
     call print
     mov rbx, token
-    xor rdi, rdi
-    mov edi, dword [rbx + 10]
+    movsxd rdi, dword [rbx + 10]
     call display_number
     mov rdi, linesuffix
     call print
@@ -68,13 +67,23 @@ macro print_tok_pos token
 
 macro pushmany [arg]
 {
+    forward
     push arg
 }
 
 macro printmany [arg]
 {
+    forward
     mov rdi, arg
     call print
+}
+
+macro fprintmany fd, [arg]
+{
+    forward
+    mov rdi, fd
+    mov rsi, arg
+    call fprint
 }
 
 macro check_memory required
@@ -110,7 +119,7 @@ macro node_bin_expr left, op, right
 {   
     check_memory node_bin_expr_size
     mov rax, [memory_pointer]
-    mov word [rax], NODE_BINEXPR
+    mov word [rax], NODE_BINOP
     mov rbx, left
     mov qword [rax + 2], rbx
     mov rbx, op
@@ -238,7 +247,7 @@ display_number: ; void display_number(long number)
         add dl, '0'
         mov [rcx], dl
 
-        cmp rax, 0
+        cmp qword [rbp - 28], 0
         jnz display_loop
 
     cmp byte [rbp - 29], 0
@@ -251,6 +260,53 @@ display_number: ; void display_number(long number)
     display_print:
     write STDOUT, rcx, rbx
 
+    leave
+    ret
+
+itoa: ; char* iota(long num)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 17
+    mov [rbp - 8], rdi
+    add [memory_pointer], 20
+    mov rbx, [memory_pointer]
+    mov qword [rbp - 16], rbx
+
+    cmp qword [rbp - 8], 0
+    setl byte [rbp - 17]
+
+    dec qword [rbp - 16]
+    mov rbx, qword [rbp - 16]
+    mov byte [rbx], 0
+
+    itoaloop:
+        mov rax, [rbp - 8]
+        cqo
+        mov r10, 10
+        idiv r10
+        mov [rbp - 8], rax
+
+        cmp dl, 0
+        jg L6
+        neg dl
+        L6:
+        add dl, '0'
+        dec qword [rbp - 16]
+        mov rbx, [rbp - 16]
+        mov byte [rbx], dl
+
+        cmp qword [rbp - 8], 0
+        jnz itoaloop
+
+    cmp byte [rbp - 17], 0
+    jz itoaRet
+
+    dec qword [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov byte [rbx], '-'
+
+    itoaRet:
+    mov rax, [rbp - 16]
     leave
     ret
 
