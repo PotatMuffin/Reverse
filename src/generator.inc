@@ -30,6 +30,8 @@ visit: ; char* visit(void* node, bool lhs)
 
     mov rbx, [rbp - 8]
     movsx rcx, word [rbx]
+    cmp rcx, node_count
+    jg unimplemented_node
 
     mov rdi, qword [rbp - 8]
     mov sil, [rbp - 9]
@@ -93,13 +95,17 @@ visit_node_binop: ; char* visit_node_binop(void* node, bool lhs)
 
     cmp byte [rbp - 25], 0
     je vnbL2
-    ; move result of left child into esi if that child is a binop and the current node is on the left hand side
+    ; move result of left child into esi if that child is a unop or binop and the current node is on the left hand side
     ; of its parent
     mov rbx, [rbp - 8]
     mov rbx, qword [rbx + 2]
+    cmp word [rbx], NODE_UNOP
+    je vnbl9
     cmp word [rbx], NODE_BINOP
-    jne vnbL2
+    je vnbl9
+    jmp vnbL2
 
+    vnbl9:
     mov qword [rbp - 33], _esi
     fprintmany [outputfd], _mov, [rbp - 33], comma, [rbp - 16], newline
     jmp vnbL1
@@ -170,8 +176,28 @@ visit_node_lit: ; char* visit_node_lit(void* node)
     leave
     ret
 
+visit_node_unop: ; char* visit_node_unop(void* node)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+
+    mov rbx, qword [rbp - 8]
+    mov rdi, qword [rbx + 10]
+    mov rsi, 1
+    call visit
+    mov [rbp - 16], rax
+
+    fprintmany [outputfd], _mov, _eax, comma, [rbp - 16], newline
+    fprintmany [outputfd], _neg, _eax, newline
+    mov rax, _eax
+    
+    leave
+    ret
+
 genlookuptable:
     dq 0
     dq visit_node_root
     dq visit_node_binop
     dq visit_node_lit
+    dq visit_node_unop

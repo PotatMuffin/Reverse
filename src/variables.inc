@@ -98,14 +98,14 @@ op_prec db 0, 1, 1, 2, 2
 ; }
 node_root_size = 18
 
-; struct node_bin_expr
+; struct node_binop
 ; {
 ;   short type
 ;   void* left
 ;   token* op
 ;   void* right
 ; }
-node_bin_expr_size = 26
+node_binop_size = 26
 
 ; struct node_lit
 ; {
@@ -114,9 +114,19 @@ node_bin_expr_size = 26
 ; }
 node_lit_size = 10
 
+; struct node_unop
+; {
+;   short type
+;   void* op
+;   void* node
+; }
+node_unop_size = 18
+
+node_count = 4
 NODE_ROOT    = 1
 NODE_BINOP   = 2
 NODE_LIT     = 3
+NODE_UNOP    = 4
 
 _rax db 'rax',0
 _eax db 'eax',0
@@ -153,6 +163,7 @@ _add db 'add ',0
 _sub db 'sub ',0
 _imul db 'imul ',0
 _idiv db 'idiv ',0
+_neg db 'neg ',0
 
 _format db 'format ELF64 executable',10,0
 _segment db 'segment ',0

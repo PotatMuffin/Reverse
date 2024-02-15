@@ -101,7 +101,7 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
         call parse_bin_expr
         mov [rbp - 25], rax ; right
 
-        node_bin_expr [rbp - 17], [rbp - 33], [rbp - 25]
+        node_binop [rbp - 17], [rbp - 33], [rbp - 25]
         mov [rbp - 17], rax
 
         jmp pbeLoop1
@@ -114,11 +114,12 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
 parse_atom: ; void* parse_atom(token** Ptokens)
     push rbp
     mov rbp, rsp
-    sub rsp, 8
+    sub rsp, 24
     mov [rbp - 8], rdi
 
     mov rbx, [rbp - 8]
     mov rbx, [rbx]
+    mov [rbp - 16], rbx
     cmp word [rbx], TT_INTLIT
     jne paL1
 
@@ -126,8 +127,8 @@ parse_atom: ; void* parse_atom(token** Ptokens)
 
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
-
-    jmp paRet
+    leave
+    ret
 
     paL1:
 
@@ -154,16 +155,29 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     paL3:
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
-    jmp paRet
+    leave 
+    ret
 
     paL2:
+    cmp word [rbx], TT_MIN
+    jne paL4
+
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    mov rdi, rbx
+    call parse_atom
+    mov [rbp - 24], rax
+
+    node_unop [rbp - 16], [rbp - 24]
+    leave
+    ret
+
+    paL4:
 
     mov rdi, rbx
     pushmany 0, _parenl, _int
     mov rsi, rsp
     call syntax_error_expected
-
-    paRet:
 
     leave 
     ret

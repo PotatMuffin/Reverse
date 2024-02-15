@@ -115,9 +115,9 @@ macro node_root
     add [memory_pointer], node_root_size
 }
 
-macro node_bin_expr left, op, right
+macro node_binop left, op, right
 {   
-    check_memory node_bin_expr_size
+    check_memory node_binop_size
     mov rax, [memory_pointer]
     mov word [rax], NODE_BINOP
     mov rbx, left
@@ -126,7 +126,7 @@ macro node_bin_expr left, op, right
     mov qword [rax + 10], rbx
     mov rbx, right
     mov qword [rax + 18], rbx
-    add [memory_pointer], node_bin_expr_size
+    add [memory_pointer], node_binop_size
 }
 
 macro node_lit token
@@ -137,6 +137,18 @@ macro node_lit token
     mov rbx, token
     mov qword [rax + 2], rbx
     add [memory_pointer], node_lit_size
+}
+
+macro node_unop op, node
+{
+    check_memory node_unop_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_UNOP
+    mov rbx, op
+    mov qword [rax + 2], rbx
+    mov rbx, node
+    mov qword [rax + 10], rbx
+    add [memory_pointer], node_unop_size
 }
 
 init_memory:
@@ -385,4 +397,10 @@ syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
         jmp seeloop
 
     seeRet:
+    exit_process 1
+unimplemented_node:
+    mov rdi, unimplementednode
+    call print
+    mov rdi, suffix
+    call print
     exit_process 1
