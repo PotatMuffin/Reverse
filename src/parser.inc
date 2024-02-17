@@ -53,12 +53,33 @@ parse: ; void parse(token* tokens)
 parse_expr: ; void* parse_expr(token** Ptokens)
     push rbp
     mov rbp, rsp
-    sub rsp, 8
+    sub rsp, 16
     mov [rbp - 8], rdi
 
     mov rdi, [rbp - 8]
     mov sil, 0
     call parse_bin_expr
+    mov [rbp - 16], rax
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx]
+    cmp word [rcx], TT_EQ
+    jne peL1
+    
+    add qword [rbx], tok_len
+    mov rcx, [rbx]
+    cmp word [rcx], TT_IDENT
+    je peL2 
+
+    mov rdi, rcx
+    pushmany 0, _ident
+    mov rsi, rsp
+    call syntax_error_expected
+
+    peL2:
+    add qword [rbx], tok_len
+
+    peL1:
 
     leave
     ret

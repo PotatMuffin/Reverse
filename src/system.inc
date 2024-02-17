@@ -90,8 +90,16 @@ macro check_memory required
 {
     mov rax, [memory_pointer]
     add rax, required
-    cmp rax, [memory_end]
+    cmp rax, [memory_text_pointer]
     jg no_memory_error
+}
+
+macro check_memory_text required
+{
+    mov rax, [memory_text_pointer]
+    sub rax, required
+    cmp rax, [memory_pointer]
+    jl no_memory_error
 }
 
 macro linked_list_item item
@@ -165,6 +173,7 @@ init_memory:
     lea rdi, [rax + rcx]
     brk rdi
 
+    mov [memory_text_pointer], rax
     mov [memory_end], rax
     ret
 
@@ -322,7 +331,7 @@ itoa: ; char* iota(long num)
     leave
     ret
 
-contains_char: ; bool contains_char(char** source, char c)
+contains_char: ; bool contains_char(char* source, char c)
     push rbp
     mov rbp, rsp
     sub rsp, 9
@@ -348,6 +357,51 @@ contains_char: ; bool contains_char(char** source, char c)
         jmp loopcontainsstart
 
     containsret:
+    leave
+    ret
+
+copy_all: ; char* copy_all(char* start, char* allowed)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    mov qword [rbp - 24], 0
+
+    copyloop:
+        mov rdi, [rbp - 16]
+        mov rbx, [rbp - 8]
+        mov rax, [rbp - 24]
+        mov rsi, [rbx + rax]
+        call contains_char
+
+        inc qword [rbp - 24]
+
+        cmp al, 1
+        je copyloop
+
+    check_memory_text [rbp - 24]
+    mov rbx, [rbp - 24]
+    sub [memory_text_pointer], rbx
+
+    xor rcx, rcx
+    copyloop2:
+        mov rax, [rbp - 8]
+        mov rbx, [memory_text_pointer]
+
+        mov al, [rax + rcx]
+        mov [rbx + rcx], al
+
+        inc rcx
+
+        cmp rcx, [rbp - 24]
+        jl copyloop2
+
+    mov rbx, [memory_text_pointer]
+    mov byte [rbx + rcx - 1], 0
+
+    mov rax, [memory_text_pointer]
+    mov rbx, [rbp - 24]
     leave
     ret
 

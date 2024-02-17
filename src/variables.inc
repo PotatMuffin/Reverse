@@ -1,6 +1,7 @@
 memory_start dq ?
+memory_pointer dq ? ; memory_pointer grows up toward memory_end
+memory_text_pointer dq ? ; memory_text pointer grows down towards memory_start
 memory_end dq ?
-memory_pointer dq ?
 memory_setting dq ? 
 
 source rq 1
@@ -15,6 +16,8 @@ outfilename db "out.asm",0
 _parenl db '(',0
 _parenr db ')',0
 _int db 'int',0
+_ident db 'identifier',0
+_var db 'var',0
 newline db 10,0
 space db ' ',0
 comma db ',',0
@@ -61,6 +64,9 @@ O_SYNC      = 1052672
 default_open_flags = O_WRONLY + O_CREAT + O_TRUNC
 
 whitespaces db 9, 11, 12, 13, 32, 0
+alfa db "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_",0
+alfanumeric db "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789",0
+digits db "0123456789",0
 
 ; struct token
 ;{
@@ -84,7 +90,10 @@ TT_BRACEL    = 259 ; {
 TT_BRACER    = 260 ; }
 TT_BRACKL    = 261 ; [
 TT_BRACKR    = 262 ; ]
+TT_EQ        = 263 ; =
 TT_INTLIT    = 512
+TT_IDENT     = 768
+TT_KEYWORD   = 769
 TT_NEWLINE   = 1024 ; \n
 
 op_prec db 0, 1, 1, 2, 2
@@ -127,6 +136,7 @@ NODE_ROOT    = 1
 NODE_BINOP   = 2
 NODE_LIT     = 3
 NODE_UNOP    = 4
+NODE_VARDEF  = 5
 
 _rax db 'rax',0
 _eax db 'eax',0
@@ -170,6 +180,6 @@ _segment db 'segment ',0
 _executable db 'readable executable',10,0
 _writeable db 'readable writeable',10,0
 _entry db 'entry $',10,0
-_exit db 'mov rdi, 0', 10
-      db 'mov rax, 60',10
+_exit db 'mov rdi,0', 10
+      db 'mov rax,60',10
       db 'syscall',0

@@ -95,7 +95,7 @@ visit_node_binop: ; char* visit_node_binop(void* node, bool lhs)
 
     cmp byte [rbp - 25], 0
     je vnbL2
-    ; move result of left child into esi if that child is a unop or binop and the current node is on the left hand side
+    ; move result of left child into ecx if that child is a unop or binop and the current node is on the left hand side
     ; of its parent
     mov rbx, [rbp - 8]
     mov rbx, qword [rbx + 2]
@@ -106,7 +106,7 @@ visit_node_binop: ; char* visit_node_binop(void* node, bool lhs)
     jmp vnbL2
 
     vnbl9:
-    mov qword [rbp - 33], _esi
+    mov qword [rbp - 33], _ecx
     fprintmany [outputfd], _mov, [rbp - 33], comma, [rbp - 16], newline
     jmp vnbL1
 
@@ -120,21 +120,21 @@ visit_node_binop: ; char* visit_node_binop(void* node, bool lhs)
     mov sil, 0
     call visit
     mov [rbp - 24], rax
+    ; I think this code is unnecessary for it to work but I am unsure so it's still here as a comment
+    ; cmp byte [rbp - 25], 0
+    ; je vnbL3
 
-    cmp byte [rbp - 25], 0
-    je vnbL3
+    ; mov qword [rbp - 41], _ebx
+    ; jmp vnbL4
 
-    mov qword [rbp - 41], _ebx
-    jmp vnbL4
+    ; vnbL3:
+    ; mov qword [rbp - 41], _ecx
 
-    vnbL3:
-    mov qword [rbp - 41], _ecx
+    ; vnbL4:
+    ; ; move result of right child to ebx or ecx
+    ; fprintmany [outputfd], _mov, [rbp - 41], comma, [rbp - 24], newline
 
-    vnbL4:
-    ; move result of right child to ebx or ecx
-    fprintmany [outputfd], _mov, [rbp - 41], comma, [rbp - 24], newline
-
-    ; move result of left child into eax if it's not already in esi
+    ; move result of left child into eax if it's not already in ecx
     cmp qword [rbp - 33], _eax
     jne vnbL8
     fprintmany [outputfd], _mov, [rbp - 33], comma, [rbp - 16], newline
@@ -155,7 +155,7 @@ visit_node_binop: ; char* visit_node_binop(void* node, bool lhs)
     mov qword [rbp - 49], _imul
     vnbL7:
     
-    fprintmany [outputfd], [rbp - 49], [rbp - 33], comma, [rbp - 41], newline
+    fprintmany [outputfd], [rbp - 49], [rbp - 33], comma, [rbp - 24], newline
 
     mov rax, [rbp - 33]
 
