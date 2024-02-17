@@ -16,8 +16,8 @@ outfilename db "out.asm",0
 _parenl db '(',0
 _parenr db ')',0
 _int db 'int',0
-_ident db 'identifier',0
-_var db 'var',0
+_ident db "identifier",0
+_var db "'var'",0
 newline db 10,0
 space db ' ',0
 comma db ',',0
@@ -26,6 +26,9 @@ suffix db ".",10,0
 lineprefix db "[",0
 linesuffix db "] ",0
 _or db 'or',0
+
+KEYWORDS:
+var db "var",0
 
 default_memory_setting = 1024 * 1024 * 16
 STDIN      = 0
@@ -126,10 +129,19 @@ node_lit_size = 10
 ; struct node_unop
 ; {
 ;   short type
-;   void* op
+;   token* op
 ;   void* node
 ; }
 node_unop_size = 18
+
+;struct node_vardef
+; {
+;   short type
+;   void* value
+;   token* name
+; }
+
+node_vardef_size = 18
 
 node_count = 4
 NODE_ROOT    = 1

@@ -181,7 +181,7 @@ tokenize: ; void* tokenize(char* buf)
     mov r12, [rbp - 28]
     lea rdi, [r11 + r12]
     mov rsi, alfanumeric 
-    call copy_all
+    call copy_chars
     dec rbx
     add qword [rbp - 28], rbx
 

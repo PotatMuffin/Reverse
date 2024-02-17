@@ -53,7 +53,7 @@ parse: ; void parse(token* tokens)
 parse_expr: ; void* parse_expr(token** Ptokens)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 24
     mov [rbp - 8], rdi
 
     mov rdi, [rbp - 8]
@@ -68,6 +68,7 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     
     add qword [rbx], tok_len
     mov rcx, [rbx]
+    mov [rbp - 24], rcx
     cmp word [rcx], TT_IDENT
     je peL2 
 
@@ -78,8 +79,33 @@ parse_expr: ; void* parse_expr(token** Ptokens)
 
     peL2:
     add qword [rbx], tok_len
+    mov rcx, [rbx]
+    cmp word [rcx], TT_IDENT
+    jne peL3
+
+    mov rdi, qword [rcx + 2]
+    mov rsi, var
+    call strcmp
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx]
+
+    cmp al, 0
+    je peL3
+
+    add qword [rbx], tok_len
+    node_vardef [rbp - 16], [rbp - 24]
+    jmp peRet
+
+    peL3:
+    mov rdi, rcx
+    pushmany 0, _var
+    mov rsi, rsp
+    call syntax_error_expected
 
     peL1:
+
+    peRet:
 
     leave
     ret

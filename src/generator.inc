@@ -31,6 +31,7 @@ visit: ; char* visit(void* node, bool lhs)
     mov rbx, [rbp - 8]
     movsx rcx, word [rbx]
     cmp rcx, node_count
+    mov rdi, rcx
     jg unimplemented_node
 
     mov rdi, qword [rbp - 8]

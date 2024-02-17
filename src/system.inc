@@ -159,6 +159,18 @@ macro node_unop op, node
     add [memory_pointer], node_unop_size
 }
 
+macro node_vardef value, name
+{
+    check_memory node_vardef_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_VARDEF
+    mov rbx, value
+    mov qword [rax + 2], rbx
+    mov rbx, name
+    mov qword [rax + 10], rbx
+    add [memory_pointer], node_vardef_size
+}
+
 init_memory:
     brk 0
     mov [memory_start], rax
@@ -360,7 +372,7 @@ contains_char: ; bool contains_char(char* source, char c)
     leave
     ret
 
-copy_all: ; char* copy_all(char* start, char* allowed)
+copy_chars: ; char* copy_chars(char* start, char* allowed)
     push rbp
     mov rbp, rsp
     sub rsp, 24
@@ -402,6 +414,36 @@ copy_all: ; char* copy_all(char* start, char* allowed)
 
     mov rax, [memory_text_pointer]
     mov rbx, [rbp - 24]
+    leave
+    ret
+
+strcmp: ; bool strcmp(char* a, char* b)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    xor rcx, rcx
+    strcmploop:
+        mov rbx, [rbp - 8]
+        mov bl, [rbx + rcx]
+        mov rdx, [rbp - 16]
+        mov dl, [rdx + rcx]
+        cmp bl, dl
+        sete al
+        
+        cmp bl, 0
+        je strcmpRet
+
+        cmp al, 0
+        je strcmpRet
+
+        inc rcx
+        jmp strcmploop
+
+    strcmpRet:
+
     leave
     ret
 
@@ -453,8 +495,11 @@ syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
     seeRet:
     exit_process 1
 unimplemented_node:
+    mov [rbp - 8], rdi
     mov rdi, unimplementednode
     call print
+    mov rdi, [rbp - 8]
+    call display_number
     mov rdi, suffix
     call print
     exit_process 1
