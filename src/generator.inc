@@ -1,15 +1,18 @@
-generate: ; void generate(void* node)
+generate: ; void generate(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 8
+    sub rsp, 16
     mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
 
     open [output], default_open_flags, default_open_mode
     mov [outputfd], rax
 
     fprintmany [outputfd], _format, _segment, _executable, _entry
+    fprintmany [outputfd], _prologue
 
     mov rdi, [rbp - 8]
+    mov rsi, [rbp - 16]
     call visit_node_root
 
     mov rdi, [outputfd]
@@ -21,12 +24,13 @@ generate: ; void generate(void* node)
     leave
     ret
 
-visit: ; char* visit(void* node, bool lhs)
+visit: ; char* visit(void* node, symbol_table* table, bool lhs)
     push rbp
     mov rbp, rsp
-    sub rsp, 9
+    sub rsp, 17
     mov [rbp - 8], rdi
-    mov [rbp - 9], sil
+    mov [rbp - 16], rsi
+    mov [rbp - 17], dl
 
     mov rbx, [rbp - 8]
     movsx rcx, word [rbx]
@@ -35,68 +39,73 @@ visit: ; char* visit(void* node, bool lhs)
     jg unimplemented_node
 
     mov rdi, qword [rbp - 8]
-    mov sil, [rbp - 9]
+    mov rsi, [rbp - 16]
+    mov dl, [rbp - 17]
     mov rax, qword [genlookuptable + rcx * 8]
     call rax
 
     leave 
     ret
 
-visit_node_root: ; char* visit_node_root(void* node)
+visit_node_root: ; char* visit_node_root(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 24
     mov qword [rbp - 8], rdi
+    mov qword [rbp - 16], rsi
 
     mov rbx, qword [rbp - 8]
     cmp qword [rbx + 10], 0
     je vnrRet
 
     mov rbx, qword [rbx + 2]
-    mov qword [rbp - 16], rbx
+    mov qword [rbp - 24], rbx
 
     vnrloop1:
-    mov rbx, qword [rbp - 16]
+    mov rbx, qword [rbp - 24]
     cmp qword [rbx + 8], 0
     je vnrloop2
     mov rbx, qword [rbx + 8]
-    mov qword [rbp - 16], rbx
+    mov qword [rbp - 24], rbx
     jmp vnrloop1
     
     vnrloop2:
 
-    mov rbx, qword [rbp - 16]
+    mov rbx, qword [rbp - 24]
     mov rdi, qword [rbx]
-    mov sil, 1
+    mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
 
-    mov rbx, qword [rbp - 16]
+    mov rbx, qword [rbp - 24]
     cmp qword [rbx + 16], 0
     je vnrRet
     mov rbx, qword [rbx + 16]
-    mov qword [rbp - 16], rbx
+    mov qword [rbp - 24], rbx
     jmp vnrloop2
     
     vnrRet:
     leave
     ret
 
-visit_node_binop: ; char* visit_node_binop(void* node, bool lhs)
+visit_node_binop: ; char* visit_node_binop(void* node, symbol_table* table, bool lhs)
     push rbp
     mov rbp, rsp
-    sub rsp, 49
+    sub rsp, 57
     mov [rbp - 8], rdi
-    mov [rbp - 25], sil
+    mov [rbp - 57], rsi
+    mov [rbp - 25], dl
 
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 2]
-    mov sil, 1
+    mov rsi, [rbp - 57]
+    mov dl, 1
     call visit
     mov [rbp - 16], rax
 
     cmp byte [rbp - 25], 0
     je vnbL2
-    ; move result of left child into ecx if that child is a unop or binop and the current node is on the left hand side
+    ; move result of left child into rsi if that child is a unop or binop and the current node is on the left hand side
     ; of its parent
     mov rbx, [rbp - 8]
     mov rbx, qword [rbx + 2]
@@ -107,39 +116,41 @@ visit_node_binop: ; char* visit_node_binop(void* node, bool lhs)
     jmp vnbL2
 
     vnbl9:
-    mov qword [rbp - 33], _ecx
+    mov qword [rbp - 33], _rsi
     fprintmany [outputfd], _mov, [rbp - 33], comma, [rbp - 16], newline
     jmp vnbL1
 
     vnbL2:
 
-    mov qword [rbp - 33], _eax
+    mov qword [rbp - 33], _rax
     vnbL1:
 
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 18]
-    mov sil, 0
+    mov rsi, [rbp - 57]
+    mov dl, 0
     call visit
     mov [rbp - 24], rax
-    ; I think this code is unnecessary for it to work but I am unsure so it's still here as a comment
-    ; cmp byte [rbp - 25], 0
-    ; je vnbL3
 
-    ; mov qword [rbp - 41], _ebx
-    ; jmp vnbL4
+    cmp byte [rbp - 25], 0
+    je vnbL3
 
-    ; vnbL3:
-    ; mov qword [rbp - 41], _ecx
+    mov qword [rbp - 41], _rdi
+    jmp vnbL4
 
-    ; vnbL4:
-    ; ; move result of right child to ebx or ecx
-    ; fprintmany [outputfd], _mov, [rbp - 41], comma, [rbp - 24], newline
+    vnbL3:
+    mov qword [rbp - 41], _rcx
+    vnbL4:
 
-    ; move result of left child into eax if it's not already in ecx
-    cmp qword [rbp - 33], _eax
+    ; move result of right child to rdi or rcx
+    fprintmany [outputfd], _mov, [rbp - 41], comma, [rbp - 24], newline
+
+    ; move result of left child into rax if it's not already in rsi
+    cmp qword [rbp - 33], _rax
     jne vnbL8
     fprintmany [outputfd], _mov, [rbp - 33], comma, [rbp - 16], newline
     vnbL8:
+
     ; select instruction depending on which operator is given
     mov rbx, [rbp - 8]
     mov rbx, [rbx + 10]
@@ -156,7 +167,7 @@ visit_node_binop: ; char* visit_node_binop(void* node, bool lhs)
     mov qword [rbp - 49], _imul
     vnbL7:
     
-    fprintmany [outputfd], [rbp - 49], [rbp - 33], comma, [rbp - 24], newline
+    fprintmany [outputfd], [rbp - 49], [rbp - 33], comma, [rbp - 41], newline
 
     mov rax, [rbp - 33]
 
@@ -177,22 +188,52 @@ visit_node_lit: ; char* visit_node_lit(void* node)
     leave
     ret
 
-visit_node_unop: ; char* visit_node_unop(void* node)
+visit_node_unop: ; char* visit_node_unop(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 24
     mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
 
     mov rbx, qword [rbp - 8]
     mov rdi, qword [rbx + 10]
-    mov rsi, 1
+    mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
-    mov [rbp - 16], rax
+    mov [rbp - 24], rax
 
-    fprintmany [outputfd], _mov, _eax, comma, [rbp - 16], newline
-    fprintmany [outputfd], _neg, _eax, newline
-    mov rax, _eax
+    fprintmany [outputfd], _mov, _rax, comma, [rbp - 24], newline
+    fprintmany [outputfd], _neg, _rax, newline
+    mov rax, _rax
     
+    leave
+    ret
+
+visit_node_vardef: ; char* visit_node_vardef(void* node, symbol_table* table)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 40
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rdi, qword [rbx + 2]
+    mov rsi, [rbp - 16]
+    mov dl, 1
+    call visit
+    mov [rbp - 24], rax
+
+    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx + 10]
+    call st_get_var_pos
+
+    mov rdi, rax
+    call itoa
+    mov [rbp - 40], rax
+
+    fprintmany [outputfd], _mov, brackl, _rbp, _min, [rbp - 40], brackr, comma, [rbp - 24], newline
+
     leave
     ret
 
@@ -202,3 +243,4 @@ genlookuptable:
     dq visit_node_binop
     dq visit_node_lit
     dq visit_node_unop
+    dq visit_node_vardef

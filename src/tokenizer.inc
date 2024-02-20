@@ -182,7 +182,7 @@ tokenize: ; void* tokenize(char* buf)
     lea rdi, [r11 + r12]
     mov rsi, alfanumeric 
     call copy_chars
-    dec rbx
+    sub rbx, 2
     add qword [rbp - 28], rbx
 
     mov word [r13], TT_IDENT
@@ -192,11 +192,13 @@ tokenize: ; void* tokenize(char* buf)
 
     tokif18:
 
-    mov rdi, lineprefix
+    mov rdi, brackl
     call print
     movsxd rdi, dword [rbp - 12]
     call display_number
-    mov rdi, linesuffix
+    mov rdi, brackr
+    call print
+    mov rdi, space
     call print
 
     mov r11, [rbp - 8]

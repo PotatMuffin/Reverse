@@ -13,8 +13,12 @@ usage_suffix db "Usage: ", 0
 usage db " <source> [output]", 10, 0
 outfilename db "out.asm",0
 
-_parenl db '(',0
-_parenr db ')',0
+_parenl db "'('",0
+_parenr db "')'",0
+parenl db "(",0
+parenr db ")",0
+brackl db "[",0
+brackr db "]",0
 _int db 'int',0
 _ident db "identifier",0
 _var db "'var'",0
@@ -23,10 +27,8 @@ space db ' ',0
 comma db ',',0
 quote db "'",0
 suffix db ".",10,0
-lineprefix db "[",0
-linesuffix db "] ",0
 _or db 'or',0
-
+_min db '-',0
 KEYWORDS:
 var db "var",0
 
@@ -143,12 +145,21 @@ node_unop_size = 18
 
 node_vardef_size = 18
 
-node_count = 4
+node_count = 5
 NODE_ROOT    = 1
 NODE_BINOP   = 2
 NODE_LIT     = 3
 NODE_UNOP    = 4
 NODE_VARDEF  = 5
+
+; struct symbol
+; {
+;   char* name
+;   int pos
+; }
+
+symbol_size = 12
+symbol_table_size = 12
 
 _rax db 'rax',0
 _eax db 'eax',0
@@ -180,12 +191,28 @@ _edi db 'edi',0
 _di db 'di',0,0
 _dil db 'dil',0
 
+_rsp db 'rsp',0
+_esp db 'esp',0
+_sp db 'sp',0,0
+_spl db 'spl',0
+
+_rbp db 'rbp',0
+_ebp db 'ebp',0
+_bp db 'bp',0,0
+_bpl db 'bpl',0
+
 _mov db 'mov ',0
 _add db 'add ',0
 _sub db 'sub ',0
 _imul db 'imul ',0
 _idiv db 'idiv ',0
 _neg db 'neg ',0
+
+_prologue db 'push rbp',10
+          db 'mov rbp, rsp',10,0
+
+_epilogue db 'leave',10
+          db 'ret',10,0
 
 _format db 'format ELF64 executable',10,0
 _segment db 'segment ',0

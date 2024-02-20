@@ -5,6 +5,7 @@ include "system.inc"
 include "tokenizer.inc"
 include "parser.inc"
 include "generator.inc"
+include "symboltable.inc"
 
 entry $
 check_param_count:
@@ -29,8 +30,7 @@ get_params:
 
 main:
     mov rbp, rsp
-    sub rsp, 32
-
+    sub rsp, 40
     call init_memory
     
     open [source], O_RDONLY, 0
@@ -56,6 +56,11 @@ main:
     call display_ast
 
     mov rdi, [rbp - 32]
+    call create_symbol_table
+    mov [rbp - 40], rax
+
+    mov rdi, [rbp - 32]
+    mov rsi, [rbp - 40]
     call generate
 
     exit_process 0

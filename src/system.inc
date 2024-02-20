@@ -56,12 +56,14 @@ macro exit_process code
 
 macro print_tok_pos token
 {
-    mov rdi, lineprefix
+    mov rdi, brackl
     call print
     mov rbx, token
     movsxd rdi, dword [rbx + 10]
     call display_number
-    mov rdi, linesuffix
+    mov rdi, brackr
+    call print
+    mov rdi, space
     call print
 }
 
@@ -111,6 +113,17 @@ macro linked_list_item item
     mov qword [rax + 8], 0 ; next
     mov qword [rax + 16], 0 ; previous
     add [memory_pointer], 24
+}
+
+macro symbol_table table_size
+{
+    mov rbx, table_size
+    imul rbx, symbol_size
+    add rbx, symbol_table_size
+    check_memory rbx
+    mov rax, [memory_pointer]
+    mov qword [rax], table_size
+    add [memory_pointer], rbx
 }
 
 macro node_root
