@@ -44,8 +44,12 @@ quote db "'",0
 suffix db ".",10,0
 _or db 'or',0
 _min db '-',0
-KEYWORDS:
+
 var db "var",0
+
+keywords:
+   dq var
+   dq 0
 
 default_memory_setting = 1024 * 1024 * 16
 STDIN      = 0

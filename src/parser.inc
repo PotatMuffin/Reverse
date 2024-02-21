@@ -84,8 +84,9 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     je peL4
     cmp word [rcx], TT_EOF
     je peL4
-    cmp word [rcx], TT_IDENT
+    cmp word [rcx], TT_KEYWORD
     jne peL3
+
 
     mov rdi, qword [rcx + 2]
     mov rsi, var
@@ -238,7 +239,7 @@ parse_atom: ; void* parse_atom(token** Ptokens)
 
     paL5:
     mov rdi, rbx
-    pushmany 0, _parenl, _int
+    pushmany 0, _parenl, _ident, _int
     mov rsi, rsp
     call syntax_error_expected
 

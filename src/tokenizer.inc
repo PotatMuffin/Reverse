@@ -188,6 +188,11 @@ tokenize: ; void* tokenize(char* buf)
     mov word [r13], TT_IDENT
     mov qword [r13 + 2], rax
 
+    mov rdi, [r13 + 2]
+    call is_keyword
+    movzx ax, al
+    add word [r13], ax
+
     jmp tokloopcontinue
 
     tokif18:

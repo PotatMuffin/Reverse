@@ -541,6 +541,38 @@ strcmp: ; bool strcmp(char* a, char* b)
     leave
     ret
 
+is_keyword: ; bool is_keyword(char* str)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 17
+    mov [rbp - 8], rdi
+    mov qword [rbp - 16], 0 ; i
+    mov byte [rbp - 17], 0 ; is_keyword
+
+    keywordloop:
+        mov rbx, keywords
+        mov rax, [rbp - 16]
+        mov rbx, qword [rbx + rax * 8]
+
+        cmp rbx, 0
+        je keywordloopend
+
+        mov rdi, [rbp - 8]
+        mov rsi, rbx
+        call strcmp
+
+        mov [rbp - 17], al
+        cmp byte [rbp - 17], 1
+        je keywordloopend
+
+        inc qword [rbp - 16]
+        jmp keywordloop
+
+    keywordloopend:
+    mov al, [rbp - 17]
+    leave
+    ret
+
 file_error:
     printmany ERROR, filenotfound, suffix
     exit_process 1
@@ -561,12 +593,11 @@ syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
     push rbp
     mov rbp, rsp
     sub rsp, 24
-
-    printmany ERROR
     mov qword [rbp - 8], rdi
     mov qword [rbp - 16], rsi
     mov qword [rbp - 24], 0
 
+    printmany ERROR
     print_tok_pos [rbp - 8]
     printmany syntaxerrorsuffix, syntaxerrorexpected
 
