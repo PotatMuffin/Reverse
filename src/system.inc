@@ -542,10 +542,10 @@ strcmp: ; bool strcmp(char* a, char* b)
     ret
 
 file_error:
-    printmany _error, filenotfound, suffix
+    printmany ERROR, filenotfound, suffix
     exit_process 1
 no_memory_error:
-    printmany _error, outofmemory, suffix
+    printmany ERROR, outofmemory, suffix
     exit_process 1
 syntax_error_token: ; syntax_error_token(token* token)
     push rbp

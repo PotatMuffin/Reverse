@@ -204,7 +204,7 @@ tokenize: ; void* tokenize(char* buf)
     mov r11, [rbp - 8]
     mov r12, [rbp - 28]
     lea r14, [r11 + r12]
-    printmany _error, illegalchar
+    printmany ERROR, illegalchar
     write STDOUT, r14, 1
     printmany quote, suffix
     exit_process 1
