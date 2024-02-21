@@ -506,7 +506,13 @@ concat_str: ; void concat_str(char* str, char** in)
         jmp concatloop1
 
     concatRet:
-    mov rbx, [rbp - 32]
+    check_memory 1
+    mov rbx, [rbp - 24]
+    add rbx, [rbp - 8]
+    mov byte [rbx], 0
+    inc qword [rbp - 24]
+
+    mov rbx, [rbp - 24]
     add [memory_pointer], rbx
     leave
     ret

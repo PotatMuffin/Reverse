@@ -32,6 +32,7 @@ st_add_var: ; void st_add_var(symbol_table* table, void* node):
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
+
     mov rbx, [rbp - 16]
     mov rbx, qword [rbx + 10]
     mov rdi, qword [rbx + 2]
@@ -39,7 +40,7 @@ st_add_var: ; void st_add_var(symbol_table* table, void* node):
 
     mov rbx, [rbp - 8]
     mov rbx, qword [rbx]
-    cqo
+    xor rdx, rdx
     idiv rbx
     mov [rbp - 24], rdx ; index
 
@@ -73,7 +74,7 @@ st_get_var_pos: ; long st_get_var_pos(symbol_table* table, token* node)
 
     mov rbx, [rbp - 8]
     mov rbx, qword [rbx]
-    cqo
+    xor rdx, rdx
     idiv rbx
     mov [rbp - 24], rdx ; index
 
