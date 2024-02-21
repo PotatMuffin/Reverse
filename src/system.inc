@@ -196,6 +196,16 @@ macro node_varass value, name
     add [memory_pointer], node_varass_size
 }
 
+macro node_var name
+{
+    check_memory node_var_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_VAR
+    mov rbx, name
+    mov qword [rax + 2], rbx
+    add [memory_pointer], node_var_size
+}
+
 init_memory:
     brk 0
     mov [memory_start], rax
@@ -456,6 +466,43 @@ copy_chars: ; char* copy_chars(char* start, char* allowed)
 
     mov rax, [memory_text_pointer]
     mov rbx, [rbp - 24]
+    leave
+    ret
+
+concat_str: ; void concat_str(char* str, char** in)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    mov qword [rbp - 24], 0 ; length
+    mov qword [rbp - 32], 0 ; strcount
+
+    concatloop1:
+        mov rbx, [rbp - 16]
+        mov rax, [rbp - 32]
+        mov rbx, [rbx + rax * 8]
+        cmp rbx, 0
+        je concatRet
+
+        xor rcx, rcx
+        concatloop2:
+            mov dl, [rbx + rcx]
+            cmp dl, 0
+            je concatloop2end
+
+            mov rax, [rbp - 8]
+            add rax, [rbp - 24]
+            mov [rax], dl
+            inc rcx
+            inc qword [rbp - 24]
+            jmp concatloop2
+
+        concatloop2end:
+        inc qword [rbp - 32]
+        jmp concatloop1
+
+    concatRet:
     leave
     ret
 

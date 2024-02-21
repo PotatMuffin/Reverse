@@ -227,7 +227,16 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     ret
 
     paL4:
+    cmp word [rbx], TT_IDENT
+    jne paL5
 
+    node_var rbx
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    leave
+    ret
+
+    paL5:
     mov rdi, rbx
     pushmany 0, _parenl, _int
     mov rsi, rsp

@@ -86,6 +86,33 @@ st_get_var_pos: ; long st_get_var_pos(symbol_table* table, token* node)
     leave
     ret
 
+st_get_var_pos_str: ; char* st_get_var_pos_str(symbol_table* table, token* token)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rdi, [rbp - 8]
+    mov rsi, [rbp - 16]
+    call st_get_var_pos
+
+    mov rdi, rax
+    call itoa
+    mov [rbp - 24], rax
+
+    mov rdi, [memory_pointer]
+    mov [rbp - 32], rdi
+    pushmany 0, brackr, qword [rbp - 24], _min, _rbp, brackl, _qword
+    mov rsi, rsp
+    push rsp
+    call concat_str
+    pop rsp
+
+    mov rax, [rbp - 32]
+    leave
+    ret
+
 create_symbol_table: ; symbol_table* create_symbol_table(node_root* root)
     push rbp
     mov rbp, rsp

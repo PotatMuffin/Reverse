@@ -50,7 +50,7 @@ visit: ; char* visit(void* node, symbol_table* table, bool lhs)
 visit_node_root: ; char* visit_node_root(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 24
+    sub rsp, 32
     mov qword [rbp - 8], rdi
     mov qword [rbp - 16], rsi
 
@@ -70,12 +70,17 @@ visit_node_root: ; char* visit_node_root(void* node, symbol_table* table)
     jmp vnrloop1
     
     vnrloop2:
+    mov rbx, [memory_pointer]
+    mov [rbp - 32], rbx
 
     mov rbx, qword [rbp - 24]
     mov rdi, qword [rbx]
     mov rsi, [rbp - 16]
     mov dl, 1
     call visit
+
+    mov rbx, [rbp - 32]
+    mov [memory_pointer], rbx
 
     mov rbx, qword [rbp - 24]
     cmp qword [rbx + 16], 0
@@ -212,7 +217,7 @@ visit_node_unop: ; char* visit_node_unop(void* node, symbol_table* table)
 visit_node_vardef: ; char* visit_node_vardef(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 40
+    sub rsp, 32
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -226,13 +231,25 @@ visit_node_vardef: ; char* visit_node_vardef(void* node, symbol_table* table)
     mov rdi, [rbp - 16]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 10]
-    call st_get_var_pos
+    call st_get_var_pos_str
+    mov [rbp - 32], rax
 
-    mov rdi, rax
-    call itoa
-    mov [rbp - 40], rax
+    fprintmany [outputfd], _mov, [rbp - 32], comma, [rbp - 24], newline
 
-    fprintmany [outputfd], _mov, brackl, _rbp, _min, [rbp - 40], brackr, comma, [rbp - 24], newline
+    leave
+    ret
+
+visit_node_var: ; char* visit_node_var(void* node symbol_table* table)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx + 2]
+    call st_get_var_pos_str
 
     leave
     ret
@@ -245,3 +262,4 @@ genlookuptable:
     dq visit_node_unop
     dq visit_node_vardef
     dq visit_node_vardef
+    dq visit_node_var

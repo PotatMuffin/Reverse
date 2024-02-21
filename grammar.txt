@@ -13,3 +13,4 @@
 [atom]          : int_lit
                 : ([bin_expr])
                 : -[atom]
+                : ident

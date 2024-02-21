@@ -13,6 +13,21 @@ usage_suffix db "Usage: ", 0
 usage db " <source> [output]", 10, 0
 outfilename db "out.asm",0
 
+LOGINFO  = 0
+LOGNOTE  = 1
+LOGWARN  = 2
+LOGERROR = 3
+
+log_message:
+info db "[INFO] ",0,0
+note db "[NOTE] ",0,0
+WARN db "[WARN] ",0,0
+ERROR db "[ERROR] ",0 
+
+_tokenizing db "Tokenizing file",10,0
+_parsing db "Parsing file",10,0
+_generating db "Generating assembly",10,0
+
 _parenl db "'('",0
 _parenr db "')'",0
 parenl db "(",0
@@ -152,13 +167,21 @@ node_vardef_size = 18
 ; }
 node_varass_size = 18
 
-node_count = 6
+; struct node_var
+; {
+;   short type
+;   token* name
+; }
+node_var_size = 10
+
+node_count  = 7
 NODE_ROOT   = 1
 NODE_BINOP  = 2
 NODE_LIT    = 3
 NODE_UNOP   = 4
 NODE_VARDEF = 5
 NODE_VARASS = 6
+NODE_VAR    = 7
 
 ; struct symbol
 ; {
@@ -215,6 +238,11 @@ _sub db 'sub ',0
 _imul db 'imul ',0
 _idiv db 'idiv ',0
 _neg db 'neg ',0
+
+_qword db "qword ",0
+_dword db "dword ",0
+_word db "word ",0
+_byte db "byte ",0
 
 _prologue db 'push rbp',10
           db 'mov rbp, rsp',10,0
