@@ -80,6 +80,10 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     peL2:
     add qword [rbx], tok_len
     mov rcx, [rbx]
+    cmp word [rcx], TT_NEWLINE
+    je peL4
+    cmp word [rcx], TT_EOF
+    je peL4
     cmp word [rcx], TT_IDENT
     jne peL3
 
@@ -87,25 +91,28 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     mov rsi, var
     call strcmp
 
-    mov rbx, [rbp - 8]
-    mov rcx, [rbx]
-
     cmp al, 0
     je peL3
 
+    mov rbx, [rbp - 8]
     add qword [rbx], tok_len
     node_vardef [rbp - 16], [rbp - 24]
-    jmp peRet
+    leave
+    ret
 
     peL3:
-    mov rdi, rcx
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx]
     pushmany 0, _var
     mov rsi, rsp
     call syntax_error_expected
 
-    peL1:
+    peL4:
+    node_varass [rbp - 16], [rbp - 24]
+    leave
+    ret
 
-    peRet:
+    peL1:
 
     leave
     ret

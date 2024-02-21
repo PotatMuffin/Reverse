@@ -142,15 +142,23 @@ node_unop_size = 18
 ;   void* value
 ;   token* name
 ; }
-
 node_vardef_size = 18
 
-node_count = 5
-NODE_ROOT    = 1
-NODE_BINOP   = 2
-NODE_LIT     = 3
-NODE_UNOP    = 4
-NODE_VARDEF  = 5
+; struct node_varass
+; {
+;   short type
+;   void* value
+;   token* name
+; }
+node_varass_size = 18
+
+node_count = 6
+NODE_ROOT   = 1
+NODE_BINOP  = 2
+NODE_LIT    = 3
+NODE_UNOP   = 4
+NODE_VARDEF = 5
+NODE_VARASS = 6
 
 ; struct symbol
 ; {

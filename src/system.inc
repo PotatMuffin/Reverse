@@ -184,6 +184,18 @@ macro node_vardef value, name
     add [memory_pointer], node_vardef_size
 }
 
+macro node_varass value, name
+{
+    check_memory node_varass_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_VARASS
+    mov rbx, value
+    mov qword [rax + 2], rbx
+    mov rbx, name
+    mov qword [rax + 10], rbx
+    add [memory_pointer], node_varass_size
+}
+
 init_memory:
     brk 0
     mov [memory_start], rax

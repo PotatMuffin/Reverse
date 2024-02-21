@@ -244,3 +244,4 @@ genlookuptable:
     dq visit_node_lit
     dq visit_node_unop
     dq visit_node_vardef
+    dq visit_node_vardef
