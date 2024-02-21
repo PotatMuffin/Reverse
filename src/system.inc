@@ -257,6 +257,23 @@ fprint: ; void fprint(long fd, char* ptr)
     leave
     ret
 
+log: ; void log(long level, char* message):
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    imul rbx, 9
+    lea rdi, [log_message + rbx]
+    call print
+    mov rdi, [rbp - 16]
+    call print
+
+    leave
+    ret
+
 print: ; void print(char* ptr)
     xor rdx, rdx
     mov rsi, rdi
@@ -326,7 +343,7 @@ itoa: ; char* iota(long num)
     mov rbp, rsp
     sub rsp, 17
     mov [rbp - 8], rdi
-    add [memory_pointer], 20
+    add [memory_pointer], 24
     mov rbx, [memory_pointer]
     mov qword [rbp - 16], rbx
 

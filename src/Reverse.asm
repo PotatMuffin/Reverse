@@ -45,19 +45,32 @@ main:
 
     close [rbp - 8]
 
+    mov rdi, LOGINFO
+    mov rsi, _tokenizing
+    call log
+
     mov rdi, [rbp - 16]
     call tokenize
     mov [rbp - 24], rax
+
+    mov rdi, LOGINFO
+    mov rsi, _parsing
+    call log
+
     mov rdi, [rbp - 24]
     call parse
     mov [rbp - 32], rax
 
-    mov rdi, [rbp - 32]
-    call display_ast
+    ; mov rdi, [rbp - 32]
+    ; call display_ast
 
     mov rdi, [rbp - 32]
     call create_symbol_table
     mov [rbp - 40], rax
+
+    mov rdi, LOGINFO
+    mov rsi, _generating
+    call log
 
     mov rdi, [rbp - 32]
     mov rsi, [rbp - 40]
