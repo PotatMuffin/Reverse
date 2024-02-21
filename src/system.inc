@@ -353,6 +353,7 @@ itoa: ; char* iota(long num)
     mov rbp, rsp
     sub rsp, 17
     mov [rbp - 8], rdi
+    check_memory 24
     add [memory_pointer], 24
     mov rbx, [memory_pointer]
     mov qword [rbp - 16], rbx
@@ -487,6 +488,8 @@ concat_str: ; void concat_str(char* str, char** in)
 
         xor rcx, rcx
         concatloop2:
+            check_memory 1
+
             mov dl, [rbx + rcx]
             cmp dl, 0
             je concatloop2end
@@ -503,6 +506,8 @@ concat_str: ; void concat_str(char* str, char** in)
         jmp concatloop1
 
     concatRet:
+    mov rbx, [rbp - 32]
+    add [memory_pointer], rbx
     leave
     ret
 
