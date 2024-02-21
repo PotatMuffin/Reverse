@@ -275,7 +275,7 @@ log: ; void log(long level, char* message):
     mov [rbp - 16], rsi
 
     mov rbx, [rbp - 8]
-    imul rbx, 9
+    imul rbx, 10
     lea rdi, [log_message + rbx]
     call print
     mov rdi, [rbp - 16]
@@ -552,6 +552,8 @@ syntax_error_token: ; syntax_error_token(token* token)
     mov rbp, rsp
     sub rsp, 8
     mov qword [rbp - 8], rdi
+
+    printmany ERROR
     print_tok_pos [rbp - 8]
     printmany syntaxerrorsuffix, syntaxerrortoken, suffix
     exit_process 1
@@ -559,6 +561,8 @@ syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
     push rbp
     mov rbp, rsp
     sub rsp, 24
+
+    printmany ERROR
     mov qword [rbp - 8], rdi
     mov qword [rbp - 16], rsi
     mov qword [rbp - 24], 0
@@ -590,8 +594,7 @@ syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
     exit_process 1
 unimplemented_node:
     mov [rbp - 8], rdi
-    mov rdi, unimplementednode
-    call print
+    printmany ERROR, unimplementednode
     mov rdi, [rbp - 8]
     call display_number
     mov rdi, suffix
