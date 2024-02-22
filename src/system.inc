@@ -637,3 +637,6 @@ unimplemented_node:
     mov rdi, suffix
     call print
     exit_process 1
+unimplemented_op:
+    printmany ERROR, unimplementedop, suffix
+    exit_process 1

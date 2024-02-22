@@ -162,15 +162,34 @@ visit_node_binop: ; char* visit_node_binop(void* node, symbol_table* table, bool
     cmp word [rbx], TT_PLUS
     jne vnbL5    
     mov qword [rbp - 49], _add
-    jmp vnbL7
+    jmp vnbL10
     vnbL5:
     cmp word [rbx], TT_MIN
     jne vnbL6
     mov qword [rbp - 49], _sub
-    jmp vnbL7
+    jmp vnbL10
     vnbL6:
+    cmp word [rbx], TT_STAR
+    jne vnbL7
     mov qword [rbp - 49], _imul
+    jmp vnbL10
     vnbL7:
+    cmp word [rbx], TT_FSLASH
+    jne unimplemented_op
+
+    cmp qword [rbp - 33], _rax
+    je vnbL11
+
+    fprintmany [outputfd], _mov, _rax, comma, [rbp - 33], newline 
+    vnbL11:
+
+    fprintmany [outputfd], _cqo,newline
+    fprintmany [outputfd], _idiv, [rbp - 41], newline
+    mov rax, _rax
+    leave 
+    ret
+
+    vnbL10:
     
     fprintmany [outputfd], [rbp - 49], [rbp - 33], comma, [rbp - 41], newline
 

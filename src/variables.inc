@@ -240,6 +240,7 @@ _mov db 'mov ',0
 _add db 'add ',0
 _sub db 'sub ',0
 _imul db 'imul ',0
+_cqo db 'cqo',0
 _idiv db 'idiv ',0
 _neg db 'neg ',0
 
