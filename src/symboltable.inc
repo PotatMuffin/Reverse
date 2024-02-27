@@ -28,13 +28,15 @@ hash: ; ulong hash(char* str)
 st_add_var: ; void st_add_var(symbol_table* table, void* node):
     push rbp
     mov rbp, rsp
-    sub rsp, 24
+    sub rsp, 32
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
-
     mov rbx, [rbp - 16]
     mov rbx, qword [rbx + 10]
+    mov [rbp - 32], rbx
+    
+    mov rbx, [rbp - 32]
     mov rdi, qword [rbx + 2]
     call hash
 
@@ -43,7 +45,31 @@ st_add_var: ; void st_add_var(symbol_table* table, void* node):
     xor rdx, rdx
     idiv rbx
     mov [rbp - 24], rdx ; index
+    ; TODO: this will become an infinite loop if the entire table is full
+    tryaddvar:
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 24]
+    imul rcx, symbol_size
+    mov rax, [rbx + rcx + symbol_table_size]
+    cmp rax, 0
+    je addvar
 
+    mov rdi, rax
+    mov rbx, [rbp - 32]
+    mov rsi, [rbx + 2]
+    call strcmp
+    movzx rax, al
+
+    add qword [rbp - 24], 1
+    sub qword [rbp - 24], rax
+    
+    cmp al, 0
+    je tryaddvar
+
+    mov rdi, [rbp - 32]
+    call name_error_var_defined
+
+    addvar:
     mov rbx, [rbp - 8]
     mov rcx, [rbp - 24]
     imul rcx, symbol_size
@@ -56,7 +82,6 @@ st_add_var: ; void st_add_var(symbol_table* table, void* node):
     add dword [rbx + 8], 8
     mov eax, dword [rbx + 8]
     mov dword [rbx + rcx + symbol_table_size + 8], eax
-
     leave
     ret
 
@@ -67,7 +92,6 @@ st_get_var_pos: ; long st_get_var_pos(symbol_table* table, token* node)
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
     
-
     mov rbx, [rbp - 16]
     mov rdi, qword [rbx + 2]
     call hash
@@ -77,13 +101,33 @@ st_get_var_pos: ; long st_get_var_pos(symbol_table* table, token* node)
     xor rdx, rdx
     idiv rbx
     mov [rbp - 24], rdx ; index
-
+    ; TODO: this will become an infinite loop if the entire table is full
+    trygetvar:
     mov rbx, [rbp - 8]
     mov rcx, [rbp - 24]
     imul rcx, symbol_size
 
-    mov eax, dword [rbx + rcx + symbol_table_size + 8]
+    mov rax, [rbx + rcx + symbol_table_size]
+    cmp rax, 0
+    je getvarRet
 
+    mov rdi, rax
+    mov rbx, [rbp - 16]
+    mov rsi, [rbx + 2]
+    call strcmp
+    movzx rax, al
+    
+    add qword [rbp - 24], 1
+    sub qword [rbp - 24], rax
+
+    cmp al, 0
+    je trygetvar
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 24]
+    imul rcx, symbol_size
+    mov eax, dword [rbx + rcx + symbol_table_size + 8]
+    getvarRet:
     leave
     ret
 

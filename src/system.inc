@@ -275,8 +275,7 @@ log: ; void log(long level, char* message):
     mov [rbp - 16], rsi
 
     mov rbx, [rbp - 8]
-    imul rbx, 10
-    lea rdi, [log_message + rbx]
+    lea rdi, [log_message + rbx * 9]
     call print
     mov rdi, [rbp - 16]
     call print
@@ -585,8 +584,25 @@ file_error:
 no_memory_error:
     printmany ERROR, outofmemory, suffix
     exit_process 1
+name_error_var_defined: ; void name_error_var_defined(token* token)
+    mov rbp, rsp
+    sub rsp, 8
+    mov [rbp - 8], rdi
+
+    mov rdi, ERROR
+    call print
+    print_tok_pos [rbp - 8]
+
+    printmany nameerrorsuffix, vardefinedsuffix
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    call print
+
+    printmany vardefinedprefix, suffix
+
+    exit_process 1
 syntax_error_token: ; syntax_error_token(token* token)
-    push rbp
     mov rbp, rsp
     sub rsp, 8
     mov qword [rbp - 8], rdi
@@ -596,7 +612,6 @@ syntax_error_token: ; syntax_error_token(token* token)
     printmany syntaxerrorsuffix, syntaxerrortoken, suffix
     exit_process 1
 syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
-    push rbp
     mov rbp, rsp
     sub rsp, 24
     mov qword [rbp - 8], rdi
@@ -630,6 +645,8 @@ syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
     seeRet:
     exit_process 1
 unimplemented_node:
+    mov rbp, rsp
+    sub rsp, 8
     mov [rbp - 8], rdi
     printmany ERROR, unimplementednode
     mov rdi, [rbp - 8]

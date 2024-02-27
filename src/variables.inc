@@ -19,10 +19,10 @@ LOGWARN  = 2
 LOGERROR = 3
 
 log_message:
-info db "[INFO]: ",0,0
-note db "[NOTE]: ",0,0
-WARN db "[WARN]: ",0,0
-ERROR db "[ERROR]: ",0 
+info db "[INFO] ",0,0
+note db "[NOTE] ",0,0
+WARN db "[WARN] ",0,0
+ERROR db "[ERROR] ",0 
 
 _tokenizing db "Tokenizing file",10,0
 _parsing db "Parsing file",10,0
