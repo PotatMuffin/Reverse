@@ -593,14 +593,26 @@ name_error_var_defined: ; void name_error_var_defined(token* token)
     call print
     print_tok_pos [rbp - 8]
 
-    printmany nameerrorsuffix, vardefinedsuffix
-
+    printmany nameerrorprefix, varprefix
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     call print
+    printmany vardefined, suffix
+    exit_process 1
+name_error_var_undefined:
+    mov rbp, rsp
+    sub rsp, 8
+    mov [rbp - 8], rdi
 
-    printmany vardefinedprefix, suffix
+    mov rdi, ERROR
+    call print
+    print_tok_pos [rbp - 8]
 
+    printmany nameerrorprefix, varprefix
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    call print
+    printmany varnotdefined, suffix
     exit_process 1
 syntax_error_token: ; syntax_error_token(token* token)
     mov rbp, rsp
@@ -609,7 +621,7 @@ syntax_error_token: ; syntax_error_token(token* token)
 
     printmany ERROR
     print_tok_pos [rbp - 8]
-    printmany syntaxerrorsuffix, syntaxerrortoken, suffix
+    printmany syntaxerrorprefix, syntaxerrortoken, suffix
     exit_process 1
 syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
     mov rbp, rsp
@@ -620,7 +632,7 @@ syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
 
     printmany ERROR
     print_tok_pos [rbp - 8]
-    printmany syntaxerrorsuffix, syntaxerrorexpected
+    printmany syntaxerrorprefix, syntaxerrorexpected
 
     seeloop:
         mov rbx, qword [rbp - 16]

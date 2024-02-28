@@ -33,7 +33,7 @@ visit: ; char* visit(void* node, symbol_table* table, bool lhs)
     mov [rbp - 17], dl
 
     mov rbx, [rbp - 8]
-    movsx rcx, word [rbx]
+    movzx rcx, word [rbx]
     cmp rcx, node_count
     mov rdi, rcx
     jg unimplemented_node
