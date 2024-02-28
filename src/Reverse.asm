@@ -4,8 +4,9 @@ segment readable executable
 include "system.inc"
 include "tokenizer.inc"
 include "parser.inc"
-include "generator.inc"
 include "symboltable.inc"
+include "validator.inc"
+include "generator.inc"
 
 entry $
 check_param_count:
@@ -64,9 +65,12 @@ main:
     ; mov rdi, [rbp - 32]
     ; call display_ast
 
-    mov rdi, [rbp - 32]
-    call create_symbol_table
+    symbol_table 10000h
     mov [rbp - 40], rax
+
+    mov rdi, [rbp - 32]
+    mov rsi, [rbp - 40]
+    call validate_prog
 
     mov rdi, LOGINFO
     mov rsi, _generating
