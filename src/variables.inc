@@ -37,6 +37,7 @@ brackr db "]",0
 _int db 'int',0
 _ident db "identifier",0
 _var db "'var'",0
+_if db "'if'",0
 newline db 10,0
 space db ' ',0
 comma db ',',0
@@ -46,9 +47,11 @@ _or db 'or',0
 _min db '-',0
 
 var db "var",0
+if_ db "if",0
 
 keywords:
    dq var
+   dq if_
    dq 0
 
 default_memory_setting = 1024 * 1024 * 16
@@ -88,8 +91,8 @@ O_SYNC      = 1052672
 default_open_flags = O_WRONLY + O_CREAT + O_TRUNC
 
 whitespaces db 9, 11, 12, 13, 32, 0
-alfa db "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_",0
-alfanumeric db "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789",0
+alpha db "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_",0
+alphanumeric db "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789",0
 digits db "0123456789",0
 
 ; struct token

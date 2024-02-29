@@ -58,7 +58,8 @@ main:
     mov rsi, _parsing
     call log
 
-    mov rdi, [rbp - 24]
+    lea rdi, [rbp - 24]
+    mov si, TT_EOF
     call parse
     mov [rbp - 32], rax
 

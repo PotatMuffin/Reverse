@@ -1,7 +1,17 @@
 [program]       : [expr]*
 
-[expr]          : [bin_expr]
-                : [bin_expr] = ident var
+[expr]          : [scope_expr]
+                : [bin_expr]
+                : [var_expr]
+
+[scope_expr]    : [scope]
+                : [if_expr]
+
+[scope]         : { [program] }
+
+[if_expr]       : [scope] [bin_expr] if
+
+[var_expr]      : [bin_expr] = ident var
                 : [bin_expr] = ident
 
 [bin_expr]      : [bin_expr] * [bin_expr] | prec = 2

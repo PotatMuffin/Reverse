@@ -1,4 +1,4 @@
-outofmemory db "out of memory",0
+outofmemory db "Out of memory",0
 filenotfound db "Source file not found",0
 illegalchar db "Illegal Char '",0
 syntaxerrorprefix db "Syntax Error: ",0

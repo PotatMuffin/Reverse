@@ -171,7 +171,7 @@ tokenize: ; void* tokenize(char* buf)
     jmp tokloopcontinue
 
     tokif17:
-    mov rdi, alfa
+    mov rdi, alpha
     mov sil, byte [rbp - 29]
     call contains_char
     cmp al, 0
@@ -180,7 +180,7 @@ tokenize: ; void* tokenize(char* buf)
     mov r11, [rbp - 8]
     mov r12, [rbp - 28]
     lea rdi, [r11 + r12]
-    mov rsi, alfanumeric 
+    mov rsi, alphanumeric 
     call copy_chars
     sub rbx, 2
     add qword [rbp - 28], rbx

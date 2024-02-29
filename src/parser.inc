@@ -1,8 +1,9 @@
-parse: ; void parse(token* tokens)
+parse: ; void parse(token** tokens, short EOF)
     push rbp
     mov rbp, rsp
-    sub rsp, 24
+    sub rsp, 26
     mov [rbp - 8], rdi
+    mov [rbp - 26], si
 
     node_root
     mov [rbp - 16], rax
@@ -10,17 +11,21 @@ parse: ; void parse(token* tokens)
     parseloop1:
         parseloop2:
             mov rbx, [rbp - 8]
+            mov rbx, [rbx]
             cmp word [rbx], TT_NEWLINE
             jne L5
-            add qword [rbp - 8], tok_len
+            mov rbx, [rbp - 8]
+            add qword [rbx], tok_len
             jmp parseloop2
         L5:
 
         mov rbx, [rbp - 8]
-        cmp word [rbx], TT_EOF
+        mov rbx, [rbx]
+        mov ax, word [rbp - 26]
+        cmp word [rbx], ax
         je parseret
         
-        lea rdi, qword [rbp - 8]
+        mov rdi, qword [rbp - 8]
         call parse_expr
         mov [rbp - 24], rax
 
@@ -36,12 +41,15 @@ parse: ; void parse(token* tokens)
         inc qword [rbx + 10]
 
         mov rbx, [rbp - 8]
+        mov rbx, [rbx]
         cmp word [rbx], TT_NEWLINE
         je parseloop1
-        cmp word [rbx], TT_EOF
+        mov ax, word [rbp - 26]
+        cmp word [rbx], ax
         je parseret
 
-        mov rdi, [rbp - 8]
+        mov rbx, [rbp - 8]
+        mov rdi, [rbx]
         jmp syntax_error_token
 
     parseret:
@@ -56,6 +64,19 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     sub rsp, 24
     mov [rbp - 8], rdi
 
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_BRACEL
+    jne peL1
+
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    call parse_scope_expr
+    leave
+    ret
+
+    peL1:
+    
     mov rdi, [rbp - 8]
     mov sil, 0
     call parse_bin_expr
@@ -64,28 +85,63 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     mov rbx, [rbp - 8]
     mov rcx, [rbx]
     cmp word [rcx], TT_EQ
-    jne peL1
+    jne peL2
     
     add qword [rbx], tok_len
+    mov rdi, [rbp - 8]
+    mov rsi, [rbp - 16]
+    call parse_var_expr
+
+    peL2:
+
+    leave
+    ret
+
+parse_scope_expr: ; void* parse_scope_expr(token** Ptokens)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+
+    mov rdi, [rbp - 8]
+    mov si, TT_BRACER
+    call parse
+    mov [rbp - 16], rax
+
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+
+    mov rax, [rbp - 16]
+    leave
+    ret
+
+parse_var_expr: ; void* parse_bin_expr(token** Ptokens, void* value)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
     mov rcx, [rbx]
     mov [rbp - 24], rcx
     cmp word [rcx], TT_IDENT
-    je peL2 
+    je pveL1
 
     mov rdi, rcx
     pushmany 0, _ident
     mov rsi, rsp
     call syntax_error_expected
 
-    peL2:
+    pveL1:
     add qword [rbx], tok_len
     mov rcx, [rbx]
     cmp word [rcx], TT_NEWLINE
-    je peL4
+    je pveL3
     cmp word [rcx], TT_EOF
-    je peL4
+    je pveL3
     cmp word [rcx], TT_KEYWORD
-    jne peL3
+    jne pveL2
 
 
     mov rdi, qword [rcx + 2]
@@ -93,7 +149,7 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     call strcmp
 
     cmp al, 0
-    je peL3
+    je pveL2
 
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
@@ -101,20 +157,15 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     leave
     ret
 
-    peL3:
+    pveL2:
     mov rbx, [rbp - 8]
     mov rdi, [rbx]
     pushmany 0, _var
     mov rsi, rsp
     call syntax_error_expected
 
-    peL4:
+    pveL3:
     node_varass [rbp - 16], [rbp - 24]
-    leave
-    ret
-
-    peL1:
-
     leave
     ret
 
