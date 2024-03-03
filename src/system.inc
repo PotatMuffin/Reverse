@@ -206,6 +206,18 @@ macro node_var name
     add [memory_pointer], node_var_size
 }
 
+macro node_if condition, scope
+{
+    check_memory node_if_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_IF
+    mov rbx, condition
+    mov qword [rax + 2], rbx
+    mov rbx, scope
+    mov qword [rax + 10], rbx
+    add [memory_pointer], node_if_size
+}
+
 init_memory:
     brk 0
     mov [memory_start], rax

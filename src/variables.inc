@@ -8,6 +8,8 @@ source rq 1
 output rq 1
 outputfd rq 1
 
+if_label dq 1
+
 stat rb 144
 usage_suffix db "Usage: ", 0
 usage db " <source> [output]", 10, 0
@@ -41,10 +43,12 @@ _if db "'if'",0
 newline db 10,0
 space db ' ',0
 comma db ',',0
+semi db ':',0
 quote db "'",0
 suffix db ".",10,0
 _or db 'or',0
 _min db '-',0
+zero db '0',0
 
 var db "var",0
 if_ db "if",0
@@ -181,7 +185,15 @@ node_varass_size = 18
 ; }
 node_var_size = 10
 
-node_count  = 7
+; struct node_if
+; {
+;   short type
+;   void* condition
+;   void* scope
+; }
+node_if_size = 18
+
+node_count  = 8
 NODE_ROOT   = 1
 NODE_BINOP  = 2
 NODE_LIT    = 3
@@ -189,6 +201,7 @@ NODE_UNOP   = 4
 NODE_VARDEF = 5
 NODE_VARASS = 6
 NODE_VAR    = 7
+NODE_IF     = 8
 
 ; struct symbol
 ; {
@@ -246,6 +259,9 @@ _imul db 'imul ',0
 _cqo db 'cqo',0
 _idiv db 'idiv ',0
 _neg db 'neg ',0
+_cmp db 'cmp ',0
+_je db 'je ',0
+_jne db 'jne ',0
 
 _qword db "qword ",0
 _dword db "dword ",0

@@ -258,7 +258,7 @@ visit_node_vardef: ; char* visit_node_vardef(void* node, symbol_table* table)
     leave
     ret
 
-visit_node_var: ; char* visit_node_var(void* node symbol_table* table)
+visit_node_var: ; char* visit_node_var(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
     sub rsp, 16
@@ -273,6 +273,37 @@ visit_node_var: ; char* visit_node_var(void* node symbol_table* table)
     leave
     ret
 
+visit_node_if: ; char* visit_node_if(void* node, symbol_table* table)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rdi, [if_label]
+    call itoa
+    mov [rbp - 24], rax
+    inc qword [if_label]
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rsi, [rbp - 16]
+    call visit
+    mov [rbp - 32], rax
+
+    fprintmany [outputfd], _cmp, [rbp - 32], comma, zero, newline
+    fprintmany [outputfd], _je, if_, [rbp - 24], newline
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    call visit
+
+    fprintmany [outputfd], if_, [rbp - 24], semi, newline
+
+    leave
+    ret
+
 genlookuptable:
     dq 0
     dq visit_node_root
@@ -282,3 +313,4 @@ genlookuptable:
     dq visit_node_vardef
     dq visit_node_vardef
     dq visit_node_var
+    dq visit_node_if
