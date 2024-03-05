@@ -32,6 +32,8 @@ _generating db "Generating assembly",10,0
 
 _parenl db "'('",0
 _parenr db "')'",0
+_bracel db "'{'",0
+_bracer db "'}'",0
 parenl db "(",0
 parenr db ")",0
 brackl db "[",0
@@ -40,6 +42,7 @@ _int db 'int',0
 _ident db "identifier",0
 _var db "'var'",0
 _if db "'if'",0
+_if_expr db "if expr",0
 newline db 10,0
 space db ' ',0
 comma db ',',0
@@ -52,10 +55,12 @@ zero db '0',0
 
 var db "var",0
 if_ db "if",0
+else_ db "else",0
 
 keywords:
    dq var
    dq if_
+   dq else_
    dq 0
 
 default_memory_setting = 1024 * 1024 * 16
@@ -190,8 +195,9 @@ node_var_size = 10
 ;   short type
 ;   void* condition
 ;   void* scope
+;   void* else_scope
 ; }
-node_if_size = 18
+node_if_size = 26
 
 node_count  = 8
 NODE_ROOT   = 1
@@ -260,6 +266,7 @@ _cqo db 'cqo',0
 _idiv db 'idiv ',0
 _neg db 'neg ',0
 _cmp db 'cmp ',0
+_jmp db 'jmp ',0
 _je db 'je ',0
 _jne db 'jne ',0
 

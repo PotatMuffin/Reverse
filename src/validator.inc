@@ -198,6 +198,17 @@ valvisit_node_if: ; void valvisit_node_if(void* node, symbol_table* table)
     mov rsi, [rbp - 16]
     call valvisit
 
+
+    mov rbx, [rbp - 8]
+    cmp qword [rbx + 18],0
+    je vvniL1
+    
+    mov rdi, [rbx + 18]
+    mov rsi, [rbp - 16]
+    call valvisit
+
+    vvniL1:
+
     leave
     ret
 

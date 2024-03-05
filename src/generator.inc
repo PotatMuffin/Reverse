@@ -276,7 +276,7 @@ visit_node_var: ; char* visit_node_var(void* node, symbol_table* table)
 visit_node_if: ; char* visit_node_if(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 32
+    sub rsp, 40
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -284,6 +284,16 @@ visit_node_if: ; char* visit_node_if(void* node, symbol_table* table)
     call itoa
     mov [rbp - 24], rax
     inc qword [if_label]
+
+    mov rbx, [rbp - 8]
+    cmp qword [rbx + 18], 0
+    je vniL1
+
+    mov rdi, [if_label]
+    call itoa
+    mov [rbp - 40], rax
+    inc qword [if_label]
+    vniL1:
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
@@ -299,7 +309,28 @@ visit_node_if: ; char* visit_node_if(void* node, symbol_table* table)
     mov rsi, [rbp - 16]
     call visit
 
+    mov rbx, [rbp - 8]
+    cmp qword [rbx + 18], 0
+    je vniL2
+
+    fprintmany [outputfd], _jmp, if_, [rbp - 40], newline
+
+    vniL2:
+
     fprintmany [outputfd], if_, [rbp - 24], semi, newline
+
+    mov rbx, [rbp - 8]
+    cmp qword [rbx + 18], 0
+    je vniL3
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 18]
+    mov rsi, [rbp - 16]
+    call visit
+
+    fprintmany [outputfd], if_, [rbp - 40], semi, newline
+
+    vniL3:
 
     leave
     ret

@@ -215,6 +215,7 @@ macro node_if condition, scope
     mov qword [rax + 2], rbx
     mov rbx, scope
     mov qword [rax + 10], rbx
+    mov qword [rax + 18], 0
     add [memory_pointer], node_if_size
 }
 

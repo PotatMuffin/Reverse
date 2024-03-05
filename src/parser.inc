@@ -112,6 +112,26 @@ parse_scope_expr: ; void* parse_scope_expr(token** Ptokens)
     add qword [rbx], tok_len
 
     mov rcx, [rbx]
+    cmp word [rcx], TT_KEYWORD
+    jne pseL2
+    mov rdi, [rcx + 2]
+    mov rsi, else_
+    call strcmp
+    cmp al, 0
+    je pseL2
+
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+
+    mov rdi, [rbp - 8]
+    mov rsi, [rbp - 16]
+    call parse_else_expr
+    leave
+    ret
+
+    pseL2:
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx]
     cmp word [rcx], TT_PARENL
     jne pseL1
     add qword [rbx], tok_len
@@ -127,7 +147,60 @@ parse_scope_expr: ; void* parse_scope_expr(token** Ptokens)
     leave
     ret
 
-parse_if_expr: ; void* parse_bin_expr(token** Ptokens, void* scope)
+parse_else_expr: ; void* parse_else_expr(token** Ptokens, void* scope)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    peeloop:
+        mov rbx, [rbp - 8]
+        mov rcx, [rbx]
+        cmp word [rcx], TT_NEWLINE
+        jne peeloopend
+        add qword [rbx], tok_len
+        jmp peeloop
+    peeloopend:
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_BRACEL
+    je peeL1
+
+    mov rdi, rbx
+    pushmany 0, _bracel
+    mov rsi, rsp
+    call syntax_error_expected
+
+    peeL1:
+
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+
+    mov rdi, [rbp - 8]
+    call parse_scope_expr
+    mov [rbp - 24], rax
+
+    mov rbx, [rbp - 24]
+    cmp word [rbx], NODE_IF
+    je peeL2
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx]
+    pushmany 0, _if
+    mov rsi, rsp
+    call syntax_error_expected
+
+    peeL2:
+
+    mov rax, [rbp - 24]
+    mov rbx, [rbp - 16]
+    mov [rax + 18], rbx
+    leave
+    ret
+
+parse_if_expr: ; void* parse_if_expr(token** Ptokens, void* scope)
     push rbp
     mov rbp, rsp
     sub rsp, 24
