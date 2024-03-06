@@ -219,6 +219,40 @@ macro node_if condition, scope
     add [memory_pointer], node_if_size
 }
 
+macro immvalue value
+{
+    check_memory immvalue_size
+    mov rax, [memory_pointer]
+    mov word [rax], IMMVALUE
+    mov rbx, value
+    mov qword [rax + 2], rbx
+    add [memory_pointer], immvalue_size
+}
+
+macro reg register, size
+{
+    check_memory reg_size
+    mov rax, [memory_pointer]
+    mov word [rax], REG
+    mov ebx, register
+    mov dword [rax + 2], ebx
+    mov ebx, size
+    mov dword [rax + 6], ebx
+    add [memory_pointer], reg_size
+}
+
+macro mempos register, offset
+{
+    check_memory mempos_size
+    mov rax, [memory_pointer]
+    mov word [rax], MEMPOS
+    mov ebx, register
+    mov dword [rax + 2], ebx
+    mov ebx, offset
+    mov dword [rax + 6], ebx
+    add [memory_pointer], mempos_size
+}
+
 init_memory:
     brk 0
     mov [memory_start], rax
@@ -482,12 +516,13 @@ copy_chars: ; char* copy_chars(char* start, char* allowed)
     leave
     ret
 
-concat_str: ; void concat_str(char* str, char** in)
+concat_str: ; void concat_str(char** in)
     push rbp
     mov rbp, rsp
     sub rsp, 32
-    mov [rbp - 8], rdi
-    mov [rbp - 16], rsi
+    mov [rbp - 16], rdi
+    mov rbx, [memory_pointer]
+    mov [rbp - 8], rbx
     mov qword [rbp - 24], 0 ; length
     mov qword [rbp - 32], 0 ; strcount
 
@@ -526,6 +561,7 @@ concat_str: ; void concat_str(char* str, char** in)
 
     mov rbx, [rbp - 24]
     add [memory_pointer], rbx
+    mov rax, [rbp - 8]
     leave
     ret
 
@@ -588,6 +624,200 @@ is_keyword: ; bool is_keyword(char* str)
 
     keywordloopend:
     mov al, [rbp - 17]
+    leave
+    ret
+
+mov_to_reg: ; void mov_to_reg(void* reg, void* value)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    cmp word [rbx], REG
+    jne loc_not_reg
+
+    mov rbx, [rbp - 16]
+    cmp word [rbx], REG
+    jne mtrL1
+    mov rcx, [rbp - 8]
+    mov ecx, [rcx + 2]
+    cmp dword [rbx + 2], ecx
+    jne mtrL1
+    leave
+    ret
+    mtrL1:
+
+    mov rdi, [rbp - 8]
+    call value_to_string
+    mov [rbp - 24], rax
+
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov [rbp - 32], rax
+
+    fprintmany [outputfd], _mov, [rbp - 24], comma, [rbp - 32], newline
+
+    leave
+    ret
+
+mov_to_mempos: ; void mov_to_mempos(void* mempos, void* value)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    cmp word [rbx], MEMPOS
+    jne loc_not_mem
+
+    mov rdi, [rbp - 8]
+    call value_to_string
+    mov [rbp - 24], rax
+
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov [rbp - 32], rax
+
+    fprintmany [outputfd], _mov, [rbp - 24], comma, [rbp - 32], newline
+
+    leave
+    ret
+
+mov_imm_to_reg: ; void* mov_imm_to_reg(void* reg, void* imm)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 16]
+    cmp word [rbx], IMMVALUE
+    je mitrL1
+    mov rax, [rbp - 16]
+    leave
+    ret
+    mitrL1:
+
+    mov rdi, [rbp - 8]
+    call value_to_string
+    mov [rbp - 24], rax
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov [rbp - 32], rax
+
+    fprintmany [outputfd], _mov, [rbp - 24], comma, [rbp - 32], newline
+    mov rax, [rbp - 8]
+    leave
+    ret
+
+reg_binop: ; void* reg_binop(void* reg1, void* reg2, token* op)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    mov [rbp - 24], rdx
+
+    mov rbx, [rbp - 24]
+    cmp word [rbx], TT_PLUS
+    jne rbL1  
+    mov qword [rbp - 32], _add
+    jmp rbL4
+    rbL1:
+    cmp word [rbx], TT_MIN
+    jne rbL2
+    mov qword [rbp - 32], _sub
+    jmp rbL4
+    rbL2:
+    cmp word [rbx], TT_STAR
+    jne rbL3
+    mov qword [rbp - 32], _imul
+    jmp rbL4
+    rbL3:
+    cmp word [rbx], TT_FSLASH
+    jne unimplemented_op
+
+    mov rbx, [rbp - 8]
+    cmp dword [rbx + 2], _rax
+    je rbL5
+
+    reg rax_, qword_
+
+    mov rdi, rax
+    mov rsi, [rbp - 8]
+    call mov_to_reg 
+    rbL5:
+
+    fprintmany [outputfd], _cqo,newline
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov r15, rax
+    fprintmany [outputfd], _idiv, r15, newline
+    mov rax, r15
+
+    leave
+    ret
+    rbL4:
+
+    mov rdi, [rbp - 8]
+    call value_to_string
+    mov r15, rax
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov r14, rax
+
+    fprintmany [outputfd], [rbp - 32], r15, comma, r14, newline
+    mov rax, r15
+
+    leave
+    ret
+
+value_to_string: ; char* value_to_string(void* value)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov [rbp - 8], rdi
+
+    mov rbx, [rbp - 8]
+    cmp word [rbx], IMMVALUE
+    jne vtsL1
+
+    mov rax, [rbx + 2]
+    leave
+    ret
+
+    vtsL1:
+    cmp word [rbx], REG
+    jne vtsL2
+
+    mov eax, [rbx + 2]
+    imul rax, 20
+    lea rax, [_rax + rax]
+    mov ecx, [rbx + 6]
+    imul rcx, 5
+    lea rax, [rax + rcx]
+    leave
+    ret
+    vtsL2:
+
+    mov eax, [rbx + 2]
+    imul rax, 20
+    lea rax, [_rax + rax]
+    mov [rbp - 16], rax
+
+    movsxd rdi, [rbx + 6]
+    call itoa 
+    mov [rbp - 24], rax
+
+    pushmany 0, brackr, qword [rbp - 24], _plus, qword [rbp - 16], brackl, _qword
+    mov rdi, rsp
+    push rsp
+    call concat_str
+    pop rsp
+
     leave
     ret
 
@@ -681,4 +911,14 @@ unimplemented_node:
     exit_process 1
 unimplemented_op:
     printmany ERROR, unimplementedop, suffix
+    exit_process 1
+loc_not_reg:
+    mov rdi, LOGERROR
+    mov rsi, locnotreg
+    call log
+    exit_process 1
+loc_not_mem:
+    mov rdi, LOGERROR
+    mov rsi, locnotmem
+    call log
     exit_process 1

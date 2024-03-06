@@ -24,7 +24,7 @@ generate: ; void generate(void* node, symbol_table* table)
     leave
     ret
 
-visit: ; char* visit(void* node, symbol_table* table, bool lhs)
+visit: ; void* visit(void* node, symbol_table* table, bool lhs)
     push rbp
     mov rbp, rsp
     sub rsp, 17
@@ -47,7 +47,7 @@ visit: ; char* visit(void* node, symbol_table* table, bool lhs)
     leave 
     ret
 
-visit_node_root: ; char* visit_node_root(void* node, symbol_table* table)
+visit_node_root: ; void visit_node_root(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
     sub rsp, 32
@@ -93,7 +93,7 @@ visit_node_root: ; char* visit_node_root(void* node, symbol_table* table)
     leave
     ret
 
-visit_node_binop: ; char* visit_node_binop(void* node, symbol_table* table, bool lhs)
+visit_node_binop: ; void* visit_node_binop(void* node, symbol_table* table, bool lhs)
     push rbp
     mov rbp, rsp
     sub rsp, 57
@@ -121,13 +121,16 @@ visit_node_binop: ; char* visit_node_binop(void* node, symbol_table* table, bool
     jmp vnbL2
 
     vnbl9:
-    mov qword [rbp - 33], _rsi
-    fprintmany [outputfd], _mov, [rbp - 33], comma, [rbp - 16], newline
+    reg rsi_, qword_
+    mov qword [rbp - 33], rax
+    mov rdi, [rbp - 33]
+    mov rsi, [rbp - 16]
+    call mov_to_reg
     jmp vnbL1
 
     vnbL2:
-
-    mov qword [rbp - 33], _rax
+    reg rax_, qword_
+    mov qword [rbp - 33], rax
     vnbL1:
 
     mov rbx, [rbp - 8]
@@ -140,65 +143,41 @@ visit_node_binop: ; char* visit_node_binop(void* node, symbol_table* table, bool
     cmp byte [rbp - 25], 0
     je vnbL3
 
-    mov qword [rbp - 41], _rdi
+    reg rdi_, qword_
+    mov qword [rbp - 41], rax
     jmp vnbL4
 
     vnbL3:
-    mov qword [rbp - 41], _rcx
+    reg rcx_, qword_
+    mov qword [rbp - 41], rax
     vnbL4:
 
     ; move result of right child to rdi or rcx
-    fprintmany [outputfd], _mov, [rbp - 41], comma, [rbp - 24], newline
+    mov rdi, [rbp - 41]
+    mov rsi, [rbp - 24]
+    call mov_to_reg
 
     ; move result of left child into rax if it's not already in rsi
-    cmp qword [rbp - 33], _rax
+    mov rbx, [rbp - 33]
+    cmp dword [rbx + 2], rax_
     jne vnbL8
-    fprintmany [outputfd], _mov, [rbp - 33], comma, [rbp - 16], newline
+    mov rdi, [rbp - 33]
+    mov rsi, [rbp - 16]
+    call mov_to_reg
     vnbL8:
 
-    ; select instruction depending on which operator is given
+    mov rdi, [rbp - 33]
+    mov rsi, [rbp - 41]
     mov rbx, [rbp - 8]
-    mov rbx, [rbx + 10]
-    cmp word [rbx], TT_PLUS
-    jne vnbL5    
-    mov qword [rbp - 49], _add
-    jmp vnbL10
-    vnbL5:
-    cmp word [rbx], TT_MIN
-    jne vnbL6
-    mov qword [rbp - 49], _sub
-    jmp vnbL10
-    vnbL6:
-    cmp word [rbx], TT_STAR
-    jne vnbL7
-    mov qword [rbp - 49], _imul
-    jmp vnbL10
-    vnbL7:
-    cmp word [rbx], TT_FSLASH
-    jne unimplemented_op
-
-    cmp qword [rbp - 33], _rax
-    je vnbL11
-
-    fprintmany [outputfd], _mov, _rax, comma, [rbp - 33], newline 
-    vnbL11:
-
-    fprintmany [outputfd], _cqo,newline
-    fprintmany [outputfd], _idiv, [rbp - 41], newline
-    mov rax, _rax
-    leave 
-    ret
-
-    vnbL10:
-    
-    fprintmany [outputfd], [rbp - 49], [rbp - 33], comma, [rbp - 41], newline
+    mov rdx, [rbx + 10]
+    call reg_binop
 
     mov rax, [rbp - 33]
 
     leave
     ret
 
-visit_node_lit: ; char* visit_node_lit(void* node)
+visit_node_lit: ; void* visit_node_lit(void* node)
     push rbp
     mov rbp, rsp
     sub rsp, 8
@@ -208,14 +187,17 @@ visit_node_lit: ; char* visit_node_lit(void* node)
     mov rbx, qword [rbx + 2]
     mov rdi, [rbx + 2]
     call itoa
+    mov rdi, rax
+
+    immvalue rdi
 
     leave
     ret
 
-visit_node_unop: ; char* visit_node_unop(void* node, symbol_table* table)
+visit_node_unop: ; void* visit_node_unop(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 24
+    sub rsp, 32
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -226,14 +208,19 @@ visit_node_unop: ; char* visit_node_unop(void* node, symbol_table* table)
     call visit
     mov [rbp - 24], rax
 
-    fprintmany [outputfd], _mov, _rax, comma, [rbp - 24], newline
+    reg rax_, qword_
+    mov [rbp - 32], rax
+    mov rdi, rax
+    mov rsi, [rbp - 24]
+    call mov_to_reg
+
     fprintmany [outputfd], _neg, _rax, newline
-    mov rax, _rax
+    mov rax, [rbp - 32]
     
     leave
     ret
 
-visit_node_vardef: ; char* visit_node_vardef(void* node, symbol_table* table)
+visit_node_vardef: ; void* visit_node_vardef(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
     sub rsp, 32
@@ -250,15 +237,19 @@ visit_node_vardef: ; char* visit_node_vardef(void* node, symbol_table* table)
     mov rdi, [rbp - 16]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 10]
-    call st_get_var_pos_str
+    call st_get_var_pos
     mov [rbp - 32], rax
 
-    fprintmany [outputfd], _mov, [rbp - 32], comma, [rbp - 24], newline
+    mempos rbp_, [rbp - 32]
+
+    mov rdi, rax
+    mov rsi, [rbp - 24]
+    call mov_to_mempos
 
     leave
     ret
 
-visit_node_var: ; char* visit_node_var(void* node, symbol_table* table)
+visit_node_var: ; void* visit_node_var(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
     sub rsp, 16
@@ -268,12 +259,14 @@ visit_node_var: ; char* visit_node_var(void* node, symbol_table* table)
     mov rdi, [rbp - 16]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
-    call st_get_var_pos_str
+    call st_get_var_pos
+    mov r15, rax
+    mempos rbp_, r15d
 
     leave
     ret
 
-visit_node_if: ; char* visit_node_if(void* node, symbol_table* table)
+visit_node_if: ; void* visit_node_if(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
     sub rsp, 40
@@ -301,7 +294,16 @@ visit_node_if: ; char* visit_node_if(void* node, symbol_table* table)
     call visit
     mov [rbp - 32], rax
 
-    fprintmany [outputfd], _cmp, [rbp - 32], comma, zero, newline
+    reg rax_, qword_
+    mov rdi, rax
+    mov rsi, [rbp - 32]
+    call mov_imm_to_reg
+
+    mov rdi, rax
+    call value_to_string
+    mov r15, rax
+
+    fprintmany [outputfd], _cmp, r15, comma, zero, newline
     fprintmany [outputfd], _je, if_, [rbp - 24], newline
 
     mov rbx, [rbp - 8]

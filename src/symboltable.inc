@@ -79,7 +79,7 @@ st_add_var: ; void st_add_var(symbol_table* table, void* node):
     mov rax, qword [rax + 2]
     mov qword [rbx + rcx + symbol_table_size], rax
 
-    add dword [rbx + 8], 8
+    sub dword [rbx + 8], 8
     mov eax, dword [rbx + 8]
     mov dword [rbx + rcx + symbol_table_size + 8], eax
     leave
@@ -146,14 +146,11 @@ st_get_var_pos_str: ; char* st_get_var_pos_str(symbol_table* table, token* token
     call itoa
     mov [rbp - 24], rax
 
-    mov rdi, [memory_pointer]
-    mov [rbp - 32], rdi
     pushmany 0, brackr, qword [rbp - 24], _min, _rbp, brackl, _qword
-    mov rsi, rsp
+    mov rdi, rsp
     push rsp
     call concat_str
     pop rsp
 
-    mov rax, [rbp - 32]
     leave
     ret

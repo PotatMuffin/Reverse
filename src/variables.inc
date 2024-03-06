@@ -51,6 +51,7 @@ quote db "'",0
 suffix db ".",10,0
 _or db 'or',0
 _min db '-',0
+_plus db '+',0
 zero db '0',0
 
 var db "var",0
@@ -218,45 +219,133 @@ NODE_IF     = 8
 symbol_size = 12
 symbol_table_size = 12
 
-_rax db 'rax',0
-_eax db 'eax',0
-_ax db 'ax',0,0
-_al db 'al',0,0
+; struct value
+; {
+;   short type
+;   char* value
+; }
+immvalue_size = 10
 
-_rbx db 'rbx',0
-_ebx db 'ebx',0
-_bx db 'bx',0,0
-_bl db 'bl',0,0
+; struct reg
+; {
+;   short type
+;   int register
+;   int size
+; }
+reg_size = 10
 
-_rcx db 'rcx',0
-_ecx db 'ecx',0
-_cx db 'cx',0,0
-_cl db 'cl',0,0
+; struct mempos
+; {
+;   short type
+;   int register
+;   int offset
+; }
+mempos_size = 10
 
-_rdx db 'rdx',0
-_edx db 'edx',0
-_dx db 'dx',0,0
-_dl db 'dl',0,0
+IMMVALUE = 1
+REG      = 2
+MEMPOS   = 3
 
-_rsi db 'rsi',0
-_esi db 'esi',0
-_si db 'si',0,0
-_sil db 'sil',0
+qword_ = 0
+dword_ = 1
+word_  = 2
+byte_  = 3 
 
-_rdi db 'rdi',0
-_edi db 'edi',0
-_di db 'di',0,0
-_dil db 'dil',0
+rax_ = 0
+_rax db 'rax',0,0
+_eax db 'eax',0,0
+_ax db 'ax',0,0,0
+_al db 'al',0,0,0
 
-_rsp db 'rsp',0
-_esp db 'esp',0
-_sp db 'sp',0,0
-_spl db 'spl',0
+rbx_ = 1
+_rbx db 'rbx',0,0
+_ebx db 'ebx',0,0
+_bx db 'bx',0,0,0
+_bl db 'bl',0,0,0
 
-_rbp db 'rbp',0
-_ebp db 'ebp',0
-_bp db 'bp',0,0
-_bpl db 'bpl',0
+rcx_ = 2
+_rcx db 'rcx',0,0
+_ecx db 'ecx',0,0
+_cx db 'cx',0,0,0
+_cl db 'cl',0,0,0
+
+rdx_ = 3
+_rdx db 'rdx',0,0
+_edx db 'edx',0,0
+_dx db 'dx',0,0,0
+_dl db 'dl',0,0,0
+
+rsi_ = 4
+_rsi db 'rsi',0,0
+_esi db 'esi',0,0
+_si db 'si',0,0,0
+_sil db 'sil',0,0
+
+rdi_ = 5
+_rdi db 'rdi',0,0
+_edi db 'edi',0,0
+_di db 'di',0,0,0
+_dil db 'dil',0,0
+
+rsp_ = 6
+_rsp db 'rsp',0,0
+_esp db 'esp',0,0
+_sp db 'sp',0,0,0
+_spl db 'spl',0,0
+
+rbp_ = 7
+_rbp db 'rbp',0,0
+_ebp db 'ebp',0,0
+_bp db 'bp',0,0,0
+_bpl db 'bpl',0,0
+
+r8_ = 8
+_r8 db 'r8',0,0,0
+_r8d db 'r8d',0,0
+_r8w db 'r8w',0,0
+_r8b db 'r8b',0,0
+
+r9_ = 9
+_r9 db 'r9',0,0,0
+_r9d db 'r9d',0,0
+_r9w db 'r9w',0,0
+_r9b db 'r9b',0,0
+
+r10_ = 10
+_r10 db 'r10',0,0
+_r10d db 'r10d',0
+_r10w db 'r10w',0
+_r10b db 'r10b',0
+
+r11_ = 11
+_r11 db 'r11',0,0
+_r11d db 'r11d',0
+_r11w db 'r11w',0
+_r11b db 'r11b',0
+
+r12_ = 12
+_r12 db 'r12',0,0
+_r12d db 'r12d',0
+_r12w db 'r12w',0
+_r12b db 'r12b',0
+
+r13_ = 13
+_r13 db 'r13',0,0
+_r13d db 'r13d',0
+_r13w db 'r13w',0
+_r13b db 'r13b',0
+
+r14_ = 14
+_r14 db 'r14',0,0
+_r14d db 'r14d',0
+_r14w db 'r14w',0
+_r14b db 'r14b',0
+
+r15_ = 15 
+_r15 db 'r15',0,0
+_r15d db 'r15d',0
+_r15w db 'r15w',0
+_r15b db 'r15b',0
 
 _mov db 'mov ',0
 _add db 'add ',0
