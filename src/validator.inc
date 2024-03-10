@@ -212,6 +212,26 @@ valvisit_node_if: ; void valvisit_node_if(void* node, symbol_table* table)
     leave
     ret
 
+valvisit_node_while: ; void valvisit_node_while(void* node, symbol_table* table)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rsi, [rbp - 16]
+    call valvisit
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    call valvisit
+
+    leave
+    ret
+
 vallookuptable:
     dq 0
     dq valvisit_node_root
@@ -222,3 +242,4 @@ vallookuptable:
     dq valvisit_node_varass
     dq valvisit_node_var
     dq valvisit_node_if
+    dq valvisit_node_while

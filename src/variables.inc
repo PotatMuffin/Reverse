@@ -9,6 +9,7 @@ output rq 1
 outputfd rq 1
 
 if_label dq 1
+while_label dq 1
 
 stat rb 144
 usage_suffix db "Usage: ", 0
@@ -42,11 +43,12 @@ _int db 'int',0
 _ident db "identifier",0
 _var db "'var'",0
 _if db "'if'",0
+_while db "'while'",0
 _if_expr db "if expr",0
 newline db 10,0
 space db ' ',0
 comma db ',',0
-semi db ':',0
+colon db ':',0
 quote db "'",0
 suffix db ".",10,0
 _or db 'or',0
@@ -57,11 +59,13 @@ zero db '0',0
 var db "var",0
 if_ db "if",0
 else_ db "else",0
+while_ db "while",0
 
 keywords:
    dq var
    dq if_
    dq else_
+   dq while_
    dq 0
 
 default_memory_setting = 1024 * 1024 * 16
@@ -200,7 +204,16 @@ node_var_size = 10
 ; }
 node_if_size = 26
 
-node_count  = 8
+; struct node_while
+; {
+;   short type
+;   void* condition
+;   void* scope
+; }
+
+node_while_size = 18
+
+node_count  = 9
 NODE_ROOT   = 1
 NODE_BINOP  = 2
 NODE_LIT    = 3
@@ -209,6 +222,7 @@ NODE_VARDEF = 5
 NODE_VARASS = 6
 NODE_VAR    = 7
 NODE_IF     = 8
+NODE_WHILE  = 9
 
 ; struct symbol
 ; {

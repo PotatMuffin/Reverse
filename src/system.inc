@@ -219,6 +219,19 @@ macro node_if condition, scope
     add [memory_pointer], node_if_size
 }
 
+macro node_while condition, scope
+{
+    check_memory node_while_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_WHILE
+    mov rbx, condition
+    mov qword [rax + 2], rbx
+    mov rbx, scope
+    mov qword [rax + 10], rbx
+    mov qword [rax + 18], 0
+    add [memory_pointer], node_while_size
+}
+
 macro immvalue value
 {
     check_memory immvalue_size

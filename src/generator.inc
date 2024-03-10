@@ -319,7 +319,7 @@ visit_node_if: ; void* visit_node_if(void* node, symbol_table* table)
 
     vniL2:
 
-    fprintmany [outputfd], if_, [rbp - 24], semi, newline
+    fprintmany [outputfd], if_, [rbp - 24], colon, newline
 
     mov rbx, [rbp - 8]
     cmp qword [rbx + 18], 0
@@ -330,9 +330,64 @@ visit_node_if: ; void* visit_node_if(void* node, symbol_table* table)
     mov rsi, [rbp - 16]
     call visit
 
-    fprintmany [outputfd], if_, [rbp - 40], semi, newline
+    fprintmany [outputfd], if_, [rbp - 40], colon, newline
 
     vniL3:
+
+    leave
+    ret
+
+visit_node_while: ; void* visit_node_while(void* node, symbol_table* table)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 48
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rdi, [while_label]
+    call itoa
+    mov [rbp - 24], rax
+    inc qword [while_label]
+
+    mov rdi, [while_label]
+    call itoa
+    mov [rbp - 32], rax
+    inc qword [while_label]
+
+    mov rdi, [while_label]
+    call itoa
+    mov [rbp - 40], rax
+    inc qword [while_label]
+
+    fprintmany [outputfd], _jmp, while_, [rbp - 32], newline
+
+    fprintmany [outputfd], while_, [rbp - 24], colon, newline
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    call visit
+
+    fprintmany [outputfd], while_, [rbp - 32], colon, newline
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rsi, [rbp - 16]
+    call visit
+    mov [rbp - 48], rax
+
+    reg rax_, qword_
+    mov rdi, rax
+    mov rsi, [rbp - 48]
+    call mov_imm_to_reg
+
+    mov rdi, rax
+    call value_to_string
+    mov r15, rax
+
+    fprintmany [outputfd], _cmp, r15, comma, zero, newline
+    fprintmany [outputfd], _jne, while_, [rbp - 24], newline
+    fprintmany [outputfd], while_, [rbp - 40], colon, newline
 
     leave
     ret
@@ -347,3 +402,4 @@ genlookuptable:
     dq visit_node_vardef
     dq visit_node_var
     dq visit_node_if
+    dq visit_node_while

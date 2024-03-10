@@ -100,7 +100,7 @@ parse_expr: ; void* parse_expr(token** Ptokens)
 parse_scope_expr: ; void* parse_scope_expr(token** Ptokens)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 24
     mov [rbp - 8], rdi
 
     mov rdi, [rbp - 8]
@@ -137,9 +137,56 @@ parse_scope_expr: ; void* parse_scope_expr(token** Ptokens)
     add qword [rbx], tok_len
 
     mov rdi, [rbp - 8]
-    mov rsi, [rbp - 16]
-    call parse_if_expr
+    mov sil, 0
+    call parse_bin_expr
+    mov [rbp - 24], rax
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_PARENR
+    je pseL3
+
+    mov rdi, rbx
+    pushmany 0, _parenr
+    mov rsi, rsp
+    call syntax_error_expected
+
+    pseL3:
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+
+    mov rbx, [rbx]
+    mov rdi, [rbx + 2]
+    mov rsi, if_
+    call strcmp
+    cmp al, 0
+    jne pse_parse_if
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    mov rdi, [rbx + 2]
+    mov rsi, while_
+    call strcmp
+    cmp al, 0
+    jne pse_parse_while
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx]
+    pushmany 0, _if, _while
+    mov rsi, rsp
+    call syntax_error_expected
+
+    pse_parse_while:
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    node_while [rbp - 24], [rbp - 16]
     leave 
+    ret
+
+    pse_parse_if:
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    node_if [rbp - 24], [rbp - 16]
+    leave
     ret
     pseL1:
 
@@ -197,59 +244,6 @@ parse_else_expr: ; void* parse_else_expr(token** Ptokens, void* scope)
     mov rax, [rbp - 24]
     mov rbx, [rbp - 16]
     mov [rax + 18], rbx
-    leave
-    ret
-
-parse_if_expr: ; void* parse_if_expr(token** Ptokens, void* scope)
-    push rbp
-    mov rbp, rsp
-    sub rsp, 24
-    mov [rbp - 8], rdi
-    mov [rbp - 16], rsi
-
-    mov rdi, [rbp - 8]
-    call parse_expr
-    mov [rbp - 24], rax
-
-    mov rbx, [rbp - 8]
-    mov rcx, [rbx]
-    cmp word [rcx], TT_PARENR
-    je pieL1
-
-    mov rdi, rcx
-    pushmany 0, parenr
-    mov rsi, rsp
-    call syntax_error_expected
-
-    pieL1:
-
-    mov rbx, [rbp - 8]
-    add qword [rbx], tok_len
-
-    mov rcx, [rbx]
-    cmp word [rcx], TT_KEYWORD
-    jne pieL2
-    
-    mov rdi, qword [rcx + 2]
-    mov rsi, if_
-    call strcmp
-
-    cmp al, 0
-    je pieL2
-    jmp pieL3
-
-    pieL2:
-    mov rdi, rcx
-    pushmany 0, _if
-    mov rsi, rsp
-    call syntax_error_expected
-
-    pieL3:
-    mov rbx, [rbp - 8]
-    add qword [rbx], tok_len
-
-    node_if [rbp - 24], [rbp - 16]
-
     leave
     ret
 
