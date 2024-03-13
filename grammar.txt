@@ -7,6 +7,7 @@
 [scope_expr]    : [scope]
                 : [if_expr]
                 : [while_expr]
+                : [for_expr]
 
 [scope]         : { [program] }
 
@@ -15,6 +16,8 @@
 [if_expr]       : [scope] ([bin_expr]) if
 
 [while_expr]    : [scope] ([bin_expr]) while
+
+[for_expr]      : [scope] ([expr]; [expr]; [expr]) for
 
 [var_expr]      : [bin_expr] = ident var
                 : [bin_expr] = ident

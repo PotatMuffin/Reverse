@@ -232,6 +232,22 @@ macro node_while condition, scope
     add [memory_pointer], node_while_size
 }
 
+macro node_for on_entry, condition, on_loop, scope
+{
+    check_memory node_for_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_FOR
+    mov rbx, on_entry
+    mov qword [rax + 2], rbx
+    mov rbx, condition
+    mov qword [rax + 10], rbx
+    mov rbx, on_loop
+    mov qword [rax  + 18], rbx
+    mov rbx, scope
+    mov qword [rax + 26], rbx
+    add [memory_pointer], node_for_size 
+}
+
 macro immvalue value
 {
     check_memory immvalue_size
@@ -699,15 +715,17 @@ mov_to_mempos: ; void mov_to_mempos(void* mempos, void* value)
     leave
     ret
 
-mov_imm_to_reg: ; void* mov_imm_to_reg(void* reg, void* imm)
+mov_value_to_reg: ; void* mov_value_to_reg(void* reg, void* value, short type)
     push rbp
     mov rbp, rsp
-    sub rsp, 32
+    sub rsp, 34
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
+    mov [rbp - 34], dx
 
     mov rbx, [rbp - 16]
-    cmp word [rbx], IMMVALUE
+    mov ax, word [rbp - 34] 
+    cmp word [rbx], ax
     je mitrL1
     mov rax, [rbp - 16]
     leave

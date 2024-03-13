@@ -234,6 +234,13 @@ visit_node_vardef: ; void* visit_node_vardef(void* node, symbol_table* table)
     call visit
     mov [rbp - 24], rax
 
+    reg rax_, qword_
+    mov rdi, rax
+    mov rsi, [rbp - 24]
+    mov dx, MEMPOS
+    call mov_value_to_reg
+    mov [rbp - 24], rax
+
     mov rdi, [rbp - 16]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 10]
@@ -297,7 +304,8 @@ visit_node_if: ; void* visit_node_if(void* node, symbol_table* table)
     reg rax_, qword_
     mov rdi, rax
     mov rsi, [rbp - 32]
-    call mov_imm_to_reg
+    mov dx, IMMVALUE
+    call mov_value_to_reg
 
     mov rdi, rax
     call value_to_string
@@ -379,7 +387,8 @@ visit_node_while: ; void* visit_node_while(void* node, symbol_table* table)
     reg rax_, qword_
     mov rdi, rax
     mov rsi, [rbp - 48]
-    call mov_imm_to_reg
+    mov dx, IMMVALUE
+    call mov_value_to_reg
 
     mov rdi, rax
     call value_to_string
@@ -388,6 +397,80 @@ visit_node_while: ; void* visit_node_while(void* node, symbol_table* table)
     fprintmany [outputfd], _cmp, r15, comma, zero, newline
     fprintmany [outputfd], _jne, while_, [rbp - 24], newline
     fprintmany [outputfd], while_, [rbp - 40], colon, newline
+
+    leave
+    ret
+
+visit_node_for: ; visit_node_for(void* node, symbol_table* table)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 56
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    
+    mov rdi, [for_label]
+    call itoa
+    mov [rbp - 24], rax
+    inc qword [for_label]
+
+    mov rdi, [for_label]
+    call itoa
+    mov [rbp - 32], rax
+    inc qword [for_label]
+
+    mov rdi, [for_label]
+    call itoa
+    mov [rbp - 40], rax
+    inc qword [for_label]
+
+    mov rdi, [for_label]
+    call itoa
+    mov [rbp - 48], rax
+    inc qword [for_label]
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rsi, [rbp - 16]
+    call visit
+
+    fprintmany [outputfd], _jmp, for_, [rbp - 40], newline
+    fprintmany [outputfd], for_, [rbp - 24], colon, newline
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 26]
+    mov rsi, [rbp - 16]
+    call visit
+
+    fprintmany [outputfd], for_, [rbp - 32], colon, newline
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 18]
+    mov rsi, [rbp - 16]
+    call visit
+
+    fprintmany [outputfd], for_, [rbp - 40], colon, newline
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    call visit
+    mov [rbp - 56], rax
+
+    reg rax_, qword_
+    mov rdi, rax
+    mov rsi, [rbp - 56]
+    mov dx, IMMVALUE
+    call mov_value_to_reg
+
+    mov rdi, rax
+    call value_to_string
+    mov [rbp - 56], rax
+
+    fprintmany [outputfd], _cmp, [rbp - 56], comma, zero, newline
+    fprintmany [outputfd], _jne, for_, [rbp - 24], newline
+
+    fprintmany [outputfd], for_, [rbp - 48], colon, newline
+
 
     leave
     ret
@@ -403,3 +486,4 @@ genlookuptable:
     dq visit_node_var
     dq visit_node_if
     dq visit_node_while
+    dq visit_node_for
