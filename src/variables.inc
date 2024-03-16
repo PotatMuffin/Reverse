@@ -126,8 +126,9 @@ TT_PLUS      = 1 ; +
 TT_MIN       = 2 ; -
 TT_STAR      = 3 ; *
 TT_FSLASH    = 4 ; /
-TT_ANGBRACKL = 5 ; <
-TT_ANGBRACKR = 6 ; >
+TT_PERCENT   = 5 ; %
+TT_ANGBRACKL = 6 ; <
+TT_ANGBRACKR = 7 ; >
 TT_BSLASH    = 256 ; \
 TT_PARENL    = 257 ; (
 TT_PARENR    = 258 ; )
@@ -141,8 +142,8 @@ TT_IDENT     = 768
 TT_KEYWORD   = 769
 TT_NEWLINE   = 1024 ; \n
 
-op_prec db 0, 1, 1, 2, 2
-   ;          +  -  *  /
+op_prec db 0, 2, 2, 3, 3, 3, 1, 1
+   ;          +  -  *  /  %  <  >
 
 ; struct node_root
 ; {

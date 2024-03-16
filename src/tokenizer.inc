@@ -64,88 +64,95 @@ tokenize: ; void* tokenize(char* buf)
     jmp tokloopcontinue
 
     tokif5:
-    cmp [rbp - 29], byte '<'
+    cmp [rbp - 29], byte '%'
     jne tokif6
+
+    mov [r13], word TT_PERCENT
+    jmp tokloopcontinue
+
+    tokif6:
+    cmp [rbp - 29], byte '<'
+    jne tokif7
 
     mov [r13], word TT_ANGBRACKL
     jmp tokloopcontinue
 
-    tokif6:
+    tokif7:
     cmp [rbp - 29], byte '>'
-    jne tokif7
+    jne tokif8
 
     mov [r13], word TT_ANGBRACKR
     jmp tokloopcontinue
 
-    tokif7:
+    tokif8:
     cmp [rbp - 29], byte '('
-    jne tokif8
+    jne tokif9
 
     mov [r13], word TT_PARENL
     jmp tokloopcontinue
 
-    tokif8:
+    tokif9:
     cmp [rbp - 29], byte ')'
-    jne tokif9
+    jne tokif10
 
     mov [r13], word TT_PARENR
     jmp tokloopcontinue
 
-    tokif9:
+    tokif10:
     cmp [rbp - 29], byte '{'
-    jne tokif10
+    jne tokif11
 
     mov [r13], word TT_BRACEL
     jmp tokloopcontinue
 
-    tokif10:
+    tokif11:
     cmp [rbp - 29], byte '}'
-    jne tokif11
+    jne tokif12
 
     mov [r13], word TT_BRACER
     jmp tokloopcontinue
 
-    tokif11:
+    tokif12:
     cmp [rbp - 29], byte '['
-    jne tokif12
+    jne tokif13
 
     mov [r13], word TT_BRACKL
     jmp tokloopcontinue
 
-    tokif12:
+    tokif13:
     cmp [rbp - 29], byte ']'
-    jne tokif13
+    jne tokif14
 
     mov [r13], word TT_BRACKR
     jmp tokloopcontinue
 
-    tokif13:
+    tokif14:
     cmp [rbp - 29], byte '='
-    jne tokif14
+    jne tokif15
 
     mov [r13], word TT_EQ
     jmp tokloopcontinue
 
-    tokif14:
+    tokif15:
     cmp [rbp - 29], byte 10
-    jne tokif15
+    jne tokif16
 
     mov [r13], word TT_NEWLINE
     inc dword [rbp - 12]
     jmp tokloopcontinue
 
-    tokif15:
+    tokif16:
     cmp [rbp - 29], byte ';'
-    jne tokif16
+    jne tokif17
 
     mov [r13], word TT_NEWLINE
     jmp tokloopcontinue
 
-    tokif16:
+    tokif17:
     cmp [rbp - 29], byte '0'
-    jl tokif17
+    jl tokif18
     cmp [rbp - 29], byte '9'
-    jg tokif17
+    jg tokif18
     mov [r13], word TT_INTLIT
     xor rax, rax
     xor rbx, rbx
@@ -170,12 +177,12 @@ tokenize: ; void* tokenize(char* buf)
     mov qword [r13 + 2], rax
     jmp tokloopcontinue
 
-    tokif17:
+    tokif18:
     mov rdi, alpha
     mov sil, byte [rbp - 29]
     call contains_char
     cmp al, 0
-    je tokif18
+    je tokif19
 
     mov r11, [rbp - 8]
     mov r12, [rbp - 28]
@@ -195,7 +202,7 @@ tokenize: ; void* tokenize(char* buf)
 
     jmp tokloopcontinue
 
-    tokif18:
+    tokif19:
 
     mov rdi, brackl
     call print

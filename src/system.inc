@@ -769,7 +769,10 @@ reg_binop: ; void* reg_binop(void* reg1, void* reg2, token* op)
     jmp rbL4
     rbL3:
     cmp word [rbx], TT_FSLASH
+    je rbL6
+    cmp word [rbx], TT_PERCENT
     jne unimplemented_op
+    rbL6:
 
     mov rbx, [rbp - 8]
     cmp dword [rbx + 2], _rax
@@ -787,8 +790,15 @@ reg_binop: ; void* reg_binop(void* reg1, void* reg2, token* op)
     call value_to_string
     mov r15, rax
     fprintmany [outputfd], _idiv, r15, newline
-    mov rax, r15
 
+    mov rbx, [rbp - 24]
+    cmp word [rbx], TT_PERCENT
+    je  rbL7
+    reg rax_, qword_
+    leave
+    ret
+    rbL7:
+    reg rdx_, qword_
     leave
     ret
     rbL4:
@@ -801,7 +811,7 @@ reg_binop: ; void* reg_binop(void* reg1, void* reg2, token* op)
     mov r14, rax
 
     fprintmany [outputfd], [rbp - 32], r15, comma, r14, newline
-    mov rax, r15
+    mov rax, [rbp - 8]
 
     leave
     ret

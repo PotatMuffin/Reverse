@@ -172,8 +172,6 @@ visit_node_binop: ; void* visit_node_binop(void* node, symbol_table* table, bool
     mov rdx, [rbx + 10]
     call reg_binop
 
-    mov rax, [rbp - 33]
-
     leave
     ret
 
