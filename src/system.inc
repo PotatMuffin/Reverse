@@ -771,7 +771,36 @@ reg_binop: ; void* reg_binop(void* reg1, void* reg2, token* op)
     cmp word [rbx], TT_FSLASH
     je rbL6
     cmp word [rbx], TT_PERCENT
+    je rbL6
+    cmp word [rbx], TT_ANGBRACKL
+    jne rbL9
+    mov qword [rbp - 32], _setl
+    jmp rbL8
+    rbL9:
+    cmp word [rbx], TT_ANGBRACKR
+    jne rbL10
+    mov qword [rbp - 32], _setg
+    jmp rbL8
+    rbL10:
+    cmp word [rbx], TT_GTE
+    jne rbL11
+    mov qword [rbp - 32], _setge
+    jmp rbL8
+    rbL11:
+    cmp word [rbx], TT_LTE
+    jne rbL12
+    mov qword [rbp - 32], _setle
+    jmp rbL8
+    rbL12:
+    cmp word [rbx], TT_IS
+    jne rbL13
+    mov qword [rbp - 32], _sete
+    jmp rbL8
+    rbL13:
+    cmp word [rbx], TT_ISNT
     jne unimplemented_op
+    mov qword [rbp - 32], _setne
+    jmp rbL8
     rbL6:
 
     mov rbx, [rbp - 8]
@@ -811,6 +840,65 @@ reg_binop: ; void* reg_binop(void* reg1, void* reg2, token* op)
     mov r14, rax
 
     fprintmany [outputfd], [rbp - 32], r15, comma, r14, newline
+    mov rax, [rbp - 8]
+
+    leave
+    ret
+    rbL8:
+
+    mov rdi, [rbp - 8]
+    call value_to_string
+    mov r15, rax
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov r14, rax
+    mov rcx, [rbp - 8]
+    reg [rcx + 2], byte_
+    mov rdi, rax
+    call value_to_string
+    mov r13, rax
+
+    fprintmany [outputfd], _cmp, r15, comma, r14, newline
+    fprintmany [outputfd], [rbp - 32], r13, newline
+    fprintmany [outputfd], _movzx, r15, comma, r13, newline 
+    mov rax, [rbp - 8]
+
+    leave 
+    ret
+
+reg_unop: ; void* reg_unop(void* reg, token* op)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rdi, [rbp - 8]
+    call value_to_string
+    mov [rbp - 24], rax
+
+    mov rbx, [rbp - 16]
+    cmp word [rbx], TT_MIN
+    jne reL1
+
+    fprintmany [outputfd], _neg, [rbp - 24], newline 
+    mov rax, [rbp - 8]
+    leave
+    ret
+
+    reL1:
+    cmp word [rbx], TT_EXCL
+    jne unimplemented_op
+
+    mov rcx, [rbp - 8]
+    reg [rcx + 2], byte_
+    mov rdi, rax
+    call value_to_string
+    mov r15, rax
+
+    fprintmany [outputfd], _cmp, [rbp - 24], comma, zero, newline
+    fprintmany [outputfd], _sete, r15, newline
+    fprintmany [outputfd], _movzx, [rbp - 24], comma, r15, newline
     mov rax, [rbp - 8]
 
     leave

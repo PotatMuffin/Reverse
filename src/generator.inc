@@ -212,9 +212,11 @@ visit_node_unop: ; void* visit_node_unop(void* node, symbol_table* table)
     mov rsi, [rbp - 24]
     call mov_to_reg
 
-    fprintmany [outputfd], _neg, _rax, newline
-    mov rax, [rbp - 32]
-    
+    mov rdi, [rbp - 32]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx + 2]
+    call reg_unop
+
     leave
     ret
 

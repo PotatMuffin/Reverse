@@ -129,6 +129,11 @@ TT_FSLASH    = 4 ; /
 TT_PERCENT   = 5 ; %
 TT_ANGBRACKL = 6 ; <
 TT_ANGBRACKR = 7 ; >
+TT_GTE       = 8 ; >=
+TT_LTE       = 9 ; =<
+TT_IS        = 10 ; ==
+TT_ISNT      = 11 ; !=
+TT_EXCL      = 128 ; !
 TT_BSLASH    = 256 ; \
 TT_PARENL    = 257 ; (
 TT_PARENR    = 258 ; )
@@ -141,9 +146,10 @@ TT_INTLIT    = 512
 TT_IDENT     = 768
 TT_KEYWORD   = 769
 TT_NEWLINE   = 1024 ; \n
+TT_NOEXIST   = 2048 
 
-op_prec db 0, 2, 2, 3, 3, 3, 1, 1
-   ;          +  -  *  /  %  <  >
+op_prec db 0, 2, 2, 3, 3, 3, 1, 1, 1, 1
+   ;          +  -  *  /  %  <  > >= =<
 
 ; struct node_root
 ; {
@@ -377,6 +383,9 @@ _r15w db 'r15w',0
 _r15b db 'r15b',0
 
 _mov db 'mov ',0
+_movzx db 'movzx ',0
+_movsx db 'movsx ',0
+_movsxd db 'movsxd ',0
 _add db 'add ',0
 _sub db 'sub ',0
 _imul db 'imul ',0
@@ -387,6 +396,12 @@ _cmp db 'cmp ',0
 _jmp db 'jmp ',0
 _je db 'je ',0
 _jne db 'jne ',0
+_setg db 'setg ',0
+_setge db 'setge ',0
+_setl db 'setl ',0
+_setle db 'setle ',0
+_sete db 'sete ',0
+_setne db 'setne ',0
 
 _qword db "qword ",0
 _dword db "dword ",0

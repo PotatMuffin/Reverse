@@ -428,7 +428,7 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
 
         cmp word [rbx], TT_PLUS
         jl pbeRet
-        cmp word [rbx], TT_PERCENT
+        cmp word [rbx], TT_ISNT
         jg pbeRet
 
         mov bx, word [rbx]
@@ -507,8 +507,11 @@ parse_atom: ; void* parse_atom(token** Ptokens)
 
     paL2:
     cmp word [rbx], TT_MIN
-    jne paL4
-
+    je paL6
+    cmp word [rbx], TT_EXCL
+    je paL6
+    jmp paL4
+    paL6:
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
     mov rdi, rbx
