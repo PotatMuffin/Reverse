@@ -487,3 +487,251 @@ genlookuptable:
     dq visit_node_if
     dq visit_node_while
     dq visit_node_for
+
+mov_to_reg: ; void mov_to_reg(void* reg, void* value)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    cmp word [rbx], REG
+    jne loc_not_reg
+
+    mov rbx, [rbp - 16]
+    cmp word [rbx], REG
+    jne mtrL1
+    mov rcx, [rbp - 8]
+    mov ecx, [rcx + 2]
+    cmp dword [rbx + 2], ecx
+    jne mtrL1
+    leave
+    ret
+    mtrL1:
+
+    mov rdi, [rbp - 8]
+    call value_to_string
+    mov [rbp - 24], rax
+
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov [rbp - 32], rax
+
+    fprintmany [outputfd], _mov, [rbp - 24], comma, [rbp - 32], newline
+
+    leave
+    ret
+
+mov_to_mempos: ; void mov_to_mempos(void* mempos, void* value)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    cmp word [rbx], MEMPOS
+    jne loc_not_mem
+
+    mov rdi, [rbp - 8]
+    call value_to_string
+    mov [rbp - 24], rax
+
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov [rbp - 32], rax
+
+    fprintmany [outputfd], _mov, [rbp - 24], comma, [rbp - 32], newline
+
+    leave
+    ret
+
+mov_value_to_reg: ; void* mov_value_to_reg(void* reg, void* value, short type)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 34
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    mov [rbp - 34], dx
+
+    mov rbx, [rbp - 16]
+    mov ax, word [rbp - 34] 
+    cmp word [rbx], ax
+    je mitrL1
+    mov rax, [rbp - 16]
+    leave
+    ret
+    mitrL1:
+
+    mov rdi, [rbp - 8]
+    call value_to_string
+    mov [rbp - 24], rax
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov [rbp - 32], rax
+
+    fprintmany [outputfd], _mov, [rbp - 24], comma, [rbp - 32], newline
+    mov rax, [rbp - 8]
+    leave
+    ret
+
+reg_binop: ; void* reg_binop(void* reg1, void* reg2, token* op)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    mov [rbp - 24], rdx
+
+    mov rbx, [rbp - 24]
+    cmp word [rbx], TT_PLUS
+    jne rbL1  
+    mov qword [rbp - 32], _add
+    jmp rbL4
+    rbL1:
+    cmp word [rbx], TT_MIN
+    jne rbL2
+    mov qword [rbp - 32], _sub
+    jmp rbL4
+    rbL2:
+    cmp word [rbx], TT_STAR
+    jne rbL3
+    mov qword [rbp - 32], _imul
+    jmp rbL4
+    rbL3:
+    cmp word [rbx], TT_FSLASH
+    je rbL6
+    cmp word [rbx], TT_PERCENT
+    je rbL6
+    cmp word [rbx], TT_ANGBRACKL
+    jne rbL9
+    mov qword [rbp - 32], _setl
+    jmp rbL8
+    rbL9:
+    cmp word [rbx], TT_ANGBRACKR
+    jne rbL10
+    mov qword [rbp - 32], _setg
+    jmp rbL8
+    rbL10:
+    cmp word [rbx], TT_GTE
+    jne rbL11
+    mov qword [rbp - 32], _setge
+    jmp rbL8
+    rbL11:
+    cmp word [rbx], TT_LTE
+    jne rbL12
+    mov qword [rbp - 32], _setle
+    jmp rbL8
+    rbL12:
+    cmp word [rbx], TT_IS
+    jne rbL13
+    mov qword [rbp - 32], _sete
+    jmp rbL8
+    rbL13:
+    cmp word [rbx], TT_ISNT
+    jne unimplemented_op
+    mov qword [rbp - 32], _setne
+    jmp rbL8
+    rbL6:
+
+    mov rbx, [rbp - 8]
+    cmp dword [rbx + 2], _rax
+    je rbL5
+
+    reg rax_, qword_
+
+    mov rdi, rax
+    mov rsi, [rbp - 8]
+    call mov_to_reg 
+    rbL5:
+
+    fprintmany [outputfd], _cqo,newline
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov r15, rax
+    fprintmany [outputfd], _idiv, r15, newline
+
+    mov rbx, [rbp - 24]
+    cmp word [rbx], TT_PERCENT
+    je  rbL7
+    reg rax_, qword_
+    leave
+    ret
+    rbL7:
+    reg rdx_, qword_
+    leave
+    ret
+    rbL4:
+
+    mov rdi, [rbp - 8]
+    call value_to_string
+    mov r15, rax
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov r14, rax
+
+    fprintmany [outputfd], [rbp - 32], r15, comma, r14, newline
+    mov rax, [rbp - 8]
+
+    leave
+    ret
+    rbL8:
+
+    mov rdi, [rbp - 8]
+    call value_to_string
+    mov r15, rax
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov r14, rax
+    mov rcx, [rbp - 8]
+    reg [rcx + 2], byte_
+    mov rdi, rax
+    call value_to_string
+    mov r13, rax
+
+    fprintmany [outputfd], _cmp, r15, comma, r14, newline
+    fprintmany [outputfd], [rbp - 32], r13, newline
+    fprintmany [outputfd], _movzx, r15, comma, r13, newline 
+    mov rax, [rbp - 8]
+
+    leave 
+    ret
+
+reg_unop: ; void* reg_unop(void* reg, token* op)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rdi, [rbp - 8]
+    call value_to_string
+    mov [rbp - 24], rax
+
+    mov rbx, [rbp - 16]
+    cmp word [rbx], TT_MIN
+    jne reL1
+
+    fprintmany [outputfd], _neg, [rbp - 24], newline 
+    mov rax, [rbp - 8]
+    leave
+    ret
+
+    reL1:
+    cmp word [rbx], TT_EXCL
+    jne unimplemented_op
+
+    mov rcx, [rbp - 8]
+    reg [rcx + 2], byte_
+    mov rdi, rax
+    call value_to_string
+    mov r15, rax
+
+    fprintmany [outputfd], _cmp, [rbp - 24], comma, zero, newline
+    fprintmany [outputfd], _sete, r15, newline
+    fprintmany [outputfd], _movzx, [rbp - 24], comma, r15, newline
+    mov rax, [rbp - 8]
+
+    leave
+    ret
