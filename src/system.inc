@@ -126,6 +126,21 @@ macro symbol_table table_size
     add [memory_pointer], rbx
 }
 
+macro context table, logop_true, logop_false, logop_token
+{
+    check_memory context_size
+    mov rax, [memory_pointer]
+    mov rbx, table
+    mov [rax], rbx
+    mov rbx, logop_true
+    mov [rax + 8], rbx
+    mov rbx, logop_false
+    mov [rax + 16], rbx
+    mov rbx, logop_token
+    mov [rax + 24], rbx
+    add [memory_pointer], context_size
+}
+
 macro node_root
 {
     check_memory node_root_size

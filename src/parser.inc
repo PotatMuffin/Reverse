@@ -428,7 +428,7 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
 
         cmp word [rbx], TT_PLUS
         jl pbeRet
-        cmp word [rbx], TT_ISNT
+        cmp word [rbx], TT_LOGOR
         jg pbeRet
 
         mov bx, word [rbx]

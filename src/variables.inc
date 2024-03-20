@@ -4,13 +4,14 @@ memory_text_pointer dq ? ; memory_text pointer grows down towards memory_start
 memory_end dq ?
 memory_setting dq ? 
 
-source rq 1
-output rq 1
+source   rq 1
+output   rq 1
 outputfd rq 1
 
-if_label dq 1
+if_label    dq 1
 while_label dq 1
-for_label dq 1
+for_label   dq 1
+other_label dq 1
 
 stat rb 144
 usage_suffix db "Usage: ", 0
@@ -32,6 +33,7 @@ _tokenizing db "Tokenizing file",10,0
 _parsing db "Parsing file",10,0
 _generating db "Generating assembly",10,0
 
+L db "L",0
 _parenl db "'('",0
 _parenr db "')'",0
 _bracel db "'{'",0
@@ -57,6 +59,7 @@ _or db 'or',0
 _min db '-',0
 _plus db '+',0
 zero db '0',0
+one db '1',0
 
 var db "var",0
 if_ db "if",0
@@ -133,6 +136,8 @@ TT_GTE       = 8 ; >=
 TT_LTE       = 9 ; =<
 TT_IS        = 10 ; ==
 TT_ISNT      = 11 ; !=
+TT_LOGAND    = 12 ; &&
+TT_LOGOR     = 13 ; ||
 TT_EXCL      = 128 ; !
 TT_BSLASH    = 256 ; \
 TT_PARENL    = 257 ; (
@@ -148,8 +153,8 @@ TT_KEYWORD   = 769
 TT_NEWLINE   = 1024 ; \n
 TT_NOEXIST   = 2048 
 
-op_prec db 0, 2, 2, 3, 3, 3, 1, 1, 1, 1
-   ;          +  -  *  /  %  <  > >= =<
+op_prec db 0, 3, 3, 4, 4, 4, 2, 2, 2, 2, 2, 2, 1, 1
+   ;          +  -  *  /  %  <  > >= =< == != && ||
 
 ; struct node_root
 ; {
@@ -253,6 +258,15 @@ NODE_FOR    = 10
 
 symbol_size = 12
 symbol_table_size = 12
+
+; struct context
+; {
+;   symbol_table* table
+;   char* logop_true
+;   char* logop_false
+;   token* logop_token
+; }
+context_size = 32
 
 ; struct value
 ; {
@@ -386,6 +400,8 @@ _mov db 'mov ',0
 _movzx db 'movzx ',0
 _movsx db 'movsx ',0
 _movsxd db 'movsxd ',0
+_push db 'push ',0
+_pop db 'pop ',0
 _add db 'add ',0
 _sub db 'sub ',0
 _imul db 'imul ',0

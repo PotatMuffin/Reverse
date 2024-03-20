@@ -1,18 +1,32 @@
 generate: ; void generate(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 24
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
+
+    context [rbp - 16], 0, 0, 0
+    mov [rbp - 24], rax
 
     open [output], default_open_flags, default_open_mode
     mov [outputfd], rax
 
     fprintmany [outputfd], _format, _segment, _executable, _entry
+
+    mov rbx, [rbp - 16]
+    cmp dword [rbx + 8], 0
+    je gL1
+    movsxd rdi, dword [rbx + 8]
+    neg rdi
+    call itoa
+    mov r15, rax
+
     fprintmany [outputfd], _prologue
+    fprintmany [outputfd], _sub, _rsp, comma, r15, newline
+    gL1:
 
     mov rdi, [rbp - 8]
-    mov rsi, [rbp - 16]
+    mov rsi, [rbp - 24]
     call visit_node_root
 
     mov rdi, [outputfd]
@@ -24,7 +38,7 @@ generate: ; void generate(void* node, symbol_table* table)
     leave
     ret
 
-visit: ; void* visit(void* node, symbol_table* table, bool lhs)
+visit: ; void* visit(void* node, context* context, bool lhs)
     push rbp
     mov rbp, rsp
     sub rsp, 17
@@ -47,7 +61,7 @@ visit: ; void* visit(void* node, symbol_table* table, bool lhs)
     leave 
     ret
 
-visit_node_root: ; void visit_node_root(void* node, symbol_table* table)
+visit_node_root: ; void visit_node_root(void* node, context* context)
     push rbp
     mov rbp, rsp
     sub rsp, 32
@@ -93,7 +107,7 @@ visit_node_root: ; void visit_node_root(void* node, symbol_table* table)
     leave
     ret
 
-visit_node_binop: ; void* visit_node_binop(void* node, symbol_table* table, bool lhs)
+visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lhs)
     push rbp
     mov rbp, rsp
     sub rsp, 57
@@ -102,30 +116,58 @@ visit_node_binop: ; void* visit_node_binop(void* node, symbol_table* table, bool
     mov [rbp - 25], dl
 
     mov rbx, [rbp - 8]
-    mov rdi, qword [rbx + 2]
+    mov rbx, [rbx + 10]
+    cmp word [rbx], TT_LOGAND
+    je vnbL5
+    cmp word [rbx], TT_LOGOR
+    je vnbL5
+    jmp vnbL6
+    vnbL5:
+
+    mov rdi, [rbp - 8]
     mov rsi, [rbp - 57]
+    call logical_binop
+
+    leave
+    ret
+
+    vnbL6:
+
+    mov rbx, [rbp - 8]
+    mov rdi, qword [rbx + 2]
+    mov r15, [rbp - 57]
+    context [r15], 0, 0, 0
+    mov rsi, rax
     mov dl, 1
     call visit
     mov [rbp - 16], rax
 
     cmp byte [rbp - 25], 0
     je vnbL2
-    ; move result of left child into rsi if that child is a unop or binop and the current node is on the left hand side
-    ; of its parent
+    ; push the result of the left child 
+    ; if that child is a unop or binop and the current node is on the left hand side of its parent
     mov rbx, [rbp - 8]
     mov rbx, qword [rbx + 2]
     cmp word [rbx], NODE_UNOP
-    je vnbl9
+    je vnbL10
     cmp word [rbx], NODE_BINOP
-    je vnbl9
+    je vnbL10
+    jmp vnbL2
+    vnbL10:
+    mov rbx, [rbp - 8]
+    mov rbx, qword [rbx + 18]
+    cmp word [rbx], NODE_UNOP
+    je vnbL9
+    cmp word [rbx], NODE_BINOP
+    je vnbL9
     jmp vnbL2
 
-    vnbl9:
-    reg rsi_, qword_
-    mov qword [rbp - 33], rax
-    mov rdi, [rbp - 33]
-    mov rsi, [rbp - 16]
-    call mov_to_reg
+    vnbL9:
+    mov qword [rbp - 33], 0
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov r15, rax
+    fprintmany [outputfd], _push, r15, newline 
     jmp vnbL1
 
     vnbL2:
@@ -135,7 +177,9 @@ visit_node_binop: ; void* visit_node_binop(void* node, symbol_table* table, bool
 
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 18]
-    mov rsi, [rbp - 57]
+    mov r15, [rbp - 57]
+    context [r15], 0, 0, 0
+    mov rsi, rax
     mov dl, 0
     call visit
     mov [rbp - 24], rax
@@ -157,14 +201,22 @@ visit_node_binop: ; void* visit_node_binop(void* node, symbol_table* table, bool
     mov rsi, [rbp - 24]
     call mov_to_reg
 
-    ; move result of left child into rax if it's not already in rsi
-    mov rbx, [rbp - 33]
-    cmp dword [rbx + 2], rax_
-    jne vnbL8
+    ; move result of left child into rax if it's not already pushed onto the stack
+    cmp qword [rbp - 33], 0
+    je vnbL8
     mov rdi, [rbp - 33]
     mov rsi, [rbp - 16]
     call mov_to_reg
+    jmp vnbL7
     vnbL8:
+    reg rax_, qword_
+    mov [rbp - 33], rax
+    mov rdi, rax
+    call value_to_string
+    mov r15, rax
+    fprintmany [outputfd], _pop, r15, newline
+
+    vnbL7:
 
     mov rdi, [rbp - 33]
     mov rsi, [rbp - 41]
@@ -192,7 +244,7 @@ visit_node_lit: ; void* visit_node_lit(void* node)
     leave
     ret
 
-visit_node_unop: ; void* visit_node_unop(void* node, symbol_table* table)
+visit_node_unop: ; void* visit_node_unop(void* node, context* context)
     push rbp
     mov rbp, rsp
     sub rsp, 32
@@ -220,7 +272,7 @@ visit_node_unop: ; void* visit_node_unop(void* node, symbol_table* table)
     leave
     ret
 
-visit_node_vardef: ; void* visit_node_vardef(void* node, symbol_table* table)
+visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
     push rbp
     mov rbp, rsp
     sub rsp, 32
@@ -241,7 +293,8 @@ visit_node_vardef: ; void* visit_node_vardef(void* node, symbol_table* table)
     call mov_value_to_reg
     mov [rbp - 24], rax
 
-    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 10]
     call st_get_var_pos
@@ -256,14 +309,15 @@ visit_node_vardef: ; void* visit_node_vardef(void* node, symbol_table* table)
     leave
     ret
 
-visit_node_var: ; void* visit_node_var(void* node, symbol_table* table)
+visit_node_var: ; void* visit_node_var(void* node, context* context)
     push rbp
     mov rbp, rsp
     sub rsp, 16
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
-    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
     call st_get_var_pos
@@ -273,7 +327,7 @@ visit_node_var: ; void* visit_node_var(void* node, symbol_table* table)
     leave
     ret
 
-visit_node_if: ; void* visit_node_if(void* node, symbol_table* table)
+visit_node_if: ; void* visit_node_if(void* node, context* context)
     push rbp
     mov rbp, rsp
     sub rsp, 40
@@ -345,7 +399,7 @@ visit_node_if: ; void* visit_node_if(void* node, symbol_table* table)
     leave
     ret
 
-visit_node_while: ; void* visit_node_while(void* node, symbol_table* table)
+visit_node_while: ; void* visit_node_while(void* node, context* context)
     push rbp
     mov rbp, rsp
     sub rsp, 48
@@ -401,7 +455,7 @@ visit_node_while: ; void* visit_node_while(void* node, symbol_table* table)
     leave
     ret
 
-visit_node_for: ; visit_node_for(void* node, symbol_table* table)
+visit_node_for: ; visit_node_for(void* node, context* context)
     push rbp
     mov rbp, rsp
     sub rsp, 56
@@ -733,5 +787,173 @@ reg_unop: ; void* reg_unop(void* reg, token* op)
     fprintmany [outputfd], _movzx, [rbp - 24], comma, r15, newline
     mov rax, [rbp - 8]
 
+    leave
+    ret
+
+logical_binop: ; void* logical_binop(void* node, context* context)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 80
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 16]
+    cmp qword [rbx + 24], 0
+    je laL1
+    mov rax, [rbx + 24]
+    mov ax, [rax]
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 10]
+    cmp word [rbx], ax
+    jne laL1
+
+    laL12:
+    mov rax, [rbx + 8]
+    mov [rbp - 40], rax
+    mov rax, [rbx + 16]
+    mov [rbp - 48], rax
+    mov rax, [rbx + 24]
+    mov [rbp - 56], rax
+    jmp laL2
+    laL1:
+
+    mov rdi, [other_label]
+    call itoa
+    mov [rbp - 40], rax
+    inc qword [other_label]
+
+    mov rdi, [other_label]
+    call itoa
+    mov [rbp - 48], rax
+    inc qword [other_label]
+
+    laL2:
+    mov rdi, [other_label]
+    call itoa
+    mov [rbp - 56], rax
+    inc qword [other_label]
+
+    reg rax_, qword_
+    mov [rbp - 64], rax
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 10]
+    cmp word [rbx], TT_LOGOR
+    je laL9
+    mov qword [rbp - 72], _je
+    mov rbx, [rbp - 48]
+    mov [rbp - 80], rbx
+    jmp laL10
+    laL9:
+    mov qword [rbp - 72], _jne
+    mov rbx, [rbp - 40]
+    mov [rbp - 80], rbx
+    laL10:
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov r14, [rbx + 10]
+    mov r15, [rbp - 16]
+    context [r15], [rbp - 40], [rbp - 48], r14
+    mov rsi, rax
+    mov dl, 1 
+    call visit
+    mov [rbp - 24], rax
+
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    cmp word [rbx], NODE_BINOP
+    jne laL3
+    mov rbx, [rbp - 8]
+    mov rax, [rbx + 18]
+    cmp word [rax], NODE_BINOP
+    jne laL3
+    mov rax, [rax + 10]
+    mov ax, [rax]
+    mov rbx, [rbx + 10]
+    cmp word [rbx], ax
+    je laL4
+    laL3:
+    mov rdi, [rbp - 64]
+    mov rsi, [rbp - 24]
+    mov dx, IMMVALUE
+    call mov_value_to_reg
+    mov [rbp - 24], rax
+
+    mov rdi, rax
+    call value_to_string
+    mov r15, rax
+
+    fprintmany [outputfd], _cmp, r15, comma, zero, newline
+    fprintmany [outputfd], [rbp - 72], L, [rbp - 80], newline
+    
+    laL4:
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 18]
+    mov r14, [rbx + 10]
+    mov r15, [rbp - 16]
+    context [r15], [rbp - 40], [rbp - 48], r14
+    mov rsi, rax
+    mov dl, 0
+    call visit
+    mov [rbp - 32], rax
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 18]
+    cmp word [rbx], NODE_BINOP
+    jne laL5
+    mov rbx, [rbp - 8]
+    mov rax, [rbx + 18]
+    cmp word [rax], NODE_BINOP
+    jne laL5
+    mov rax, [rax + 10]
+    mov ax, [rax]
+    mov rbx, [rbx + 10]
+    cmp word [rbx], ax
+    je laL6
+    laL5:
+
+    mov rdi, [rbp - 64]
+    mov rsi, [rbp - 32]
+    mov dx, IMMVALUE
+    call mov_value_to_reg
+    mov [rbp - 32], rax
+
+    mov rdi, rax
+    call value_to_string
+    mov r15, rax
+
+    fprintmany [outputfd], _cmp, r15, comma, zero, newline
+    fprintmany [outputfd], [rbp - 72], L, [rbp - 80], newline
+    laL6:
+
+    mov rbx, [rbp - 16]
+    cmp qword [rbx + 24], 0
+    je laL7
+    mov rax, [rbx + 24]
+    mov ax, [rax]
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 10]
+    cmp word [rbx], ax
+    je laL8
+    laL7:
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 10]
+    cmp word [rbx], TT_LOGOR
+    jne laL11
+    fprintmany [outputfd], _jmp, L, [rbp - 48], newline
+    laL11:
+    fprintmany [outputfd], L, [rbp - 40], colon, newline
+    fprintmany [outputfd], _mov, _rax, comma, one, newline 
+    fprintmany [outputfd], _jmp, L, [rbp - 56], newline
+    fprintmany [outputfd], L, [rbp - 48], colon, newline
+    fprintmany [outputfd], _mov, _rax, comma, zero, newline
+    fprintmany [outputfd], L, [rbp - 56], colon, newline 
+
+    laL8:
+
+    mov rax, [rbp - 64]
     leave
     ret
