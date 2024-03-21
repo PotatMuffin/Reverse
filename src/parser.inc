@@ -171,7 +171,7 @@ parse_scope_expr: ; void* parse_scope_expr(token** Ptokens)
 
     mov rbx, [rbp - 8]
     mov rbx, [rbx]
-    mov rax, [rbp - 28]
+    mov eax, dword [rbp - 28]
     imul rax, tok_len
     lea rbx, [rbx + rax]
     cmp word [rbx], TT_KEYWORD
