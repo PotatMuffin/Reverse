@@ -783,13 +783,13 @@ syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
         jne seeL2
         cmp rcx, 0
         je seeL1
-        printmany _or, space
+        printmany _or
         seeL1:
         printmany qword [rbx], suffix
         jmp seeRet
 
         seeL2: 
-        printmany qword [rbx], comma, space
+        printmany qword [rbx], comma
         inc qword [rbp - 24]
         jmp seeloop
 

@@ -51,11 +51,10 @@ _for db "'for'",0
 _semi db "';'",0
 newline db 10,0
 space db ' ',0
-comma db ',',0
+comma db ', ',0
 colon db ':',0
 quote db "'",0
 suffix db ".",10,0
-_or db 'or',0
 _min db '-',0
 _plus db '+',0
 zero db '0',0
@@ -138,6 +137,9 @@ TT_IS        = 10 ; ==
 TT_ISNT      = 11 ; !=
 TT_LOGAND    = 12 ; &&
 TT_LOGOR     = 13 ; ||
+TT_AND       = 14 ; &
+TT_OR        = 15 ; |
+TT_XOR       = 16 ; ^
 TT_EXCL      = 128 ; !
 TT_BSLASH    = 256 ; \
 TT_PARENL    = 257 ; (
@@ -153,8 +155,8 @@ TT_KEYWORD   = 769
 TT_NEWLINE   = 1024 ; \n
 TT_NOEXIST   = 2048 
 
-op_prec db 0, 3, 3, 4, 4, 4, 2, 2, 2, 2, 2, 2, 1, 1
-   ;          +  -  *  /  %  <  > >= =< == != && ||
+op_prec db 0, 4, 4, 5, 5, 5, 2, 2, 2, 2, 2, 2, 1, 1, 3, 3, 3
+   ;          +  -  *  /  %  <  > >= =< == != && ||  &  |  ^
 
 ; struct node_root
 ; {
@@ -404,6 +406,10 @@ _push db 'push ',0
 _pop db 'pop ',0
 _add db 'add ',0
 _sub db 'sub ',0
+_and db 'and ',0
+_or db 'or ',0
+_xor db 'xor ',0
+_not db 'not ',0
 _imul db 'imul ',0
 _cqo db 'cqo',0
 _idiv db 'idiv ',0

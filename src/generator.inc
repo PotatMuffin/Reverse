@@ -654,6 +654,20 @@ reg_binop: ; void* reg_binop(void* reg1, void* reg2, token* op)
     mov qword [rbp - 32], _imul
     jmp rbL4
     rbL3:
+    cmp word [rbx], TT_AND
+    jne rbL14
+    mov qword [rbp - 32], _and
+    jmp rbL4
+    rbL14:
+    cmp word [rbx], TT_OR
+    jne rbL15
+    mov qword [rbp - 32], _or
+    jmp rbL4
+    rbL15:
+    cmp word [rbx], TT_XOR
+    mov qword [rbp - 32], _xor
+    jmp rbL4
+    rbL16:
     cmp word [rbx], TT_FSLASH
     je rbL6
     cmp word [rbx], TT_PERCENT

@@ -22,11 +22,14 @@
 [var_expr]      : [bin_expr] = ident var
                 : [bin_expr] = ident
 
-[bin_expr]      : [bin_expr] * [bin_expr]  | prec = 4
-                : [bin_expr] % [bin_expr]  | prec = 4
-                : [bin_expr] / [bin_expr]  | prec = 4
-                : [bin_expr] + [bin_expr]  | prec = 3
-                : [bin_expr] - [bin_expr]  | prec = 3
+[bin_expr]      : [bin_expr] * [bin_expr]  | prec = 5
+                : [bin_expr] % [bin_expr]  | prec = 5
+                : [bin_expr] / [bin_expr]  | prec = 5
+                : [bin_expr] + [bin_expr]  | prec = 4
+                : [bin_expr] - [bin_expr]  | prec = 4
+                : [bin_expr] & [bin_expr]  | prec = 3
+                : [bin_expr] | [bin_expr]  | prec = 3
+                : [bin_expr] ^ [bin_expr]  | prec = 3
                 : [bin_expr] > [bin_expr]  | prec = 2
                 : [bin_expr] < [bin_expr]  | prec = 2
                 : [bin_expr] >= [bin_expr] | prec = 2

@@ -356,7 +356,7 @@ parse_else_expr: ; void* parse_else_expr(token** Ptokens, void* scope)
     leave
     ret
 
-parse_var_expr: ; void* parse_bin_expr(token** Ptokens, void* value)
+parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
     push rbp
     mov rbp, rsp
     sub rsp, 24
@@ -428,7 +428,7 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
 
         cmp word [rbx], TT_PLUS
         jl pbeRet
-        cmp word [rbx], TT_LOGOR
+        cmp word [rbx], TT_XOR
         jg pbeRet
 
         mov bx, word [rbx]
