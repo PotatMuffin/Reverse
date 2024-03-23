@@ -812,9 +812,23 @@ loc_not_reg:
     mov rdi, LOGERROR
     mov rsi, locnotreg
     call log
+    mov rdi, suffix
+    call print
+    mov rdi, LOGNOTE
+    mov rsi, bugincom
+    call log
+    mov rdi, suffix
+    call print
     exit_process 1
 loc_not_mem:
     mov rdi, LOGERROR
     mov rsi, locnotmem
     call log
+    mov rdi, suffix
+    call print
+    mov rdi, LOGNOTE
+    mov rsi, bugincom
+    call log
+    mov rdi, suffix
+    call print
     exit_process 1

@@ -827,11 +827,11 @@ logical_binop: ; void* logical_binop(void* node, context* context)
     mov [rbp - 48], rax
     inc qword [other_label]
 
-    laL2:
     mov rdi, [other_label]
     call itoa
     mov [rbp - 56], rax
     inc qword [other_label]
+    laL2:
 
     reg rax_, qword_
     mov [rbp - 64], rax

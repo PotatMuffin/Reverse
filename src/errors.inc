@@ -12,3 +12,4 @@ vardefined db "' is already defined",0
 varnotdefined db "' is not defined",0
 locnotreg db "Given location is not a register",0
 locnotmem db "Given location is not a memory address",0
+bugincom db "This is probably a bug in the compiler",0
