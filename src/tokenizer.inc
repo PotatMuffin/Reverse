@@ -229,25 +229,32 @@ tokenize: ; void* tokenize(char* buf)
     jmp tokloopcontinue
 
     tokif19:
-    cmp [rbp - 21], byte 10
+    cmp [rbp - 21], byte '~'
     jne tokif20
+
+    mov [r13], word TT_NOT
+    jmp tokloopcontinue
+
+    tokif20:
+    cmp [rbp - 21], byte 10
+    jne tokif21
 
     mov [r13], word TT_NEWLINE
     inc dword [rbp - 12]
     jmp tokloopcontinue
 
-    tokif20:
+    tokif21:
     cmp [rbp - 21], byte ';'
-    jne tokif21
+    jne tokif22
 
     mov [r13], word TT_NEWLINE
     jmp tokloopcontinue
 
-    tokif21:
+    tokif22:
     cmp [rbp - 21], byte '0'
-    jl tokif22
+    jl tokif23
     cmp [rbp - 21], byte '9'
-    jg tokif22
+    jg tokif23
     mov [r13], word TT_INTLIT
     xor rax, rax
     L1:
@@ -271,12 +278,12 @@ tokenize: ; void* tokenize(char* buf)
     mov qword [r13 + 2], rax
     jmp tokloopcontinue
 
-    tokif22:
+    tokif23:
     mov rdi, alpha
     mov sil, byte [rbp - 21]
     call contains_char
     cmp al, 0
-    je tokif23
+    je tokif24
 
     mov rdi, [rbp - 8]
     mov rsi, alphanumeric 
@@ -294,7 +301,7 @@ tokenize: ; void* tokenize(char* buf)
 
     jmp tokloopcontinue
 
-    tokif23:
+    tokif24:
 
     mov rdi, brackl
     call print

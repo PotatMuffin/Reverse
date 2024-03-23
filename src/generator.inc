@@ -791,7 +791,7 @@ reg_binop: ; void* reg_binop(void* reg1, void* reg2, token* op)
 reg_unop: ; void* reg_unop(void* reg, token* op)
     push rbp
     mov rbp, rsp
-    sub rsp, 24
+    sub rsp, 32
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -801,9 +801,16 @@ reg_unop: ; void* reg_unop(void* reg, token* op)
 
     mov rbx, [rbp - 16]
     cmp word [rbx], TT_MIN
+    jne reL2
+    mov qword [rbp - 32], _neg
+    jmp reL3
+    reL2:
+    cmp word [rbx], TT_NOT
     jne reL1
+    mov qword [rbp - 32], _not
+    reL3:
 
-    fprintmany [outputfd], _neg, [rbp - 24], newline 
+    fprintmany [outputfd], [rbp - 32], [rbp - 24], newline 
     mov rax, [rbp - 8]
     leave
     ret

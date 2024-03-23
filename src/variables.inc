@@ -143,6 +143,7 @@ TT_XOR       = 16 ; ^
 TT_SHL       = 17 ; <<
 TT_SHR       = 18 ; >>
 TT_EXCL      = 128 ; !
+TT_NOT       = 129
 TT_BSLASH    = 256 ; \
 TT_PARENL    = 257 ; (
 TT_PARENR    = 258 ; )
