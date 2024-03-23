@@ -732,7 +732,7 @@ name_error_var_defined: ; void name_error_var_defined(token* token)
     call print
     print_tok_pos [rbp - 8]
 
-    printmany nameerrorprefix, varprefix
+    printmany varprefix
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     call print
@@ -747,7 +747,7 @@ name_error_var_undefined:
     call print
     print_tok_pos [rbp - 8]
 
-    printmany nameerrorprefix, varprefix
+    printmany varprefix
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     call print
@@ -760,7 +760,7 @@ syntax_error_token: ; syntax_error_token(token* token)
 
     printmany ERROR
     print_tok_pos [rbp - 8]
-    printmany syntaxerrorprefix, syntaxerrortoken, suffix
+    printmany syntaxerrortoken, suffix
     exit_process 1
 syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
     mov rbp, rsp
@@ -771,7 +771,7 @@ syntax_error_expected: ; void syntax_error_expected(token* token, char** argv)
 
     printmany ERROR
     print_tok_pos [rbp - 8]
-    printmany syntaxerrorprefix, syntaxerrorexpected
+    printmany syntaxerrorexpected
 
     seeloop:
         mov rbx, qword [rbp - 16]
@@ -829,6 +829,16 @@ loc_not_mem:
     mov rdi, LOGNOTE
     mov rsi, bugincom
     call log
+    mov rdi, suffix
+    call print
+    exit_process 1
+iwf_not_allowed:
+    mov [rbp - 8], rdi
+    mov rdi, ERROR
+    call print
+    print_tok_pos [rbp - 8]
+    mov rdi, iwfnotallowed
+    call print
     mov rdi, suffix
     call print
     exit_process 1

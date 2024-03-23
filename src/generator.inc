@@ -275,7 +275,7 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
 visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
     push rbp
     mov rbp, rsp
-    sub rsp, 32
+    sub rsp, 40
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -301,11 +301,13 @@ visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
     mov [rbp - 32], rax
 
     mempos rbp_, [rbp - 32]
+    mov [rbp - 40], rax
 
-    mov rdi, rax
+    mov rdi, [rbp - 40]
     mov rsi, [rbp - 24]
     call mov_to_mempos
 
+    mov rax, [rbp - 40]
     leave
     ret
 
@@ -665,9 +667,20 @@ reg_binop: ; void* reg_binop(void* reg1, void* reg2, token* op)
     jmp rbL4
     rbL15:
     cmp word [rbx], TT_XOR
+    jne rbL16
     mov qword [rbp - 32], _xor
     jmp rbL4
     rbL16:
+    cmp word [rbx], TT_SHL
+    jne rbL17
+    mov qword [rbp - 32], _shl
+    jmp rbL19
+    rbL17:
+    cmp word [rbx], TT_SHR
+    jne rbL18
+    mov qword [rbp - 32], _sar
+    jmp rbL19
+    rbL18:
     cmp word [rbx], TT_FSLASH
     je rbL6
     cmp word [rbx], TT_PERCENT
@@ -730,6 +743,15 @@ reg_binop: ; void* reg_binop(void* reg1, void* reg2, token* op)
     reg rdx_, qword_
     leave
     ret
+    rbL19:
+
+    reg rcx_, qword_
+    mov rdi, rax
+    mov rsi, [rbp - 16]
+    call mov_to_reg
+    reg rcx_, byte_
+    mov [rbp - 16], rax
+
     rbL4:
 
     mov rdi, [rbp - 8]

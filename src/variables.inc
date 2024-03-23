@@ -140,6 +140,8 @@ TT_LOGOR     = 13 ; ||
 TT_AND       = 14 ; &
 TT_OR        = 15 ; |
 TT_XOR       = 16 ; ^
+TT_SHL       = 17 ; <<
+TT_SHR       = 18 ; >>
 TT_EXCL      = 128 ; !
 TT_BSLASH    = 256 ; \
 TT_PARENL    = 257 ; (
@@ -155,8 +157,8 @@ TT_KEYWORD   = 769
 TT_NEWLINE   = 1024 ; \n
 TT_NOEXIST   = 2048 
 
-op_prec db 0, 4, 4, 5, 5, 5, 2, 2, 2, 2, 2, 2, 1, 1, 3, 3, 3
-   ;          +  -  *  /  %  <  > >= =< == != && ||  &  |  ^
+op_prec db 0, 4, 4, 5, 5, 5, 2, 2, 2, 2, 2, 2, 1, 1, 3, 3, 3, 2, 2
+   ;          +  -  *  /  %  <  > >= =< == != && ||  &  |  ^ << >>
 
 ; struct node_root
 ; {
@@ -410,6 +412,9 @@ _and db 'and ',0
 _or db 'or ',0
 _xor db 'xor ',0
 _not db 'not ',0
+_shl db 'shl ',0
+_shr db 'shr ',0
+_sar db 'sar ',0
 _imul db 'imul ',0
 _cqo db 'cqo',0
 _idiv db 'idiv ',0

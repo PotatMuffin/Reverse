@@ -13,9 +13,9 @@
 
 [else_expr]     : [scope] else [if_expr]
 
-[if_expr]       : [scope] ([bin_expr]) if
+[if_expr]       : [scope] ([expr]) if
 
-[while_expr]    : [scope] ([bin_expr]) while
+[while_expr]    : [scope] ([expr]) while
 
 [for_expr]      : [scope] ([expr]; [expr]; [expr]) for
 
@@ -32,6 +32,8 @@
                 : [bin_expr] ^ [bin_expr]  | prec = 3
                 : [bin_expr] > [bin_expr]  | prec = 2
                 : [bin_expr] < [bin_expr]  | prec = 2
+                : [bin_expr] >> [bin_expr] | prec = 2
+                : [bin_expr] << [bin_expr] | prec = 2
                 : [bin_expr] >= [bin_expr] | prec = 2
                 : [bin_expr] =< [bin_expr] | prec = 2
                 : [bin_expr] == [bin_expr] | prec = 2

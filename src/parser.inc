@@ -192,8 +192,21 @@ parse_scope_expr: ; void* parse_scope_expr(token** Ptokens)
     pseL4:
     mov rdi, [rbp - 8]
     mov sil, 0
-    call parse_bin_expr
+    call parse_expr
     mov [rbp - 24], rax
+    cmp word [rax], NODE_IF
+    je peeL3
+    cmp word [rax], NODE_WHILE
+    je peeL3
+    cmp word [rax], NODE_FOR
+    jne peeL4
+    peeL3:
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx]
+    call iwf_not_allowed
+
+    peeL4:
 
     mov rbx, [rbp - 8]
     mov rbx, [rbx]
@@ -265,6 +278,20 @@ parse_for_expr: ; void* parse_for_expr(token** Ptokens, void* scope)
 
     mov rbx, [rbp - 24]
     mov [rbp - 48 + rbx*8], rax
+
+    cmp word [rax], NODE_IF
+    je pfeL2
+    cmp word [rax], NODE_WHILE
+    je pfeL2
+    cmp word [rax], NODE_FOR
+    jne pfeL3
+    pfeL2:
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx]
+    call iwf_not_allowed
+
+    pfeL3:
 
     inc qword [rbp - 24]
     cmp qword [rbp - 24], 3
@@ -381,9 +408,12 @@ parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
     je pveL3
     cmp word [rcx], TT_EOF
     je pveL3
+    cmp word [rcx], TT_PARENR
+    je pveL3
+    cmp word [rcx], TT_BRACER
+    je pveL3
     cmp word [rcx], TT_KEYWORD
     jne pveL2
-
 
     mov rdi, qword [rcx + 2]
     mov rsi, var
@@ -428,11 +458,10 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
 
         cmp word [rbx], TT_PLUS
         jl pbeRet
-        cmp word [rbx], TT_XOR
+        cmp word [rbx], TT_SHR
         jg pbeRet
 
-        mov bx, word [rbx]
-        and rbx, 0FFFFh
+        movzx rbx, word [rbx]
         mov al, [op_prec + rbx]
         mov [rbp - 34], al ; prec
 
