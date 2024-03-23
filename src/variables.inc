@@ -258,10 +258,18 @@ NODE_FOR    = 10
 ; struct symbol
 ; {
 ;   char* name
+;   void* data
+; }
+
+; struct var
+; {
+;   short type
+;   long var_type
 ;   int pos
 ; }
 
-symbol_size = 12
+symbol_size = 16
+var_size = 14
 symbol_table_size = 12
 
 ; struct context
