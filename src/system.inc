@@ -126,6 +126,28 @@ macro symbol_table table_size
     add [memory_pointer], rbx
 }
 
+macro var type, pos
+{
+    check_memory var_size
+    mov rax, [memory_pointer]
+    mov word [rax], VAR
+    mov rbx, type
+    mov qword [rax + 2], rbx
+    mov ebx, pos
+    mov dword [rax + 10], ebx
+    add [memory_pointer], var_size
+}
+
+macro builtin_type size
+{
+    check_memory builtin_type_size
+    mov rax, [memory_pointer]
+    mov word [rax], BUILTIN_TYPE
+    mov ebx, size
+    mov dword [rax + 2], ebx
+    add [memory_pointer], builtin_type_size
+}
+
 macro context table, logop_true, logop_false, logop_token
 {
     check_memory context_size
@@ -187,7 +209,7 @@ macro node_unop op, node
     add [memory_pointer], node_unop_size
 }
 
-macro node_vardef value, name
+macro node_vardef value, name, type
 {
     check_memory node_vardef_size
     mov rax, [memory_pointer]
@@ -196,6 +218,8 @@ macro node_vardef value, name
     mov qword [rax + 2], rbx
     mov rbx, name
     mov qword [rax + 10], rbx
+    mov rbx, type
+    mov qword [rax + 18], rbx
     add [memory_pointer], node_vardef_size
 }
 
@@ -285,13 +309,15 @@ macro reg register, size
     add [memory_pointer], reg_size
 }
 
-macro mempos register, offset
+macro mempos register, size, offset
 {
     check_memory mempos_size
     mov rax, [memory_pointer]
     mov word [rax], MEMPOS
-    mov ebx, register
-    mov dword [rax + 2], ebx
+    mov bx, register
+    mov word [rax + 2], bx
+    mov bx, size
+    mov word [rax + 4], bx
     mov ebx, offset
     mov dword [rax + 6], ebx
     add [memory_pointer], mempos_size
@@ -639,21 +665,22 @@ strcmp: ; bool strcmp(char* a, char* b)
     leave
     ret
 
-is_keyword: ; bool is_keyword(char* str)
+contains_str: ; bool contains_str(char** charArr, char* str)
     push rbp
     mov rbp, rsp
-    sub rsp, 17
-    mov [rbp - 8], rdi
+    sub rsp, 25
+    mov [rbp - 25], rdi
+    mov [rbp - 8], rsi
     mov qword [rbp - 16], 0 ; i
-    mov byte [rbp - 17], 0 ; is_keyword
+    mov byte [rbp - 17], 0 ; found
 
-    keywordloop:
-        mov rbx, keywords
+    containsstrloop:
+        mov rbx, [rbp - 25]
         mov rax, [rbp - 16]
         mov rbx, qword [rbx + rax * 8]
 
         cmp rbx, 0
-        je keywordloopend
+        je containsstrloopend
 
         mov rdi, [rbp - 8]
         mov rsi, rbx
@@ -661,20 +688,53 @@ is_keyword: ; bool is_keyword(char* str)
 
         mov [rbp - 17], al
         cmp byte [rbp - 17], 1
-        je keywordloopend
+        je containsstrloopend
 
         inc qword [rbp - 16]
-        jmp keywordloop
+        jmp containsstrloop
 
-    keywordloopend:
+    containsstrloopend:
     mov al, [rbp - 17]
+    leave
+    ret
+
+index_of: ; bool index_of(char** charArr, char* str)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 25
+    mov [rbp - 25], rdi
+    mov [rbp - 8], rsi
+    mov qword [rbp - 16], 0 ; i
+    mov byte [rbp - 17], 0 ; found
+
+    indexofloop:
+        mov rbx, [rbp - 25]
+        mov rax, [rbp - 16]
+        mov rbx, qword [rbx + rax * 8]
+
+        cmp rbx, 0
+        je indexofloopend
+
+        mov rdi, [rbp - 8]
+        mov rsi, rbx
+        call strcmp
+
+        mov [rbp - 17], al
+        cmp byte [rbp - 17], 1
+        je indexofloopend
+
+        inc qword [rbp - 16]
+        jmp indexofloop
+
+    indexofloopend:
+    mov rax, [rbp - 16]
     leave
     ret
 
 value_to_string: ; char* value_to_string(void* value)
     push rbp
     mov rbp, rsp
-    sub rsp, 24
+    sub rsp, 32
     mov [rbp - 8], rdi
 
     mov rbx, [rbp - 8]
@@ -699,10 +759,16 @@ value_to_string: ; char* value_to_string(void* value)
     ret
     vtsL2:
 
-    mov eax, [rbx + 2]
+    movzx eax, word [rbx + 2]
     imul rax, 20
     lea rax, [_rax + rax]
     mov [rbp - 16], rax
+
+    movzx eax, word [rbx + 4]
+    mov rdi, rax
+    call display_number
+    mov rdi, suffix
+    call print
 
     movsxd rdi, [rbx + 6]
     call itoa 
@@ -841,4 +907,12 @@ iwf_not_allowed:
     call print
     mov rdi, suffix
     call print
+    exit_process 1
+is_not_a_type:
+    mov [rbp - 8], rdi
+    mov rdi, ERROR
+    call print
+    print_tok_pos [rbp - 8]
+    mov r15, [rbp - 8]
+    printmany quote, [r15 + 2], isnottype, suffix
     exit_process 1

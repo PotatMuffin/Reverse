@@ -412,26 +412,18 @@ parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
     je pveL3
     cmp word [rcx], TT_BRACER
     je pveL3
-    cmp word [rcx], TT_KEYWORD
+    cmp word [rcx], TT_IDENT
     jne pveL2
 
-    mov rdi, qword [rcx + 2]
-    mov rsi, var
-    call strcmp
-
-    cmp al, 0
-    je pveL2
-
-    mov rbx, [rbp - 8]
     add qword [rbx], tok_len
-    node_vardef [rbp - 16], [rbp - 24]
+    node_vardef [rbp - 16], [rbp - 24], rcx
     leave
     ret
 
     pveL2:
     mov rbx, [rbp - 8]
     mov rdi, [rbx]
-    pushmany 0, _var
+    pushmany 0, _type
     mov rsi, rsp
     call syntax_error_expected
 

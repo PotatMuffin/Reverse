@@ -25,12 +25,13 @@ hash: ; ulong hash(char* str)
     leave
     ret
 
-st_add_var: ; void st_add_var(symbol_table* table, void* node):
+st_add_var: ; void st_add_var(symbol_table* table, void* node, void* type)
     push rbp
     mov rbp, rsp
-    sub rsp, 32
+    sub rsp, 40
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
+    mov [rbp - 40], rdx
 
     mov rbx, [rbp - 16]
     mov rbx, qword [rbx + 10]
@@ -79,19 +80,30 @@ st_add_var: ; void st_add_var(symbol_table* table, void* node):
     mov rax, qword [rax + 2]
     mov qword [rbx + rcx + symbol_table_size], rax
 
-    sub dword [rbx + 8], 8
-    mov eax, dword [rbx + 8]
-    mov dword [rbx + rcx + symbol_table_size + 8], eax
+    mov rcx, [rbp - 40]
+    mov ecx, [rcx + 2]
+    movzx rcx, [sizes + rcx]
+
+    sub dword [rbx + 8], ecx
+    mov r15d, dword [rbx + 8]
+    mov rbx, [rbp - 16]
+    var [rbx + 18], r15d
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 24]
+    imul rcx, symbol_size
+    mov qword [rbx + rcx + 8 + symbol_table_size], rax
+
     leave
     ret
 
-st_get_var_pos: ; long st_get_var_pos(symbol_table* table, token* node)
+st_get_symbol: ; symbol* st_get_symbol(symbol_table* table, token* token)
     push rbp
     mov rbp, rsp
     sub rsp, 24
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
-    
+
     mov rbx, [rbp - 16]
     mov rdi, qword [rbx + 2]
     call hash
@@ -100,16 +112,16 @@ st_get_var_pos: ; long st_get_var_pos(symbol_table* table, token* node)
     mov rbx, qword [rbx]
     xor rdx, rdx
     idiv rbx
-    mov [rbp - 24], rdx ; index
+    mov [rbp - 24], rdx
     ; TODO: this will become an infinite loop if the entire table is full
-    trygetvar:
+    trygetsymbol:
     mov rbx, [rbp - 8]
     mov rcx, [rbp - 24]
     imul rcx, symbol_size
 
     mov rax, [rbx + rcx + symbol_table_size]
     cmp rax, 0
-    je getvarRet
+    je getsymbolfail
 
     mov rdi, rax
     mov rbx, [rbp - 16]
@@ -121,12 +133,39 @@ st_get_var_pos: ; long st_get_var_pos(symbol_table* table, token* node)
     sub qword [rbp - 24], rax
 
     cmp al, 0
-    je trygetvar
+    je trygetsymbol
 
     mov rbx, [rbp - 8]
     mov rcx, [rbp - 24]
     imul rcx, symbol_size
-    mov eax, dword [rbx + rcx + symbol_table_size + 8]
+    lea rax, [rbx + rcx + symbol_table_size]
+    leave
+    ret
+
+    getsymbolfail:
+    mov rax, -1
+    leave
+    ret
+
+st_get_var_pos: ; mempos* st_get_var_pos(symbol_table* table, token* token)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    
+    mov rdi, [rbp - 8]
+    mov rsi, [rbp - 16]
+    call st_get_symbol
+    mov [rbp - 24], rax
+
+    mov rbx, [rbp - 24]
+    mov rbx, qword [rbx + 8]
+    mov r15d, dword [rbx + 10]
+    mov rbx, qword [rbx + 2]
+    mov r14d, dword [rbx + 2]  
+    mempos rbp_, r14w, r15d
+
     getvarRet:
     leave
     ret

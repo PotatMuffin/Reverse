@@ -275,7 +275,7 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
 visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
     push rbp
     mov rbp, rsp
-    sub rsp, 40
+    sub rsp, 32
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -300,14 +300,11 @@ visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
     call st_get_var_pos
     mov [rbp - 32], rax
 
-    mempos rbp_, [rbp - 32]
-    mov [rbp - 40], rax
-
-    mov rdi, [rbp - 40]
+    mov rdi, [rbp - 32]
     mov rsi, [rbp - 24]
     call mov_to_mempos
 
-    mov rax, [rbp - 40]
+    mov rax, [rbp - 32]
     leave
     ret
 
@@ -323,8 +320,6 @@ visit_node_var: ; void* visit_node_var(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
     call st_get_var_pos
-    mov r15, rax
-    mempos rbp_, r15d
 
     leave
     ret

@@ -294,8 +294,9 @@ tokenize: ; void* tokenize(char* buf)
     mov word [r13], TT_IDENT
     mov qword [r13 + 2], rax
 
-    mov rdi, [r13 + 2]
-    call is_keyword
+    mov rdi, keywords
+    mov rsi, [r13 + 2]
+    call contains_str
     movzx ax, al
     add word [r13], ax
 

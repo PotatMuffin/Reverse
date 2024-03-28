@@ -13,6 +13,8 @@ while_label dq 1
 for_label   dq 1
 other_label dq 1
 
+builtin_types rq 5
+
 stat rb 144
 usage_suffix db "Usage: ", 0
 usage db " <source> [output]", 10, 0
@@ -42,7 +44,11 @@ parenl db "(",0
 parenr db ")",0
 brackl db "[",0
 brackr db "]",0
+_void db 'void',0
+__byte db 'byte',0
+_short db 'short',0
 _int db 'int',0
+_long db 'long',0
 _ident db "identifier",0
 _var db "'var'",0
 _if db "'if'",0
@@ -59,19 +65,26 @@ _min db '-',0
 _plus db '+',0
 zero db '0',0
 one db '1',0
+_type db 'type',0
 
-var db "var",0
 if_ db "if",0
 else_ db "else",0
 while_ db "while",0
 for_ db "for",0
 
 keywords:
-   dq var
    dq if_
    dq else_
    dq while_
    dq for_
+   dq 0
+
+types:
+   dq _void
+   dq __byte
+   dq _short
+   dq _int
+   dq _long
    dq 0
 
 default_memory_setting = 1024 * 1024 * 16
@@ -198,8 +211,9 @@ node_unop_size = 18
 ;   short type
 ;   void* value
 ;   token* name
+;   token* type
 ; }
-node_vardef_size = 18
+node_vardef_size = 26
 
 ; struct node_varass
 ; {
@@ -260,16 +274,26 @@ NODE_FOR    = 10
 ;   char* name
 ;   void* data
 ; }
+symbol_size = 16
 
 ; struct var
 ; {
 ;   short type
-;   long var_type
+;   void* var_type
 ;   int pos
 ; }
-
-symbol_size = 16
 var_size = 14
+
+; struct builtin_type
+; {
+;   short type
+;   int size
+; }
+builtin_type_size = 6
+
+VAR = 1
+BUILTIN_TYPE = 2
+
 symbol_table_size = 12
 
 ; struct context
@@ -299,7 +323,8 @@ reg_size = 10
 ; struct mempos
 ; {
 ;   short type
-;   int register
+;   short register
+;   short size
 ;   int offset
 ; }
 mempos_size = 10
@@ -311,7 +336,9 @@ MEMPOS   = 3
 qword_ = 0
 dword_ = 1
 word_  = 2
-byte_  = 3 
+byte_  = 3
+none_  = 4
+sizes db 8, 4, 2, 1, 0 
 
 rax_ = 0
 _rax db 'rax',0,0
@@ -441,8 +468,8 @@ _setne db 'setne ',0
 
 _qword db "qword ",0
 _dword db "dword ",0
-_word db "word ",0
-_byte db "byte ",0
+_word db "word ",0,0
+_byte db "byte ",0,0
 
 _prologue db 'push rbp',10
           db 'mov rbp, rsp',10,0
