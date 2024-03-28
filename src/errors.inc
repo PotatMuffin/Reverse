@@ -9,7 +9,9 @@ unimplementedop db "Encountered unimplemented operator",0
 varprefix db "Variable '",0
 vardefined db "' is already defined",0
 varnotdefined db "' is not defined",0
+cantdefvoid db "Can't define a variable with type void",0
 isnottype db "' is not a type",0
 locnotreg db "Given location is not a register",0
 locnotmem db "Given location is not a memory address",0
 bugincom db "This is probably a bug in the compiler",0
+unreachable db "Unreachable",10,0

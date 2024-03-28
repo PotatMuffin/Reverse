@@ -314,12 +314,12 @@ macro mempos register, size, offset
     check_memory mempos_size
     mov rax, [memory_pointer]
     mov word [rax], MEMPOS
-    mov bx, register
-    mov word [rax + 2], bx
-    mov bx, size
-    mov word [rax + 4], bx
-    mov ebx, offset
+    mov ebx, register
+    mov dword [rax + 2], ebx
+    mov ebx, size
     mov dword [rax + 6], ebx
+    mov ebx, offset
+    mov dword [rax + 10], ebx
     add [memory_pointer], mempos_size
 }
 
@@ -759,22 +759,21 @@ value_to_string: ; char* value_to_string(void* value)
     ret
     vtsL2:
 
-    movzx eax, word [rbx + 2]
+    mov eax, dword [rbx + 2]
     imul rax, 20
     lea rax, [_rax + rax]
     mov [rbp - 16], rax
 
-    movzx eax, word [rbx + 4]
-    mov rdi, rax
-    call display_number
-    mov rdi, suffix
-    call print
+    mov eax, dword [rbx + 6]
+    imul rax, 7
+    lea rax, [_qword + rax]
+    mov qword [rbp - 32], rax
 
-    movsxd rdi, [rbx + 6]
-    call itoa 
+    movsxd rdi, dword [rbx + 10]
+    call itoa
     mov [rbp - 24], rax
 
-    pushmany 0, brackr, qword [rbp - 24], _plus, qword [rbp - 16], brackl, _qword
+    pushmany 0, brackr, qword [rbp - 24], _plus, qword [rbp - 16], brackl, qword [rbp - 32]
     mov rdi, rsp
     push rsp
     call concat_str
@@ -915,4 +914,14 @@ is_not_a_type:
     print_tok_pos [rbp - 8]
     mov r15, [rbp - 8]
     printmany quote, [r15 + 2], isnottype, suffix
+    exit_process 1
+cant_def_void:
+    mov [rbp - 8], rdi
+    mov rdi, ERROR
+    call print
+    print_tok_pos [rbp - 8]
+    mov rdi, cantdefvoid
+    call print
+    mov rdi, suffix
+    call print
     exit_process 1

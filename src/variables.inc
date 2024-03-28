@@ -323,11 +323,11 @@ reg_size = 10
 ; struct mempos
 ; {
 ;   short type
-;   short register
-;   short size
+;   int register
+;   int size
 ;   int offset
 ; }
-mempos_size = 10
+mempos_size = 14
 
 IMMVALUE = 1
 REG      = 2

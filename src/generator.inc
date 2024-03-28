@@ -542,9 +542,10 @@ genlookuptable:
 mov_to_reg: ; void mov_to_reg(void* reg, void* value)
     push rbp
     mov rbp, rsp
-    sub rsp, 32
+    sub rsp, 40
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
+    mov qword [rbp - 40], _mov
 
     mov rbx, [rbp - 8]
     cmp word [rbx], REG
@@ -560,6 +561,27 @@ mov_to_reg: ; void mov_to_reg(void* reg, void* value)
     leave
     ret
     mtrL1:
+    cmp word [rbx], MEMPOS
+    jne mtrL2
+    mov rcx, [rbp - 8]
+    mov ecx, [rcx + 6]
+    cmp dword [rbx + 6], ecx
+    je mtrL2
+    cmp ecx, qword_
+    je mtrL3
+    mov rdi, LOGERROR
+    mov rsi, unreachable
+    call log
+    exit_process 1
+    mtrL3:
+    mov rbx, [rbp - 16]
+    cmp dword [rbx + 6], dword_
+    jne mtrL4
+    mov qword [rbp - 40], _movsxd
+    jmp mtrL2
+    mtrL4: 
+    mov qword [rbp - 40], _movsx
+    mtrL2:
 
     mov rdi, [rbp - 8]
     call value_to_string
@@ -569,7 +591,7 @@ mov_to_reg: ; void mov_to_reg(void* reg, void* value)
     call value_to_string
     mov [rbp - 32], rax
 
-    fprintmany [outputfd], _mov, [rbp - 24], comma, [rbp - 32], newline
+    fprintmany [outputfd], [rbp - 40], [rbp - 24], comma, [rbp - 32], newline
 
     leave
     ret
@@ -584,6 +606,16 @@ mov_to_mempos: ; void mov_to_mempos(void* mempos, void* value)
     mov rbx, [rbp - 8]
     cmp word [rbx], MEMPOS
     jne loc_not_mem
+
+    mov rbx, [rbp - 16]
+    cmp word [rbx], REG
+    jne mtmL1
+
+    mov rcx, [rbp - 8]
+    reg [rbx + 2], [rcx + 6]
+    mov [rbp - 16], rax
+
+    mtmL1:
 
     mov rdi, [rbp - 8]
     call value_to_string

@@ -82,12 +82,11 @@ st_add_var: ; void st_add_var(symbol_table* table, void* node, void* type)
 
     mov rcx, [rbp - 40]
     mov ecx, [rcx + 2]
-    movzx rcx, [sizes + rcx]
+    movzx rcx, byte [sizes + rcx]
 
     sub dword [rbx + 8], ecx
     mov r15d, dword [rbx + 8]
-    mov rbx, [rbp - 16]
-    var [rbx + 18], r15d
+    var [rbp - 40], r15d
 
     mov rbx, [rbp - 8]
     mov rcx, [rbp - 24]
@@ -162,9 +161,9 @@ st_get_var_pos: ; mempos* st_get_var_pos(symbol_table* table, token* token)
     mov rbx, [rbp - 24]
     mov rbx, qword [rbx + 8]
     mov r15d, dword [rbx + 10]
-    mov rbx, qword [rbx + 2]
-    mov r14d, dword [rbx + 2]  
-    mempos rbp_, r14w, r15d
+    mov rbx, [rbx + 2]
+    mov r14d, [rbx + 2]
+    mempos rbp_, r14d, r15d
 
     getvarRet:
     leave

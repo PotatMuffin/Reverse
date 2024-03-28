@@ -149,6 +149,12 @@ valvisit_node_vardef: ; valvisit_node_vardef(void* node, symbol_table table)
     mov rbx, [rbx + 18]
     mov rsi, [rbx + 2]
     call index_of
+    cmp rax, 0
+    jne vvnvL2
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    call cant_def_void
+    vvnvL2:
     mov rbx, [builtin_types + rax * 8]
     mov [rbp - 24], rbx
 
