@@ -920,8 +920,12 @@ cant_def_void:
     mov rdi, ERROR
     call print
     print_tok_pos [rbp - 8]
-    mov rdi, cantdefvoid
+    printmany cantdefvoid, suffix
+    exit_process 1
+expected_var:
+    mov [rbp - 8], rdi
+    mov rdi, ERROR
     call print
-    mov rdi, suffix
-    call print
+    print_tok_pos [rbp - 8]
+    printmany expectedvar, suffix
     exit_process 1

@@ -260,7 +260,25 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
 
     reg rax_, qword_
     mov [rbp - 32], rax
-    mov rdi, rax
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    cmp word [rbx], TT_AND
+    jne vnuL1
+
+    mov rdi, [rbp - 32]
+    call value_to_string
+    mov r15, rax
+    mov rdi, [rbp - 24]
+    call value_to_string
+    mov r14, rax
+    fprintmany [outputfd], _lea, r15, comma, r14, newline
+    mov rax, [rbp - 32]
+    leave
+    ret
+    vnuL1:
+
+    mov rdi, [rbp - 32]
     mov rsi, [rbp - 24]
     call mov_to_reg
 

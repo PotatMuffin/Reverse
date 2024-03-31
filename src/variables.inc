@@ -465,6 +465,7 @@ _setl db 'setl ',0
 _setle db 'setle ',0
 _sete db 'sete ',0
 _setne db 'setne ',0
+_lea db 'lea ',0
 
 _qword db "qword ",0
 _dword db "dword ",0

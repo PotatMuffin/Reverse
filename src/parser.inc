@@ -532,6 +532,8 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     cmp word [rbx], TT_EXCL
     je paL6
     cmp word [rbx], TT_NOT
+    je paL6
+    cmp word [rbx], TT_AND
     jne paL4
     paL6:
     mov rbx, [rbp - 8]
