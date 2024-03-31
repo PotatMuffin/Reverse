@@ -148,6 +148,19 @@ macro builtin_type size
     add [memory_pointer], builtin_type_size
 }
 
+macro ptr ptr_type, type
+{
+    check_memory ptr_size
+    mov rax, [memory_pointer]
+    mov word [rax], _PTR
+    mov dword [rax + 2], qword_
+    mov rbx, ptr_type
+    mov qword [rax + 6], rbx
+    mov rbx, type
+    mov qword [rax + 14], rbx
+    add [memory_pointer], ptr_size
+}
+
 macro context table, logop_true, logop_false, logop_token
 {
     check_memory context_size
@@ -220,6 +233,7 @@ macro node_vardef value, name, type
     mov qword [rax + 10], rbx
     mov rbx, type
     mov qword [rax + 18], rbx
+    mov qword [rax + 26], 0
     add [memory_pointer], node_vardef_size
 }
 
@@ -782,6 +796,37 @@ value_to_string: ; char* value_to_string(void* value)
     leave
     ret
 
+type_equals: ; bool type_equals(void* type1, void* type2)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 16]
+    mov cx, word [rcx]
+    cmp word [rbx], cx
+    jne teL1
+
+    cmp word [rbx], _PTR
+    jne teL2
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 16]
+    mov rax, [rcx + 6]
+    cmp qword [rbx + 6], rax
+    jne teL1
+
+    teL2:
+
+    mov al, 1
+    leave
+    ret
+    teL1:
+    mov al, 0
+    leave
+    ret
+
 file_error:
     printmany ERROR, filenotfound, suffix
     exit_process 1
@@ -928,4 +973,11 @@ expected_var:
     call print
     print_tok_pos [rbp - 8]
     printmany expectedvar, suffix
+    exit_process 1
+type_mismatch:
+    mov [rbp - 8], rdi
+    mov rdi, ERROR
+    call print
+    print_tok_pos [rbp - 8]
+    printmany typemismatch, suffix
     exit_process 1

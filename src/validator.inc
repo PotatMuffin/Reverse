@@ -23,7 +23,7 @@ validate_prog: ; void validate_prog(node_root* prog, symbol_table* table)
     leave
     ret
 
-valvisit: ; void valvisit(void* node, symbol_table* table)
+valvisit: ; void* valvisit(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
     sub rsp, 16
@@ -44,7 +44,7 @@ valvisit: ; void valvisit(void* node, symbol_table* table)
     leave
     ret
 
-valvisit_node_root: ; void valvisit_node_root(void* node symbol_table* table)
+valvisit_node_root: ; void* valvisit_node_root(void* node symbol_table* table)
     push rbp
     mov rbp, rsp
     sub rsp, 24
@@ -83,34 +83,46 @@ valvisit_node_root: ; void valvisit_node_root(void* node symbol_table* table)
     leave
     ret
 
-valvisit_node_binop: ; void valvisit_node_binop(void* node, symbol_table* table)
+valvisit_node_binop: ; void* valvisit_node_binop(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 24
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
+    mov rax, [builtin_types + 32]
+    mov [rbp - 24], rax
 
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 2]
     mov rsi, [rbp - 16]
     call valvisit
+    cmp word [rax], _PTR
+    jne vvnbL1
+    mov [rbp - 24], rax
+    vvnbL1:
 
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 18]
     mov rsi, [rbp - 16]
     call valvisit
+    cmp word [rax], _PTR
+    jne vvnbL2
+    mov [rbp - 24], rax
+    vvnbL2:
 
+    mov rax, [rbp - 24]
     leave
     ret
 
-valvisit_node_lit: ; void valvisit_node_lit(void* node, symbol_table* table)
+valvisit_node_lit: ; void* valvisit_node_lit(void* node, symbol_table* table)
+    mov rax, [builtin_types + 32]
     nop
     ret
 
-valvisit_node_unop: ; void valvisit_node_unop(void* node, symbol_table* table)
+valvisit_node_unop: ; void* valvisit_node_unop(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 24
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -131,11 +143,39 @@ valvisit_node_unop: ; void valvisit_node_unop(void* node, symbol_table* table)
     mov rdi, qword [rbx + 10]
     mov rsi, [rbp - 16]
     call valvisit
+    mov [rbp - 24], rax
 
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx + 10]
+    mov rbx, [rbx + 2]
+    cmp word [rbx], TT_AND
+    jne vvnuL2
+
+    mov rdi, [rbp - 16]
+    mov rsi, [rcx + 2]
+    call st_get_symbol
+
+    mov rbx, [rax + 8]
+    mov rcx, [rbx + 2]
+    cmp word [rcx], _PTR
+    jne vvnuL3
+    mov r15, [rcx + 6]
+    inc r15
+    mov r14, [rcx + 14]
+    ptr r15, r14
+    mov [rbp - 24], rax
+    jmp vvnuL2
+
+    vvnuL3:
+    ptr 1, rcx
+    mov [rbp - 24], rax
+    vvnuL2:
+
+    mov rax, [rbp - 24]
     leave
     ret
 
-valvisit_node_vardef: ; valvisit_node_vardef(void* node, symbol_table table)
+valvisit_node_vardef: ; void valvisit_node_vardef(void* node, symbol_table table)
     push rbp
     mov rbp, rsp
     sub rsp, 24
@@ -157,6 +197,7 @@ valvisit_node_vardef: ; valvisit_node_vardef(void* node, symbol_table table)
 
     vvnvL1:
 
+    
     mov rdi, types
     mov rbx, [rbp - 8]
     mov rbx, [rbx + 18]
@@ -172,9 +213,29 @@ valvisit_node_vardef: ; valvisit_node_vardef(void* node, symbol_table table)
     mov [rbp - 24], rbx
 
     mov rbx, [rbp - 8]
+    cmp qword [rbx + 26], 0
+    je vvnvL3
+
+    mov r15, [rbp - 8]
+    ptr [r15 + 26], [rbp - 24]
+    mov [rbp - 24], rax
+    vvnvL3:
+
+    mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 2]
     mov rsi, [rbp - 16]
     call valvisit
+
+    mov rdi, rax
+    mov rsi, [rbp - 24]
+    call type_equals
+    cmp al,0
+    jne vvnvL4
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 18]
+    call type_mismatch
+
+    vvnvL4:
 
     mov rdi, [rbp - 16]
     mov rsi, [rbp - 8]
@@ -187,7 +248,7 @@ valvisit_node_vardef: ; valvisit_node_vardef(void* node, symbol_table table)
 valvisit_node_varass: ; void valvisit_node_varass(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 32
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -195,27 +256,43 @@ valvisit_node_varass: ; void valvisit_node_varass(void* node, symbol_table* tabl
     mov rdi, qword [rbx + 2]
     mov rsi, [rbp - 16]
     call valvisit
+    mov [rbp - 24], rax
 
     mov rdi, [rbp - 16]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 10]
     call st_get_symbol
+    mov [rbp - 32], rax
 
     cmp rax, -1
-    jne LRet1
+    jne vvnv_L2
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 10]
     call name_error_var_undefined
 
-    LRet1:
+    vvnv_L2:
+
+    mov rbx, [rbp - 32]
+    mov rbx, [rbx + 8]
+    mov rdi, [rbx + 2]
+    mov rsi, [rbp - 24]
+    call type_equals
+    cmp al, 0
+    jne vvnv_L1
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    call type_mismatch
+
+    vvnv_L1:
+    
     leave
     ret
     
-valvisit_node_var: ; void valvisit_node_var(void* node, symbol_table* table)
+valvisit_node_var: ; void* valvisit_node_var(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 24
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -223,15 +300,19 @@ valvisit_node_var: ; void valvisit_node_var(void* node, symbol_table* table)
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
     call st_get_symbol
+    mov [rbp - 24], rax
 
     cmp rax, -1
-    jne LRet2
+    jne _vvnv_L1
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     call name_error_var_undefined
+    _vvnv_L1:
 
-    LRet2:
+    mov rbx, [rbp - 24]
+    mov rbx, [rbx + 8]
+    mov rax, [rbx + 2]
     leave
     ret
 
@@ -251,7 +332,6 @@ valvisit_node_if: ; void valvisit_node_if(void* node, symbol_table* table)
     mov rdi, [rbx + 10]
     mov rsi, [rbp - 16]
     call valvisit
-
 
     mov rbx, [rbp - 8]
     cmp qword [rbx + 18],0

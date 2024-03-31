@@ -213,7 +213,7 @@ node_unop_size = 18
 ;   token* name
 ;   token* type
 ; }
-node_vardef_size = 26
+node_vardef_size = 34
 
 ; struct node_varass
 ; {
@@ -291,8 +291,18 @@ var_size = 14
 ; }
 builtin_type_size = 6
 
+; struct ptr
+; {
+;   short type
+;   int size
+;   long ptr_type
+;   void* _type
+; }
+ptr_size = 22
+
 VAR = 1
 BUILTIN_TYPE = 2
+_PTR = 3
 
 symbol_table_size = 12
 

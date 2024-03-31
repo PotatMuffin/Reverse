@@ -318,6 +318,7 @@ visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
     call st_get_var_pos
     mov [rbp - 32], rax
 
+
     mov rdi, [rbp - 32]
     mov rsi, [rbp - 24]
     call mov_to_mempos
