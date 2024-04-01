@@ -235,13 +235,8 @@ visit_node_lit: ; void* visit_node_lit(void* node)
     sub rsp, 8
     mov [rbp - 8], rdi
 
-    mov rbx, qword [rbp - 8]
-    mov rbx, qword [rbx + 2]
-    mov rdi, [rbx + 2]
-    call itoa
-    mov rdi, rax
-
-    immvalue rdi
+    mov rcx, [rbp - 8]
+    immvalue [rcx + 2]
 
     leave
     ret
@@ -647,13 +642,32 @@ mov_to_mempos: ; void mov_to_mempos(void* mempos, void* value)
     jne loc_not_mem
 
     mov rbx, [rbp - 16]
+    cmp word [rbx], IMMVALUE
+    jne mtmL2
+
+    mov rbx, [rbx + 2]
+    cmp qword [rbx + 2], 7FFFFFFFh
+    jle mtmL2
+
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov r14, rax
+    reg rax_, qword_
+    mov [rbp - 16], rax
+    mov rdi, rax
+    call value_to_string
+    mov r15, rax
+    fprintmany [outputfd], _mov, r15, comma, r14, newline
+
+    mtmL2:
+
+    mov rbx, [rbp - 16]
     cmp word [rbx], REG
     jne mtmL1
 
     mov rcx, [rbp - 8]
     reg [rbx + 2], [rcx + 6]
     mov [rbp - 16], rax
-
     mtmL1:
 
     mov rdi, [rbp - 8]

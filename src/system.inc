@@ -600,6 +600,65 @@ copy_chars: ; char* copy_chars(char* start, char* allowed)
     leave
     ret
 
+fcopy_str: ; char* fcopy_str(char* str)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov [rbp - 8], rdi
+    mov qword [rbp - 16], 0 ; len
+    
+    fcopy_loop1:
+        mov rbx, [rbp - 8]
+        add rbx, [rbp - 16]
+        cmp byte [rbx], '"'
+        je fcopy_loop1end
+        cmp byte [rbx], 10
+        je fcopyfail
+        cmp byte [rbx], 0
+        je fcopyfail
+        inc qword [rbp - 16]
+        jmp fcopy_loop1
+    fcopy_loop1end:
+    inc qword [rbp - 16]
+
+    check_memory_text [rbp - 16]
+    mov rbx, [rbp - 16]
+    sub [memory_text_pointer], rbx
+    
+    xor rcx, rcx
+    fcopy_loop2:    
+        mov rax, [rbp - 8]
+        mov rbx, [memory_text_pointer]
+
+        cmp byte [rax + rcx], '\'
+        jne fcopyL2
+        cmp byte [rax + rcx + 1], 'n'
+        jne fcopyL3
+        mov byte [rbx + rcx], 10
+        inc rcx
+        jmp fcopyL1 
+        fcopyL3:
+        fcopyL2:
+        mov al, [rax + rcx]
+        mov [rbx + rcx], al
+
+        fcopyL1:
+        inc rcx
+        cmp rcx, [rbp - 16]
+        jl fcopy_loop2
+    mov rbx, [memory_text_pointer]
+    mov rcx, [rbp - 16]
+    mov byte [rbx + rcx - 1], 0 
+    mov rdi, [memory_text_pointer]
+    call print
+    mov rax, [memory_text_pointer]
+    leave
+    ret
+    fcopyfail:
+    mov rax, -1
+    leave
+    ret
+
 concat_str: ; void concat_str(char** in)
     push rbp
     mov rbp, rsp
@@ -755,7 +814,9 @@ value_to_string: ; char* value_to_string(void* value)
     cmp word [rbx], IMMVALUE
     jne vtsL1
 
-    mov rax, [rbx + 2]
+    mov rbx, [rbx + 2]
+    mov rdi, [rbx + 2]
+    call itoa
     leave
     ret
 
