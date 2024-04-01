@@ -206,6 +206,8 @@ valvisit_node_vardef: ; void valvisit_node_vardef(void* node, symbol_table table
     cmp rax, 0
     jne vvnvL2
     mov rbx, [rbp - 8]
+    cmp qword [rbx + 26], 0
+    jne vvnvL2
     mov rdi, [rbx + 10]
     call cant_def_void
     vvnvL2:

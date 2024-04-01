@@ -817,6 +817,14 @@ type_equals: ; bool type_equals(void* type1, void* type2)
     cmp qword [rbx + 6], rax
     jne teL1
 
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 14]
+    mov rcx, [rbp - 16]
+    mov rcx, [rcx + 14]
+    mov ecx, dword [rcx + 2]
+    cmp dword [rbx + 2], ecx
+    jne teL1
+
     teL2:
 
     mov al, 1
