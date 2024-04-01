@@ -33,6 +33,8 @@ generate: ; void generate(void* node, symbol_table* table)
     mov rsi, _exit
     call fprint
 
+    fprintmany [outputfd], _segment, _writeable
+
     close [outputfd]
 
     leave
@@ -277,6 +279,23 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
     leave
     ret
     vnuL1:
+    cmp word [rbx], TT_STAR
+    jne vnuL2
+    mov rdi, [rbp - 32]
+    mov rsi, [rbp - 24]
+    call mov_to_reg
+
+    mov rdi, [rbp - 8]
+    mov rbx, [rbp - 16]
+    mov rsi, [rbx]
+    call valvisit
+    mov r15d, dword [rax + 2]
+    mov rbx, [rbp - 32]
+    mov r14d, dword [rbx + 2]
+    mempos r14d, r15d, 0
+    leave
+    ret
+    vnuL2:
 
     mov rdi, [rbp - 32]
     mov rsi, [rbp - 24]
@@ -558,7 +577,7 @@ genlookuptable:
     dq visit_node_while
     dq visit_node_for
 
-mov_to_reg: ; void mov_to_reg(void* reg, void* value)
+mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     push rbp
     mov rbp, rsp
     sub rsp, 40
@@ -577,6 +596,7 @@ mov_to_reg: ; void mov_to_reg(void* reg, void* value)
     mov ecx, [rcx + 2]
     cmp dword [rbx + 2], ecx
     jne mtrL1
+    mov rax, [rbp - 8]
     leave
     ret
     mtrL1:
@@ -611,7 +631,7 @@ mov_to_reg: ; void mov_to_reg(void* reg, void* value)
     mov [rbp - 32], rax
 
     fprintmany [outputfd], [rbp - 40], [rbp - 24], comma, [rbp - 32], newline
-
+    mov rax, [rbp - 8]
     leave
     ret
 
@@ -652,13 +672,13 @@ mov_to_mempos: ; void mov_to_mempos(void* mempos, void* value)
 mov_value_to_reg: ; void* mov_value_to_reg(void* reg, void* value, short type)
     push rbp
     mov rbp, rsp
-    sub rsp, 34
+    sub rsp, 24
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
-    mov [rbp - 34], dx
+    mov [rbp - 24], dx
 
     mov rbx, [rbp - 16]
-    mov ax, word [rbp - 34] 
+    mov ax, word [rbp - 24] 
     cmp word [rbx], ax
     je mitrL1
     mov rax, [rbp - 16]
@@ -667,14 +687,8 @@ mov_value_to_reg: ; void* mov_value_to_reg(void* reg, void* value, short type)
     mitrL1:
 
     mov rdi, [rbp - 8]
-    call value_to_string
-    mov [rbp - 24], rax
-    mov rdi, [rbp - 16]
-    call value_to_string
-    mov [rbp - 32], rax
-
-    fprintmany [outputfd], _mov, [rbp - 24], comma, [rbp - 32], newline
-    mov rax, [rbp - 8]
+    mov rsi, [rbp - 16]
+    call mov_to_reg
     leave
     ret
 

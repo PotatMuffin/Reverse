@@ -495,4 +495,4 @@ _writeable db 'readable writeable',10,0
 _entry db 'entry $',10,0
 _exit db 'mov rdi,0', 10
       db 'mov rax,60',10
-      db 'syscall',0
+      db 'syscall',10,0

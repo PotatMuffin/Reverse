@@ -146,6 +146,38 @@ valvisit_node_unop: ; void* valvisit_node_unop(void* node, symbol_table* table)
     mov [rbp - 24], rax
 
     mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    cmp word [rbx], TT_STAR
+    jne vvnuL4
+    mov rbx, [rbp - 24]
+    cmp word [rbx], _PTR
+    je vvnuL5
+    printmany ERROR
+    mov r15, [rbp - 8]
+    mov r15, [r15 + 2]
+    print_tok_pos r15
+    printmany expectedptr, suffix
+    exit_process 1
+
+    vvnuL5:
+
+    cmp qword [rbx + 6], 1
+    je vvnuL6
+
+    mov r15, [rbx + 6]
+    dec r15
+    mov r14, [rbx + 14]
+    ptr r15, r14
+    mov [rbp - 24], rax
+    jmp vvnuL2
+    vvnuL6:
+
+    mov rbx, [rbx + 14]
+    mov [rbp - 24], rbx
+
+    vvnuL4:
+
+    mov rbx, [rbp - 8]
     mov rcx, [rbx + 10]
     mov rbx, [rbx + 2]
     cmp word [rbx], TT_AND

@@ -47,4 +47,5 @@
                 : -[atom]
                 : ![atom]
                 : &[atom]
+                : *[atom]
                 : ident

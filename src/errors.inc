@@ -11,9 +11,11 @@ vardefined db "' is already defined",0
 varnotdefined db "' is not defined",0
 cantdefvoid db "Can't define a variable with type void",0
 expectedvar db "Expected a variable",0
+expectedptr db "Expected pointer",0
 typemismatch db "Type mismatch",0
 isnottype db "' is not a type",0
 locnotreg db "Given location is not a register",0
 locnotmem db "Given location is not a memory address",0
 bugincom db "This is probably a bug in the compiler",0
+missingtermchar db "Missing terminating character",0 
 unreachable db "Unreachable",10,0
