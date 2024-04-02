@@ -18,4 +18,5 @@ locnotreg db "Given location is not a register",0
 locnotmem db "Given location is not a memory address",0
 bugincom db "This is probably a bug in the compiler",0
 missingtermchar db "Missing terminating character",0 
+invalidstr db "Invalid string",0
 unreachable db "Unreachable",10,0

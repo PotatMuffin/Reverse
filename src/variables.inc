@@ -3,6 +3,8 @@ memory_pointer dq ? ; memory_pointer grows up toward memory_end
 memory_text_pointer dq ? ; memory_text pointer grows down towards memory_start
 memory_end dq ?
 memory_setting dq ? 
+data_capacity dq ?
+data_occupied dq ?
 
 source   rq 1
 output   rq 1
@@ -11,7 +13,10 @@ outputfd rq 1
 if_label    dq 1
 while_label dq 1
 for_label   dq 1
+str_label   dq 1
 other_label dq 1
+
+
 
 builtin_types rq 5
 
@@ -44,6 +49,7 @@ parenl db "(",0
 parenr db ")",0
 brackl db "[",0
 brackr db "]",0
+_str db "str",0
 _void db 'void',0
 __byte db 'byte',0
 _short db 'short',0
@@ -166,6 +172,7 @@ TT_BRACKL    = 261 ; [
 TT_BRACKR    = 262 ; ]
 TT_EQ        = 263 ; =
 TT_INTLIT    = 512
+TT_STRLIT    = 513
 TT_IDENT     = 768
 TT_KEYWORD   = 769
 TT_NEWLINE   = 1024 ; \n
@@ -339,9 +346,17 @@ reg_size = 10
 ; }
 mempos_size = 14
 
+; struct label
+; {
+;   short type
+;   char* label
+; }
+label_size = 10
+
 IMMVALUE = 1
 REG      = 2
 MEMPOS   = 3
+_LABEL   = 4
 
 qword_ = 0
 dword_ = 1
@@ -476,6 +491,7 @@ _setle db 'setle ',0
 _sete db 'sete ',0
 _setne db 'setne ',0
 _lea db 'lea ',0
+_db dq 'db ',0
 
 _qword db "qword ",0
 _dword db "dword ",0

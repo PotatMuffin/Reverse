@@ -115,8 +115,20 @@ valvisit_node_binop: ; void* valvisit_node_binop(void* node, symbol_table* table
     ret
 
 valvisit_node_lit: ; void* valvisit_node_lit(void* node, symbol_table* table)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 8
+    mov [rbp - 8], rdi
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    cmp word [rbx], TT_INTLIT
+    jne vvnlL1
     mov rax, [builtin_types + 32]
-    nop
+    leave
+    ret
+    vvnlL1:
+    ptr 1, [builtin_types + 8]
+    leave
     ret
 
 valvisit_node_unop: ; void* valvisit_node_unop(void* node, symbol_table* table)

@@ -5,6 +5,12 @@ generate: ; void generate(void* node, symbol_table* table)
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
+    mov r15, [memory_setting]
+    shr r15, 3 ; rbx \ 8
+    check_memory_text r15
+    sub [memory_text_pointer], r15
+    mov byte [memory_text_pointer], 0
+
     context [rbp - 16], 0, 0, 0
     mov [rbp - 24], rax
 
@@ -34,6 +40,7 @@ generate: ; void generate(void* node, symbol_table* table)
     call fprint
 
     fprintmany [outputfd], _segment, _writeable
+    fprintmany [outputfd], [memory_text_pointer]
 
     close [outputfd]
 
@@ -232,12 +239,85 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
 visit_node_lit: ; void* visit_node_lit(void* node)
     push rbp
     mov rbp, rsp
-    sub rsp, 8
+    sub rsp, 24
     mov [rbp - 8], rdi
 
-    mov rcx, [rbp - 8]
-    immvalue [rcx + 2]
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    cmp word [rbx], TT_INTLIT
+    jne vnlL1
+    mov rbx, [rbp - 8]
+    immvalue [rbx + 2]
+    leave
+    ret
+    vnlL1:
+    mov rdi, [str_label]
+    inc qword [str_label]
+    call itoa
+    mov r15, rax
+    pushmany 0, r15, _str
+    mov rdi, rsp
+    push rsp
+    call concat_str
+    mov [rbp - 16], rax
+    pop rsp 
 
+    mov r15, [rbp - 8]
+    mov r15, [r15 + 2]
+    pushmany 0, _db, space, qword [rbp - 16]
+    mov rdi, rsp
+    push rsp
+    call concat_str
+    pop rsp
+    mov rdi, rax
+    mov rax, [data_occupied]
+    mov rbx, [memory_text_pointer]
+    lea rsi, [rax + rbx]
+    call str_copy
+    dec rax 
+    add [data_occupied], rax
+    mov qword [rbp - 24], 0
+
+    vnlloop:
+        cmp qword [rbp - 24], 0
+        je vnlL2
+        mov rdi, comma
+        mov rax, [data_occupied]
+        mov rbx, [memory_text_pointer]
+        lea rsi, [rax + rbx]
+        call str_copy
+        dec rax
+        add [data_occupied], rax
+        vnlL2:
+
+        mov rbx, [rbp - 8]
+        mov rbx, [rbx + 2]
+        mov rbx, [rbx + 2]
+        mov rcx, [rbp - 24]
+        movzx rdi, byte [rbx + rcx]
+        call itoa
+        mov rdi, rax
+        mov rax, [data_occupied]
+        mov rbx, [memory_text_pointer]
+        lea rsi, [rax + rbx]
+        call str_copy
+        dec rax
+        add [data_occupied], rax
+        mov rbx, [rbp - 8]
+        mov rbx, [rbx + 2]
+        mov rbx, [rbx + 2]
+        mov rcx, [rbp - 24]
+        inc qword [rbp - 24]
+        cmp byte [rbx + rcx],0
+        jne vnlloop
+    mov rdi, newline
+    mov rax, [data_occupied]
+    mov rbx, [memory_text_pointer]
+    lea rsi, [rax + rbx]
+    call str_copy
+    dec rax
+    add [data_occupied], rax
+    label [rbp - 16]
     leave
     ret
 

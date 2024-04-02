@@ -503,8 +503,10 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     mov rbx, [rbx]
     mov [rbp - 16], rbx
     cmp word [rbx], TT_INTLIT
+    je paL7
+    cmp word [rbx], TT_STRLIT
     jne paL1
-
+    paL7:
     node_lit rbx
 
     mov rbx, [rbp - 8]

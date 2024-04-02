@@ -297,11 +297,39 @@ tokenize: ; void* tokenize(char* buf)
     jmp tokloopcontinue
 
     tokif24:
+    cmp [rbp - 21], byte '"'
+    jne tokif25
+    mov word [r13], TT_STRLIT
+    mov r15, [memory_text_pointer]
+    mov rbx, [rbp - 8]
+    lea rdi, [rbx + 1]
+    call fcopy_str
+    cmp rax, -1
+    jne tokif_10
+    mov rdi, rax
+    call display_number
+    mov rdi, suffix
+    call print
+    printmany ERROR, brackl
+    movsxd rdi, dword [rbp - 12]
+    call display_number
+    printmany brackr, space, invalidstr, suffix
+    exit_process 1
+    tokif_10:
+
+    mov rbx, [memory_text_pointer]
+    sub r15, rbx
+    add qword [rbp - 8], r15
+
+    mov qword [r13 + 2], rax
+    jmp tokloopcontinue
+
+    tokif25:
     mov rdi, alpha
     mov sil, byte [rbp - 21]
     call contains_char
     cmp al, 0
-    je tokif25
+    je tokif26
 
     mov rdi, [rbp - 8]
     mov rsi, alphanumeric 
@@ -320,7 +348,7 @@ tokenize: ; void* tokenize(char* buf)
 
     jmp tokloopcontinue
 
-    tokif25:
+    tokif26:
 
     mov rdi, brackl
     call print

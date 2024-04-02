@@ -337,6 +337,16 @@ macro mempos register, size, offset
     add [memory_pointer], mempos_size
 }
 
+macro label lbl
+{
+    check_memory label_size
+    mov rax, [memory_pointer]
+    mov word [rax], _LABEL
+    mov rbx, lbl
+    mov qword [rax + 2], rbx
+    add [memory_pointer], label_size
+}
+
 init_memory:
     brk 0
     mov [memory_start], rax
@@ -346,7 +356,7 @@ init_memory:
     shl rcx, 10
     jnz allocate_memory
     mov rcx, default_memory_setting
-
+    mov [memory_setting], rcx
     allocate_memory:
     lea rdi, [rax + rcx]
     brk rdi
@@ -611,7 +621,10 @@ fcopy_str: ; char* fcopy_str(char* str)
         mov rbx, [rbp - 8]
         add rbx, [rbp - 16]
         cmp byte [rbx], '"'
-        je fcopy_loop1end
+        jne fcopy_L1
+        cmp byte [rbx - 1], '\'
+        jne fcopy_loop1end
+        fcopy_L1:
         cmp byte [rbx], 10
         je fcopyfail
         cmp byte [rbx], 0
@@ -621,36 +634,36 @@ fcopy_str: ; char* fcopy_str(char* str)
     fcopy_loop1end:
     inc qword [rbp - 16]
 
+
     check_memory_text [rbp - 16]
     mov rbx, [rbp - 16]
     sub [memory_text_pointer], rbx
     
     xor rcx, rcx
+    xor rdx, rdx
     fcopy_loop2:    
         mov rax, [rbp - 8]
         mov rbx, [memory_text_pointer]
-
-        cmp byte [rax + rcx], '\'
+        cmp byte [rax + rdx], '\'
         jne fcopyL2
-        cmp byte [rax + rcx + 1], 'n'
+        cmp byte [rax + rdx + 1], 'n'
         jne fcopyL3
         mov byte [rbx + rcx], 10
-        inc rcx
-        jmp fcopyL1 
+        inc rdx
+        jmp fcopyL1
         fcopyL3:
+        inc rdx 
         fcopyL2:
-        mov al, [rax + rcx]
+        mov al, [rax + rdx]
         mov [rbx + rcx], al
 
         fcopyL1:
         inc rcx
-        cmp rcx, [rbp - 16]
+        inc rdx
+        cmp rdx, [rbp - 16]
         jl fcopy_loop2
     mov rbx, [memory_text_pointer]
-    mov rcx, [rbp - 16]
     mov byte [rbx + rcx - 1], 0 
-    mov rdi, [memory_text_pointer]
-    call print
     mov rax, [memory_text_pointer]
     leave
     ret
@@ -659,7 +672,7 @@ fcopy_str: ; char* fcopy_str(char* str)
     leave
     ret
 
-concat_str: ; void concat_str(char** in)
+concat_str: ; char* concat_str(char** in)
     push rbp
     mov rbp, rsp
     sub rsp, 32
@@ -705,6 +718,26 @@ concat_str: ; void concat_str(char** in)
     mov rbx, [rbp - 24]
     add [memory_pointer], rbx
     mov rax, [rbp - 8]
+    leave
+    ret
+
+str_copy: ; long str_copy(char* src, char* dest)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    xor rcx, rcx
+    str_copyloop:
+        mov rbx, [rbp - 8]
+        mov bl, [rbx + rcx]
+        mov rax, [rbp - 16]
+        mov [rax + rcx], bl
+        inc rcx
+        cmp bl, 0
+        jne str_copyloop 
+    mov rax, rcx
     leave
     ret
 
@@ -833,6 +866,8 @@ value_to_string: ; char* value_to_string(void* value)
     leave
     ret
     vtsL2:
+    cmp word [rbx], MEMPOS
+    jne vtsL3
 
     mov eax, dword [rbx + 2]
     imul rax, 20
@@ -854,6 +889,10 @@ value_to_string: ; char* value_to_string(void* value)
     call concat_str
     pop rsp
 
+    leave
+    ret
+    vtsL3:
+    mov rax, [rbx + 2]
     leave
     ret
 
