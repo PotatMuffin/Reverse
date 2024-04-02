@@ -46,4 +46,6 @@
                 : ([bin_expr])
                 : -[atom]
                 : ![atom]
+                : &[atom]
+                : *[atom]
                 : ident

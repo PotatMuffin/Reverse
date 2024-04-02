@@ -386,7 +386,7 @@ parse_else_expr: ; void* parse_else_expr(token** Ptokens, void* scope)
 parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
     push rbp
     mov rbp, rsp
-    sub rsp, 24
+    sub rsp, 32
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -412,26 +412,32 @@ parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
     je pveL3
     cmp word [rcx], TT_BRACER
     je pveL3
-    cmp word [rcx], TT_KEYWORD
+    cmp word [rcx], TT_IDENT
     jne pveL2
 
-    mov rdi, qword [rcx + 2]
-    mov rsi, var
-    call strcmp
-
-    cmp al, 0
-    je pveL2
-
-    mov rbx, [rbp - 8]
     add qword [rbx], tok_len
-    node_vardef [rbp - 16], [rbp - 24]
+    node_vardef [rbp - 16], [rbp - 24], rcx
+    mov [rbp - 32], rax
+
+    pveloop:
+        mov rbx, [rbp - 8]
+        mov rcx, [rbx]
+        cmp word [rcx], TT_STAR
+        jne pveloopend
+        add qword [rbx], tok_len
+        mov rbx, [rbp - 32]
+        inc qword [rbx + 26]
+        jmp pveloop
+
+    pveloopend:
+    mov rax, [rbp - 32]
     leave
     ret
 
     pveL2:
     mov rbx, [rbp - 8]
     mov rdi, [rbx]
-    pushmany 0, _var
+    pushmany 0, _type
     mov rsi, rsp
     call syntax_error_expected
 
@@ -497,8 +503,10 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     mov rbx, [rbx]
     mov [rbp - 16], rbx
     cmp word [rbx], TT_INTLIT
+    je paL7
+    cmp word [rbx], TT_STRLIT
     jne paL1
-
+    paL7:
     node_lit rbx
 
     mov rbx, [rbp - 8]
@@ -540,6 +548,10 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     cmp word [rbx], TT_EXCL
     je paL6
     cmp word [rbx], TT_NOT
+    je paL6
+    cmp word [rbx], TT_AND
+    je paL6
+    cmp word [rbx], TT_STAR
     jne paL4
     paL6:
     mov rbx, [rbp - 8]
@@ -569,79 +581,4 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     call syntax_error_expected
 
     leave 
-    ret
-
-display_ast: ; void display_ast(void* node)
-    push rbp
-    mov rbp, rsp
-    sub rsp, 16
-    mov [rbp - 8], rdi
-
-    mov rbx, qword [rbp - 8]
-    cmp word [rbx], NODE_ROOT
-    jne daL0
-
-    cmp qword [rbx + 10], 0
-    je daRet    
-
-    mov rbx, qword [rbx + 2]
-    ; go to the last item in the list
-    daloop1:
-    cmp qword [rbx + 8], 0
-    je daloop2
-    mov rbx, qword [rbx + 8]
-    jmp daloop1
-    
-    daloop2:
-    ; print current tree
-    mov qword [rbp - 16], rbx
-    mov rdi, [rbx]
-    call display_ast
-    mov rdi, suffix
-    call print
-    mov rbx, qword [rbp - 16]
-    ; go back one item
-    cmp qword [rbx + 16], 0
-    je daRet
-    mov rbx, qword [rbx + 16]
-    jmp daloop2
-
-    daL0:
-    cmp word [rbx], NODE_LIT
-    jne daL1
-
-    mov rbx, qword [rbx + 2]
-    mov rdi, qword [rbx + 2]
-    call display_number
-    jmp daRet
-    
-    daL1:
-    cmp word [rbx], NODE_BINOP
-    jne daL2
-
-    mov rdi, _parenl
-    call print
-    mov rbx, [rbp - 8]
-    mov rdi, [rbx + 2]
-    call display_ast
-
-    mov rdi, space
-    call print
-    mov rbx, [rbp - 8]
-    mov rbx, [rbx + 10]
-    movsx rdi, word [rbx]
-    call display_number
-    mov rdi, space
-    call print
-
-    mov rbx, [rbp - 8]
-    mov rdi, [rbx + 18]
-    call display_ast
-    mov rdi, _parenr
-    call print
-
-    daL2:
-    
-    daRet:
-    leave
     ret

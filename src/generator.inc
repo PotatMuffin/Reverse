@@ -5,6 +5,12 @@ generate: ; void generate(void* node, symbol_table* table)
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
+    mov r15, [memory_setting]
+    shr r15, 3 ; rbx \ 8
+    check_memory_text r15
+    sub [memory_text_pointer], r15
+    mov byte [memory_text_pointer], 0
+
     context [rbp - 16], 0, 0, 0
     mov [rbp - 24], rax
 
@@ -32,6 +38,9 @@ generate: ; void generate(void* node, symbol_table* table)
     mov rdi, [outputfd]
     mov rsi, _exit
     call fprint
+
+    fprintmany [outputfd], _segment, _writeable
+    fprintmany [outputfd], [memory_text_pointer]
 
     close [outputfd]
 
@@ -230,17 +239,85 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
 visit_node_lit: ; void* visit_node_lit(void* node)
     push rbp
     mov rbp, rsp
-    sub rsp, 8
+    sub rsp, 24
     mov [rbp - 8], rdi
 
-    mov rbx, qword [rbp - 8]
-    mov rbx, qword [rbx + 2]
-    mov rdi, [rbx + 2]
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    cmp word [rbx], TT_INTLIT
+    jne vnlL1
+    mov rbx, [rbp - 8]
+    immvalue [rbx + 2]
+    leave
+    ret
+    vnlL1:
+    mov rdi, [str_label]
+    inc qword [str_label]
     call itoa
+    mov r15, rax
+    pushmany 0, r15, _str
+    mov rdi, rsp
+    push rsp
+    call concat_str
+    mov [rbp - 16], rax
+    pop rsp 
+
+    mov r15, [rbp - 8]
+    mov r15, [r15 + 2]
+    pushmany 0, _db, space, qword [rbp - 16]
+    mov rdi, rsp
+    push rsp
+    call concat_str
+    pop rsp
     mov rdi, rax
+    mov rax, [data_occupied]
+    mov rbx, [memory_text_pointer]
+    lea rsi, [rax + rbx]
+    call str_copy
+    dec rax 
+    add [data_occupied], rax
+    mov qword [rbp - 24], 0
 
-    immvalue rdi
+    vnlloop:
+        cmp qword [rbp - 24], 0
+        je vnlL2
+        mov rdi, comma
+        mov rax, [data_occupied]
+        mov rbx, [memory_text_pointer]
+        lea rsi, [rax + rbx]
+        call str_copy
+        dec rax
+        add [data_occupied], rax
+        vnlL2:
 
+        mov rbx, [rbp - 8]
+        mov rbx, [rbx + 2]
+        mov rbx, [rbx + 2]
+        mov rcx, [rbp - 24]
+        movzx rdi, byte [rbx + rcx]
+        call itoa
+        mov rdi, rax
+        mov rax, [data_occupied]
+        mov rbx, [memory_text_pointer]
+        lea rsi, [rax + rbx]
+        call str_copy
+        dec rax
+        add [data_occupied], rax
+        mov rbx, [rbp - 8]
+        mov rbx, [rbx + 2]
+        mov rbx, [rbx + 2]
+        mov rcx, [rbp - 24]
+        inc qword [rbp - 24]
+        cmp byte [rbx + rcx],0
+        jne vnlloop
+    mov rdi, newline
+    mov rax, [data_occupied]
+    mov rbx, [memory_text_pointer]
+    lea rsi, [rax + rbx]
+    call str_copy
+    dec rax
+    add [data_occupied], rax
+    label [rbp - 16]
     leave
     ret
 
@@ -260,7 +337,42 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
 
     reg rax_, qword_
     mov [rbp - 32], rax
-    mov rdi, rax
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    cmp word [rbx], TT_AND
+    jne vnuL1
+
+    mov rdi, [rbp - 32]
+    call value_to_string
+    mov r15, rax
+    mov rdi, [rbp - 24]
+    call value_to_string
+    mov r14, rax
+    fprintmany [outputfd], _lea, r15, comma, r14, newline
+    mov rax, [rbp - 32]
+    leave
+    ret
+    vnuL1:
+    cmp word [rbx], TT_STAR
+    jne vnuL2
+    mov rdi, [rbp - 32]
+    mov rsi, [rbp - 24]
+    call mov_to_reg
+
+    mov rdi, [rbp - 8]
+    mov rbx, [rbp - 16]
+    mov rsi, [rbx]
+    call valvisit
+    mov r15d, dword [rax + 2]
+    mov rbx, [rbp - 32]
+    mov r14d, dword [rbx + 2]
+    mempos r14d, r15d, 0
+    leave
+    ret
+    vnuL2:
+
+    mov rdi, [rbp - 32]
     mov rsi, [rbp - 24]
     call mov_to_reg
 
@@ -275,7 +387,7 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
 visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
     push rbp
     mov rbp, rsp
-    sub rsp, 40
+    sub rsp, 32
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -300,14 +412,12 @@ visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
     call st_get_var_pos
     mov [rbp - 32], rax
 
-    mempos rbp_, [rbp - 32]
-    mov [rbp - 40], rax
 
-    mov rdi, [rbp - 40]
+    mov rdi, [rbp - 32]
     mov rsi, [rbp - 24]
     call mov_to_mempos
 
-    mov rax, [rbp - 40]
+    mov rax, [rbp - 32]
     leave
     ret
 
@@ -323,8 +433,6 @@ visit_node_var: ; void* visit_node_var(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
     call st_get_var_pos
-    mov r15, rax
-    mempos rbp_, r15d
 
     leave
     ret
@@ -544,12 +652,13 @@ genlookuptable:
     dq visit_node_while
     dq visit_node_for
 
-mov_to_reg: ; void mov_to_reg(void* reg, void* value)
+mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     push rbp
     mov rbp, rsp
-    sub rsp, 32
+    sub rsp, 40
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
+    mov qword [rbp - 40], _mov
 
     mov rbx, [rbp - 8]
     cmp word [rbx], REG
@@ -562,9 +671,31 @@ mov_to_reg: ; void mov_to_reg(void* reg, void* value)
     mov ecx, [rcx + 2]
     cmp dword [rbx + 2], ecx
     jne mtrL1
+    mov rax, [rbp - 8]
     leave
     ret
     mtrL1:
+    cmp word [rbx], MEMPOS
+    jne mtrL2
+    mov rcx, [rbp - 8]
+    mov ecx, [rcx + 6]
+    cmp dword [rbx + 6], ecx
+    je mtrL2
+    cmp ecx, qword_
+    je mtrL3
+    mov rdi, LOGERROR
+    mov rsi, unreachable
+    call log
+    exit_process 1
+    mtrL3:
+    mov rbx, [rbp - 16]
+    cmp dword [rbx + 6], dword_
+    jne mtrL4
+    mov qword [rbp - 40], _movsxd
+    jmp mtrL2
+    mtrL4: 
+    mov qword [rbp - 40], _movsx
+    mtrL2:
 
     mov rdi, [rbp - 8]
     call value_to_string
@@ -574,8 +705,8 @@ mov_to_reg: ; void mov_to_reg(void* reg, void* value)
     call value_to_string
     mov [rbp - 32], rax
 
-    fprintmany [outputfd], _mov, [rbp - 24], comma, [rbp - 32], newline
-
+    fprintmany [outputfd], [rbp - 40], [rbp - 24], comma, [rbp - 32], newline
+    mov rax, [rbp - 8]
     leave
     ret
 
@@ -589,6 +720,35 @@ mov_to_mempos: ; void mov_to_mempos(void* mempos, void* value)
     mov rbx, [rbp - 8]
     cmp word [rbx], MEMPOS
     jne loc_not_mem
+
+    mov rbx, [rbp - 16]
+    cmp word [rbx], IMMVALUE
+    jne mtmL2
+
+    mov rbx, [rbx + 2]
+    cmp qword [rbx + 2], 7FFFFFFFh
+    jle mtmL2
+
+    mov rdi, [rbp - 16]
+    call value_to_string
+    mov r14, rax
+    reg rax_, qword_
+    mov [rbp - 16], rax
+    mov rdi, rax
+    call value_to_string
+    mov r15, rax
+    fprintmany [outputfd], _mov, r15, comma, r14, newline
+
+    mtmL2:
+
+    mov rbx, [rbp - 16]
+    cmp word [rbx], REG
+    jne mtmL1
+
+    mov rcx, [rbp - 8]
+    reg [rbx + 2], [rcx + 6]
+    mov [rbp - 16], rax
+    mtmL1:
 
     mov rdi, [rbp - 8]
     call value_to_string
@@ -606,13 +766,13 @@ mov_to_mempos: ; void mov_to_mempos(void* mempos, void* value)
 mov_value_to_reg: ; void* mov_value_to_reg(void* reg, void* value, short type)
     push rbp
     mov rbp, rsp
-    sub rsp, 34
+    sub rsp, 24
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
-    mov [rbp - 34], dx
+    mov [rbp - 24], dx
 
     mov rbx, [rbp - 16]
-    mov ax, word [rbp - 34] 
+    mov ax, word [rbp - 24] 
     cmp word [rbx], ax
     je mitrL1
     mov rax, [rbp - 16]
@@ -621,14 +781,8 @@ mov_value_to_reg: ; void* mov_value_to_reg(void* reg, void* value, short type)
     mitrL1:
 
     mov rdi, [rbp - 8]
-    call value_to_string
-    mov [rbp - 24], rax
-    mov rdi, [rbp - 16]
-    call value_to_string
-    mov [rbp - 32], rax
-
-    fprintmany [outputfd], _mov, [rbp - 24], comma, [rbp - 32], newline
-    mov rax, [rbp - 8]
+    mov rsi, [rbp - 16]
+    call mov_to_reg
     leave
     ret
 

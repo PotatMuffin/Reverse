@@ -126,6 +126,41 @@ macro symbol_table table_size
     add [memory_pointer], rbx
 }
 
+macro var type, pos
+{
+    check_memory var_size
+    mov rax, [memory_pointer]
+    mov word [rax], VAR
+    mov rbx, type
+    mov qword [rax + 2], rbx
+    mov ebx, pos
+    mov dword [rax + 10], ebx
+    add [memory_pointer], var_size
+}
+
+macro builtin_type size
+{
+    check_memory builtin_type_size
+    mov rax, [memory_pointer]
+    mov word [rax], BUILTIN_TYPE
+    mov ebx, size
+    mov dword [rax + 2], ebx
+    add [memory_pointer], builtin_type_size
+}
+
+macro ptr ptr_type, type
+{
+    check_memory ptr_size
+    mov rax, [memory_pointer]
+    mov word [rax], _PTR
+    mov dword [rax + 2], qword_
+    mov rbx, ptr_type
+    mov qword [rax + 6], rbx
+    mov rbx, type
+    mov qword [rax + 14], rbx
+    add [memory_pointer], ptr_size
+}
+
 macro context table, logop_true, logop_false, logop_token
 {
     check_memory context_size
@@ -187,7 +222,7 @@ macro node_unop op, node
     add [memory_pointer], node_unop_size
 }
 
-macro node_vardef value, name
+macro node_vardef value, name, type
 {
     check_memory node_vardef_size
     mov rax, [memory_pointer]
@@ -196,6 +231,9 @@ macro node_vardef value, name
     mov qword [rax + 2], rbx
     mov rbx, name
     mov qword [rax + 10], rbx
+    mov rbx, type
+    mov qword [rax + 18], rbx
+    mov qword [rax + 26], 0
     add [memory_pointer], node_vardef_size
 }
 
@@ -285,16 +323,28 @@ macro reg register, size
     add [memory_pointer], reg_size
 }
 
-macro mempos register, offset
+macro mempos register, size, offset
 {
     check_memory mempos_size
     mov rax, [memory_pointer]
     mov word [rax], MEMPOS
     mov ebx, register
     mov dword [rax + 2], ebx
-    mov ebx, offset
+    mov ebx, size
     mov dword [rax + 6], ebx
+    mov ebx, offset
+    mov dword [rax + 10], ebx
     add [memory_pointer], mempos_size
+}
+
+macro label lbl
+{
+    check_memory label_size
+    mov rax, [memory_pointer]
+    mov word [rax], _LABEL
+    mov rbx, lbl
+    mov qword [rax + 2], rbx
+    add [memory_pointer], label_size
 }
 
 init_memory:
@@ -306,7 +356,7 @@ init_memory:
     shl rcx, 10
     jnz allocate_memory
     mov rcx, default_memory_setting
-
+    mov [memory_setting], rcx
     allocate_memory:
     lea rdi, [rax + rcx]
     brk rdi
@@ -560,7 +610,69 @@ copy_chars: ; char* copy_chars(char* start, char* allowed)
     leave
     ret
 
-concat_str: ; void concat_str(char** in)
+fcopy_str: ; char* fcopy_str(char* str)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov [rbp - 8], rdi
+    mov qword [rbp - 16], 0 ; len
+    
+    fcopy_loop1:
+        mov rbx, [rbp - 8]
+        add rbx, [rbp - 16]
+        cmp byte [rbx], '"'
+        jne fcopy_L1
+        cmp byte [rbx - 1], '\'
+        jne fcopy_loop1end
+        fcopy_L1:
+        cmp byte [rbx], 10
+        je fcopyfail
+        cmp byte [rbx], 0
+        je fcopyfail
+        inc qword [rbp - 16]
+        jmp fcopy_loop1
+    fcopy_loop1end:
+    inc qword [rbp - 16]
+
+
+    check_memory_text [rbp - 16]
+    mov rbx, [rbp - 16]
+    sub [memory_text_pointer], rbx
+    
+    xor rcx, rcx
+    xor rdx, rdx
+    fcopy_loop2:    
+        mov rax, [rbp - 8]
+        mov rbx, [memory_text_pointer]
+        cmp byte [rax + rdx], '\'
+        jne fcopyL2
+        cmp byte [rax + rdx + 1], 'n'
+        jne fcopyL3
+        mov byte [rbx + rcx], 10
+        inc rdx
+        jmp fcopyL1
+        fcopyL3:
+        inc rdx 
+        fcopyL2:
+        mov al, [rax + rdx]
+        mov [rbx + rcx], al
+
+        fcopyL1:
+        inc rcx
+        inc rdx
+        cmp rdx, [rbp - 16]
+        jl fcopy_loop2
+    mov rbx, [memory_text_pointer]
+    mov byte [rbx + rcx - 1], 0 
+    mov rax, [memory_text_pointer]
+    leave
+    ret
+    fcopyfail:
+    mov rax, -1
+    leave
+    ret
+
+concat_str: ; char* concat_str(char** in)
     push rbp
     mov rbp, rsp
     sub rsp, 32
@@ -609,6 +721,26 @@ concat_str: ; void concat_str(char** in)
     leave
     ret
 
+str_copy: ; long str_copy(char* src, char* dest)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    xor rcx, rcx
+    str_copyloop:
+        mov rbx, [rbp - 8]
+        mov bl, [rbx + rcx]
+        mov rax, [rbp - 16]
+        mov [rax + rcx], bl
+        inc rcx
+        cmp bl, 0
+        jne str_copyloop 
+    mov rax, rcx
+    leave
+    ret
+
 strcmp: ; bool strcmp(char* a, char* b)
     push rbp
     mov rbp, rsp
@@ -639,21 +771,22 @@ strcmp: ; bool strcmp(char* a, char* b)
     leave
     ret
 
-is_keyword: ; bool is_keyword(char* str)
+contains_str: ; bool contains_str(char** charArr, char* str)
     push rbp
     mov rbp, rsp
-    sub rsp, 17
-    mov [rbp - 8], rdi
+    sub rsp, 25
+    mov [rbp - 25], rdi
+    mov [rbp - 8], rsi
     mov qword [rbp - 16], 0 ; i
-    mov byte [rbp - 17], 0 ; is_keyword
+    mov byte [rbp - 17], 0 ; found
 
-    keywordloop:
-        mov rbx, keywords
+    containsstrloop:
+        mov rbx, [rbp - 25]
         mov rax, [rbp - 16]
         mov rbx, qword [rbx + rax * 8]
 
         cmp rbx, 0
-        je keywordloopend
+        je containsstrloopend
 
         mov rdi, [rbp - 8]
         mov rsi, rbx
@@ -661,27 +794,62 @@ is_keyword: ; bool is_keyword(char* str)
 
         mov [rbp - 17], al
         cmp byte [rbp - 17], 1
-        je keywordloopend
+        je containsstrloopend
 
         inc qword [rbp - 16]
-        jmp keywordloop
+        jmp containsstrloop
 
-    keywordloopend:
+    containsstrloopend:
     mov al, [rbp - 17]
+    leave
+    ret
+
+index_of: ; bool index_of(char** charArr, char* str)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 25
+    mov [rbp - 25], rdi
+    mov [rbp - 8], rsi
+    mov qword [rbp - 16], 0 ; i
+    mov byte [rbp - 17], 0 ; found
+
+    indexofloop:
+        mov rbx, [rbp - 25]
+        mov rax, [rbp - 16]
+        mov rbx, qword [rbx + rax * 8]
+
+        cmp rbx, 0
+        je indexofloopend
+
+        mov rdi, [rbp - 8]
+        mov rsi, rbx
+        call strcmp
+
+        mov [rbp - 17], al
+        cmp byte [rbp - 17], 1
+        je indexofloopend
+
+        inc qword [rbp - 16]
+        jmp indexofloop
+
+    indexofloopend:
+    mov rax, [rbp - 16]
     leave
     ret
 
 value_to_string: ; char* value_to_string(void* value)
     push rbp
     mov rbp, rsp
-    sub rsp, 24
+    sub rsp, 32
     mov [rbp - 8], rdi
 
     mov rbx, [rbp - 8]
     cmp word [rbx], IMMVALUE
     jne vtsL1
 
-    mov rax, [rbx + 2]
+    mov rbx, [rbx + 2]
+    mov rdi, [rbx + 2]
+    call itoa
     leave
     ret
 
@@ -698,22 +866,72 @@ value_to_string: ; char* value_to_string(void* value)
     leave
     ret
     vtsL2:
+    cmp word [rbx], MEMPOS
+    jne vtsL3
 
-    mov eax, [rbx + 2]
+    mov eax, dword [rbx + 2]
     imul rax, 20
     lea rax, [_rax + rax]
     mov [rbp - 16], rax
 
-    movsxd rdi, [rbx + 6]
-    call itoa 
+    mov eax, dword [rbx + 6]
+    imul rax, 7
+    lea rax, [_qword + rax]
+    mov qword [rbp - 32], rax
+
+    movsxd rdi, dword [rbx + 10]
+    call itoa
     mov [rbp - 24], rax
 
-    pushmany 0, brackr, qword [rbp - 24], _plus, qword [rbp - 16], brackl, _qword
+    pushmany 0, brackr, qword [rbp - 24], _plus, qword [rbp - 16], brackl, qword [rbp - 32]
     mov rdi, rsp
     push rsp
     call concat_str
     pop rsp
 
+    leave
+    ret
+    vtsL3:
+    mov rax, [rbx + 2]
+    leave
+    ret
+
+type_equals: ; bool type_equals(void* type1, void* type2)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 16]
+    mov cx, word [rcx]
+    cmp word [rbx], cx
+    jne teL1
+
+    cmp word [rbx], _PTR
+    jne teL2
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 16]
+    mov rax, [rcx + 6]
+    cmp qword [rbx + 6], rax
+    jne teL1
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 14]
+    mov rcx, [rbp - 16]
+    mov rcx, [rcx + 14]
+    mov ecx, dword [rcx + 2]
+    cmp dword [rbx + 2], ecx
+    jne teL1
+
+    teL2:
+
+    mov al, 1
+    leave
+    ret
+    teL1:
+    mov al, 0
     leave
     ret
 
@@ -841,4 +1059,33 @@ iwf_not_allowed:
     call print
     mov rdi, suffix
     call print
+    exit_process 1
+is_not_a_type:
+    mov [rbp - 8], rdi
+    mov rdi, ERROR
+    call print
+    print_tok_pos [rbp - 8]
+    mov r15, [rbp - 8]
+    printmany quote, [r15 + 2], isnottype, suffix
+    exit_process 1
+cant_def_void:
+    mov [rbp - 8], rdi
+    mov rdi, ERROR
+    call print
+    print_tok_pos [rbp - 8]
+    printmany cantdefvoid, suffix
+    exit_process 1
+expected_var:
+    mov [rbp - 8], rdi
+    mov rdi, ERROR
+    call print
+    print_tok_pos [rbp - 8]
+    printmany expectedvar, suffix
+    exit_process 1
+type_mismatch:
+    mov [rbp - 8], rdi
+    mov rdi, ERROR
+    call print
+    print_tok_pos [rbp - 8]
+    printmany typemismatch, suffix
     exit_process 1
