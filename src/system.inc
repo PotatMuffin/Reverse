@@ -301,6 +301,16 @@ macro node_for on_entry, condition, on_loop, scope
     add [memory_pointer], node_for_size 
 }
 
+macro node_asm asm
+{
+    check_memory node_asm_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_ASM
+    mov rbx, asm
+    mov [rax + 2], rbx
+    add [memory_pointer], node_asm_size
+}
+
 macro immvalue value
 {
     check_memory immvalue_size

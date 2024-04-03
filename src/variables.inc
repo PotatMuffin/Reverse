@@ -16,8 +16,6 @@ for_label   dq 1
 str_label   dq 1
 other_label dq 1
 
-
-
 builtin_types rq 5
 
 stat rb 144
@@ -49,7 +47,7 @@ parenl db "(",0
 parenr db ")",0
 brackl db "[",0
 brackr db "]",0
-_str db "str",0
+_str db "string",0
 _void db 'void',0
 __byte db 'byte',0
 _short db 'short',0
@@ -77,13 +75,10 @@ if_ db "if",0
 else_ db "else",0
 while_ db "while",0
 for_ db "for",0
+asm_ db "asm",0
 
 keywords:
-   dq if_
-   dq else_
-   dq while_
-   dq for_
-   dq 0
+   dq if_, else_, while_, for_, asm_, 0
 
 types:
    dq _void
@@ -264,7 +259,14 @@ node_while_size = 18
 ; }
 node_for_size = 34
 
-node_count  = 10
+; struct node_asm
+; {
+;   short type
+;   token* asm
+; }
+node_asm_size = 10
+
+node_count  = 11
 NODE_ROOT   = 1
 NODE_BINOP  = 2
 NODE_LIT    = 3
@@ -275,6 +277,7 @@ NODE_VAR    = 7
 NODE_IF     = 8
 NODE_WHILE  = 9
 NODE_FOR    = 10
+NODE_ASM    = 11
 
 ; struct symbol
 ; {

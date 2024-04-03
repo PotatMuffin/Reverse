@@ -437,7 +437,7 @@ visit_node_var: ; void* visit_node_var(void* node, context* context)
     leave
     ret
 
-visit_node_if: ; void* visit_node_if(void* node, context* context)
+visit_node_if: ; void visit_node_if(void* node, context* context)
     push rbp
     mov rbp, rsp
     sub rsp, 40
@@ -509,7 +509,7 @@ visit_node_if: ; void* visit_node_if(void* node, context* context)
     leave
     ret
 
-visit_node_while: ; void* visit_node_while(void* node, context* context)
+visit_node_while: ; void visit_node_while(void* node, context* context)
     push rbp
     mov rbp, rsp
     sub rsp, 48
@@ -565,7 +565,7 @@ visit_node_while: ; void* visit_node_while(void* node, context* context)
     leave
     ret
 
-visit_node_for: ; visit_node_for(void* node, context* context)
+visit_node_for: ; void visit_node_for(void* node, context* context)
     push rbp
     mov rbp, rsp
     sub rsp, 56
@@ -635,6 +635,18 @@ visit_node_for: ; visit_node_for(void* node, context* context)
 
     fprintmany [outputfd], for_, [rbp - 48], colon, newline
 
+    leave
+    ret
+
+visit_node_asm: ; void visit_node_asm(void* node)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 8
+    mov [rbp - 8], rdi
+    mov rbx, [rbp - 8]
+    mov r15, [rbx + 2]
+
+    fprintmany [outputfd], qword [r15 + 2], newline
 
     leave
     ret
@@ -651,6 +663,7 @@ genlookuptable:
     dq visit_node_if
     dq visit_node_while
     dq visit_node_for
+    dq visit_node_asm
 
 mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     push rbp

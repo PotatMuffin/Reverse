@@ -442,6 +442,10 @@ valvisit_node_for: ; void valisit_node_for(void* node, symbol_table* table)
     leave
     ret
 
+valvisit_node_asm: ; void valvisit_node_asm(void* node, symbol_table* table)
+    nop
+    ret
+
 vallookuptable:
     dq 0
     dq valvisit_node_root
@@ -454,3 +458,4 @@ vallookuptable:
     dq valvisit_node_if
     dq valvisit_node_while
     dq valvisit_node_for
+    dq valvisit_node_asm

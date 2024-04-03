@@ -66,6 +66,53 @@ parse_expr: ; void* parse_expr(token** Ptokens)
 
     mov rbx, [rbp - 8]
     mov rbx, [rbx]
+    cmp word [rbx], TT_KEYWORD
+    jne peL3
+    mov rdi, [rbx + 2]
+    mov rsi, asm_
+    call strcmp
+    cmp al, 0
+    je peL3
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    mov rcx, [rbx]
+    cmp word [rcx], TT_PARENL
+    je peL4
+    mov rdi, rcx
+    pushmany 0, _parenl
+    mov rsi, rsp
+    call syntax_error_expected
+    peL4:
+    add qword [rbx], tok_len
+    mov rcx, [rbx]
+    cmp word [rcx], TT_STRLIT
+    je peL5
+
+    mov rdi, rcx
+    pushmany 0, _str
+    mov rsi, rsp
+    call syntax_error_expected
+    peL5:
+
+    mov [rbp - 16], rcx
+    add qword [rbx], tok_len
+    mov rcx, [rbx]
+    cmp word [rcx], TT_PARENR
+    je peL6
+
+    mov rdi, rcx
+    pushmany 0, _parenr
+    mov rsi, rsp
+    call syntax_error_expected
+    peL6:
+
+    add qword [rbx], tok_len
+    node_asm [rbp - 16]
+    leave
+    ret
+    peL3:
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
     cmp word [rbx], TT_BRACEL
     jne peL1
 
