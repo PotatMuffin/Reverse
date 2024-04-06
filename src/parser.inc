@@ -26,7 +26,7 @@ parse: ; void parse(token** tokens, short EOF)
         je parseret
         
         mov rdi, qword [rbp - 8]
-        call parse_expr
+        call parse_stmt
         mov [rbp - 24], rax
 
         linked_list_item qword [rbp - 24]
@@ -56,6 +56,31 @@ parse: ; void parse(token** tokens, short EOF)
 
     mov rax, [rbp - 16]
     leave 
+    ret
+
+parse_stmt: ; void* parse_stmt(token** Ptokens)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 8
+    mov [rbp - 8], rdi
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_BRACEL
+    jne psL1
+
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    call parse_scope_expr
+    leave
+    ret
+
+    psL1:
+
+    mov rdi, [rbp - 8]
+    call parse_expr
+
+    leave
     ret
 
 parse_expr: ; void* parse_expr(token** Ptokens)
@@ -111,18 +136,6 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     leave
     ret
     peL3:
-    mov rbx, [rbp - 8]
-    mov rbx, [rbx]
-    cmp word [rbx], TT_BRACEL
-    jne peL1
-
-    mov rbx, [rbp - 8]
-    add qword [rbx], tok_len
-    call parse_scope_expr
-    leave
-    ret
-
-    peL1:
     
     mov rdi, [rbp - 8]
     mov sil, 0
@@ -221,6 +234,27 @@ parse_scope_expr: ; void* parse_scope_expr(token** Ptokens)
     mov eax, dword [rbp - 28]
     imul rax, tok_len
     lea rbx, [rbx + rax]
+
+    cmp word [rbx], TT_IDENT
+    jne pseL6
+    lea rcx, [rbx + tok_len]
+    cmp word [rcx], TT_IDENT
+    je pseL7
+
+    mov rdi, rcx
+    pushmany 0, _type
+    mov rsi, rsp
+    call syntax_error_expected
+
+    pseL7:
+    
+    mov rdi, [rbp - 8]
+    mov rsi, [rbp - 16]
+    call parse_func_expr
+    leave
+    ret
+
+    pseL6:
     cmp word [rbx], TT_KEYWORD
     jne pse_expected
 
@@ -241,19 +275,6 @@ parse_scope_expr: ; void* parse_scope_expr(token** Ptokens)
     mov sil, 0
     call parse_expr
     mov [rbp - 24], rax
-    cmp word [rax], NODE_IF
-    je peeL3
-    cmp word [rax], NODE_WHILE
-    je peeL3
-    cmp word [rax], NODE_FOR
-    jne peeL4
-    peeL3:
-
-    mov rbx, [rbp - 8]
-    mov rdi, [rbx]
-    call iwf_not_allowed
-
-    peeL4:
 
     mov rbx, [rbp - 8]
     mov rbx, [rbx]
@@ -287,7 +308,7 @@ parse_scope_expr: ; void* parse_scope_expr(token** Ptokens)
     pse_expected:
     mov rbx, [rbp - 8]
     mov rdi, [rbx]
-    pushmany 0, _if, _while, _for
+    pushmany 0, _if, _while, _for, _ident
     mov rsi, rsp
     call syntax_error_expected
 
@@ -377,6 +398,103 @@ parse_for_expr: ; void* parse_for_expr(token** Ptokens, void* scope)
     leave
     ret
 
+parse_func_expr: ;void* parse_func_expr(token** Ptokens, void* scope)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 48
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    mov qword [rbp - 40],0
+    mov qword [rbp - 48],0
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx]
+    cmp word [rcx], TT_IDENT
+    jne pfe_L1
+
+    mov r15, rcx
+    add qword [rbx], tok_len
+    mov rcx, [rbx]
+    cmp word [rcx], TT_IDENT
+    je pfe_L5
+
+    mov rdi, rcx
+    pushmany 0, _type
+    mov rsi, rsp
+    call syntax_error_expected
+    pfe_L5:
+    mov rdi, [rbp - 8]
+    call parse_type
+    mov r14, rax
+    param r15, r14
+    mov [rbp - 40], rax
+    inc qword [rbp - 48]
+
+    jmp pfe_L3
+    pfe_L4:
+    inc qword [rbp - 48]
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    mov rcx, [rbx]
+    cmp word [rcx], TT_IDENT
+    je pfe_L6
+
+    mov rdi, rcx
+    pushmany 0, _ident
+    mov rsi, rsp
+    call syntax_error_expected
+    pfe_L6:
+
+    mov r15, rcx
+    add qword [rbx], tok_len
+    mov rcx, [rbx]
+    cmp word [rcx], TT_IDENT
+    je pfe_L7
+
+    mov rdi, rcx
+    pushmany 0, _type
+    mov rsi, rsp
+    call syntax_error_expected
+    pfe_L7:
+
+    mov rdi, [rbp - 8]
+    call parse_type
+
+    mov r14, rax
+    param r15, r14
+
+    pfe_L3:
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_COMMA
+    je pfe_L4
+
+    pfe_L1:
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_PARENR
+    je pfe_L2
+
+    mov rdi, rbx
+    pushmany 0, _parenr
+    mov rsi, rsp
+    call syntax_error_expected
+
+    pfe_L2:
+
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    mov rcx, [rbx]
+    mov [rbp - 24], rcx
+    add qword [rbx], tok_len
+    mov rdi, [rbp - 8]
+    call parse_type
+    mov [rbp - 32], rax
+    node_func_def [rbp - 16], [rbp - 24], [rbp - 40], [rbp - 48], [rbp - 32]
+
+    leave
+    ret
+
 parse_else_expr: ; void* parse_else_expr(token** Ptokens, void* scope)
     push rbp
     mov rbp, rsp
@@ -433,7 +551,7 @@ parse_else_expr: ; void* parse_else_expr(token** Ptokens, void* scope)
 parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
     push rbp
     mov rbp, rsp
-    sub rsp, 32
+    sub rsp, 24
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -462,22 +580,10 @@ parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
     cmp word [rcx], TT_IDENT
     jne pveL2
 
-    add qword [rbx], tok_len
-    node_vardef [rbp - 16], [rbp - 24], rcx
-    mov [rbp - 32], rax
-
-    pveloop:
-        mov rbx, [rbp - 8]
-        mov rcx, [rbx]
-        cmp word [rcx], TT_STAR
-        jne pveloopend
-        add qword [rbx], tok_len
-        mov rbx, [rbp - 32]
-        inc qword [rbx + 26]
-        jmp pveloop
-
-    pveloopend:
-    mov rax, [rbp - 32]
+    mov rdi, [rbp - 8]
+    call parse_type
+    mov r15, rax
+    node_vardef [rbp - 16], [rbp - 24], r15
     leave
     ret
 
@@ -490,6 +596,32 @@ parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
 
     pveL3:
     node_varass [rbp - 16], [rbp - 24]
+    leave
+    ret
+
+parse_type: ; void* parse_type(token** Ptokens)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov [rbp - 8], rdi
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx]
+    mov [rbp - 16], rcx
+    add qword [rbx], tok_len
+    mov qword [rbp - 24], 0
+
+    ptloop:
+        mov rbx, [rbp - 8]
+        mov rcx, [rbx]
+        cmp word [rcx], TT_STAR
+        jne ptloopend
+        add qword [rbx], tok_len
+        inc qword [rbp - 24]
+        jmp ptloop
+    ptloopend:
+
+    type [rbp - 16], [rbp - 24]
     leave
     ret
 

@@ -651,6 +651,108 @@ visit_node_asm: ; void visit_node_asm(void* node)
     leave
     ret
 
+visit_node_func_def: ; void visit_node_func_def(void* node, context* context)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 48
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rdi, [func_label]
+    call itoa
+    mov [rbp - 24], rax
+    inc qword [func_label]
+
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx + 10]
+    call st_get_symbol
+    mov rbx, [rax + 8]
+    mov rbx, [rbx + 26]
+    mov [rbp - 48], rbx
+
+    fprintmany [outputfd], _jmp, _func, [rbp - 24], _end, newline
+    fprintmany [outputfd], _func, [rbp - 24], colon, newline
+    fprintmany [outputfd], _prologue
+    mov rbx, [rbp - 48]
+    cmp dword [rbx + 8], 0
+    je vnfdL1
+    movsxd rdi, dword [rbx + 8]
+    neg rdi
+    call itoa
+    mov r15, rax
+    fprintmany [outputfd], _sub, _rsp, comma, r15, newline
+
+    mov qword [rbp - 32], 0
+
+    jmp vnfdL3
+    vnfdL2:
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 18]
+    mov rax, [rbp - 32]
+    imul rax, 32
+    lea rbx, [rbx + rax]
+    mov [rbp - 40], rbx
+
+    mov rdi, [rbp - 48]
+    mov rbx, [rbp - 40]
+    mov rsi, [rbx]
+    call st_get_var_pos
+    mov r15, rax
+    
+    mov rbx, [rbp - 32]
+    cmp rbx, 6
+    jge vnfdL4
+    reg dword [param_regs + rbx * 4], qword_
+    mov rdi, r15
+    mov rsi, rax
+    call mov_to_mempos
+    jmp vnfdL5
+    vnfdL4:
+
+    reg rax_, qword_
+    mov r14, rax
+
+    mov r13, 16
+    mov rbx, [rbp - 32]
+    sub rbx, 6
+    imul rbx, 8
+    add r13, rbx
+
+    mempos rbp_, qword_, r13d
+
+    mov rdi, r14
+    mov rsi, rax
+    call mov_to_reg
+
+    mov rdi, r15
+    mov rsi, rax
+    call mov_to_mempos
+
+    vnfdL5:
+    inc qword [rbp - 32]
+
+    vnfdL3:
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 26]
+    cmp qword [rbp - 32], rbx
+    jl vnfdL2
+    vnfdL1:
+
+    context [rbp - 48], 0, 0, 0
+    mov r15, rax
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rsi, r15
+    call visit
+
+    fprintmany [outputfd], _epilogue
+    fprintmany [outputfd], _func, [rbp - 24], _end, colon, newline
+
+    leave
+    ret
+
 genlookuptable:
     dq 0
     dq visit_node_root
@@ -664,6 +766,7 @@ genlookuptable:
     dq visit_node_while
     dq visit_node_for
     dq visit_node_asm
+    dq visit_node_func_def
 
 mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     push rbp

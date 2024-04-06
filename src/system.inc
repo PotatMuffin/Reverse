@@ -123,6 +123,7 @@ macro symbol_table table_size
     check_memory rbx
     mov rax, [memory_pointer]
     mov qword [rax], table_size
+    mov dword [rax + 12], 1
     add [memory_pointer], rbx
 }
 
@@ -159,6 +160,23 @@ macro ptr ptr_type, type
     mov rbx, type
     mov qword [rax + 14], rbx
     add [memory_pointer], ptr_size
+}
+
+macro func arity, params, return, table
+{
+    check_memory func_size
+    mov rax, [memory_pointer]
+    mov word [rax], FUNC
+    mov rbx, arity
+    mov qword [rax + 2], rbx
+    mov rbx, params
+    mov qword [rax + 10], rbx
+    mov rbx, return
+    mov qword [rax + 18], rbx
+    mov rbx, table
+    mov qword [rax + 26], rbx
+    mov dword [rax + 34], 0
+    add [memory_pointer], func_size
 }
 
 macro context table, logop_true, logop_false, logop_token
@@ -233,7 +251,6 @@ macro node_vardef value, name, type
     mov qword [rax + 10], rbx
     mov rbx, type
     mov qword [rax + 18], rbx
-    mov qword [rax + 26], 0
     add [memory_pointer], node_vardef_size
 }
 
@@ -309,6 +326,46 @@ macro node_asm asm
     mov rbx, asm
     mov [rax + 2], rbx
     add [memory_pointer], node_asm_size
+}
+
+macro type type_name, ptr
+{
+    check_memory type_size
+    mov rax, [memory_pointer]
+    mov rbx, type_name
+    mov [rax], rbx
+    mov rbx, ptr
+    mov [rax + 8], rbx
+    add [memory_pointer], type_size
+}
+
+macro param name, type
+{
+    check_memory param_size
+    mov rax, [memory_pointer]
+    mov rbx, name
+    mov [rax], rbx
+    mov rbx, type
+    mov [rax + 8], rbx
+    add [memory_pointer], param_size
+}
+
+macro node_func_def scope, name, params, arity, return
+{   
+    check_memory node_func_def_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_FUNC_DEF
+    mov rbx, scope
+    mov qword [rax + 2], rbx
+    mov rbx, name
+    mov qword [rax + 10], rbx
+    mov rbx, params
+    mov qword [rax + 18], rbx
+    mov rbx, arity 
+    mov qword [rax + 26], rbx
+    mov rbx, return
+    mov qword [rax + 34], rbx
+    add [memory_pointer], node_func_def_size
 }
 
 macro immvalue value

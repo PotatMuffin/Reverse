@@ -25,7 +25,70 @@ hash: ; ulong hash(char* str)
     leave
     ret
 
-st_add_var: ; void st_add_var(symbol_table* table, void* node, void* type)
+st_add_func: ; void st_add_func(symbol_table* table, token*, func* func)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    mov [rbp - 24], rdx
+
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx + 2]
+    call hash
+
+    mov rbx, [rbp - 8]
+    mov rbx, qword [rbx]
+    xor rdx, rdx
+    idiv rbx
+    mov [rbp - 32], rdx
+
+    tryaddfunc:
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 32]
+    imul rcx, symbol_size
+    mov rax, [rbx + rcx + symbol_table_size]
+    cmp rax, 0
+    je addfunc
+
+    mov rdi, rax
+    mov rbx, [rbp - 16]
+    mov rsi, [rbx + 2]
+    call strcmp
+    movzx rax, al
+
+    add qword [rbp - 32], 1
+    sub qword [rbp - 32], rax
+    
+    cmp al, 0
+    je tryaddfunc
+
+    mov rdi, [rbp - 16]
+    call name_error_var_defined
+
+    addfunc:
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 32]
+    imul rcx, symbol_size
+
+    mov rax, [rbp - 16]
+    mov rax, qword [rax + 2]
+    mov qword [rbx + rcx + symbol_table_size], rax
+
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 32]
+    imul rcx, symbol_size
+    mov edx, [rbx + 12]
+    mov rax, [rbp - 24]
+    mov [rax + 34], edx 
+    mov qword [rbx + rcx + 8 + symbol_table_size], rax
+
+    leave
+    ret
+
+st_add_var: ; void st_add_var(symbol_table* table, token* name, void* type)
     push rbp
     mov rbp, rsp
     sub rsp, 40
@@ -34,10 +97,6 @@ st_add_var: ; void st_add_var(symbol_table* table, void* node, void* type)
     mov [rbp - 40], rdx
 
     mov rbx, [rbp - 16]
-    mov rbx, qword [rbx + 10]
-    mov [rbp - 32], rbx
-    
-    mov rbx, [rbp - 32]
     mov rdi, qword [rbx + 2]
     call hash
 
@@ -56,7 +115,7 @@ st_add_var: ; void st_add_var(symbol_table* table, void* node, void* type)
     je addvar
 
     mov rdi, rax
-    mov rbx, [rbp - 32]
+    mov rbx, [rbp - 16]
     mov rsi, [rbx + 2]
     call strcmp
     movzx rax, al
@@ -67,7 +126,7 @@ st_add_var: ; void st_add_var(symbol_table* table, void* node, void* type)
     cmp al, 0
     je tryaddvar
 
-    mov rdi, [rbp - 32]
+    mov rdi, [rbp - 16]
     call name_error_var_defined
 
     addvar:
@@ -76,7 +135,6 @@ st_add_var: ; void st_add_var(symbol_table* table, void* node, void* type)
     imul rcx, symbol_size
 
     mov rax, [rbp - 16]
-    mov rax, qword [rax + 10]
     mov rax, qword [rax + 2]
     mov qword [rbx + rcx + symbol_table_size], rax
 

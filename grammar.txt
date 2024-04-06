@@ -1,14 +1,18 @@
-[program]       : [expr]*
+[program]       : [stmt]*
 
-[expr]          : asm(str_lit)
-                : [scope_expr]
+[stmt]          : [scope_expr]
+                : [expr]
+
+[expr]          : asm(STRLIT)
                 : [bin_expr]
                 : [var_expr]
 
 [scope_expr]    : [scope]
+                : [else_expr]
                 : [if_expr]
                 : [while_expr]
                 : [for_expr]
+                : [func_expr]
 
 [scope]         : { [program] }
 
@@ -20,8 +24,12 @@
 
 [for_expr]      : [scope] ([expr]; [expr]; [expr]) for
 
-[var_expr]      : [bin_expr] = ident var
-                : [bin_expr] = ident
+[func_expr]     : [scope] ([IDENT [type]]*) IDENT [type]
+
+[var_expr]      : [bin_expr] = IDENT [type]
+                : [bin_expr] = IDENT
+
+[type]          : IDENT[*]*
 
 [bin_expr]      : [bin_expr] * [bin_expr]  | prec = 5
                 : [bin_expr] % [bin_expr]  | prec = 5
@@ -43,11 +51,11 @@
                 : [bin_expr] || [bin_expr] | prec = 1
                 : [atom]
 
-[atom]          : int_lit
-                : str_lit
+[atom]          : INTLIT
+                : STRLIT
                 : ([bin_expr])
                 : -[atom]
                 : ![atom]
                 : &[atom]
                 : *[atom]
-                : ident
+                : IDENT

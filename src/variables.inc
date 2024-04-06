@@ -15,6 +15,7 @@ while_label dq 1
 for_label   dq 1
 str_label   dq 1
 other_label dq 1
+func_label  dq 1
 
 builtin_types rq 5
 
@@ -70,6 +71,8 @@ _plus db '+',0
 zero db '0',0
 one db '1',0
 _type db 'type',0
+_func db 'func',0
+_end db 'end',0
 
 if_ db "if",0
 else_ db "else",0
@@ -166,6 +169,7 @@ TT_BRACER    = 260 ; }
 TT_BRACKL    = 261 ; [
 TT_BRACKR    = 262 ; ]
 TT_EQ        = 263 ; =
+TT_COMMA     = 264 ; ,
 TT_INTLIT    = 512
 TT_STRLIT    = 513
 TT_IDENT     = 768
@@ -213,9 +217,9 @@ node_unop_size = 18
 ;   short type
 ;   void* value
 ;   token* name
-;   token* type
+;   type* vartype
 ; }
-node_vardef_size = 34
+node_vardef_size = 26
 
 ; struct node_varass
 ; {
@@ -266,18 +270,44 @@ node_for_size = 34
 ; }
 node_asm_size = 10
 
-node_count  = 11
-NODE_ROOT   = 1
-NODE_BINOP  = 2
-NODE_LIT    = 3
-NODE_UNOP   = 4
-NODE_VARDEF = 5
-NODE_VARASS = 6
-NODE_VAR    = 7
-NODE_IF     = 8
-NODE_WHILE  = 9
-NODE_FOR    = 10
-NODE_ASM    = 11
+; struct node_func_def
+; {
+;   short type
+;   void* scope
+;   token* name
+;   void* params
+;   long arity
+;   type* return
+; }
+node_func_def_size = 42
+
+node_count    = 12
+NODE_ROOT     = 1
+NODE_BINOP    = 2
+NODE_LIT      = 3
+NODE_UNOP     = 4
+NODE_VARDEF   = 5
+NODE_VARASS   = 6
+NODE_VAR      = 7
+NODE_IF       = 8
+NODE_WHILE    = 9
+NODE_FOR      = 10
+NODE_ASM      = 11
+NODE_FUNC_DEF = 12
+
+; struct type
+; {
+;   token* type_name
+;   long ptr
+; }
+type_size = 16
+
+; struct param
+; {
+;   token* name
+;   type* type
+; }
+param_size = 16
 
 ; struct symbol
 ; {
@@ -310,11 +340,23 @@ builtin_type_size = 6
 ; }
 ptr_size = 22
 
+; struct func 
+; {
+;   short type
+;   long arity
+;   param* params
+;   type* return
+;   symbol_table* table
+;   int num
+; }
+func_size = 38
+
 VAR = 1
 BUILTIN_TYPE = 2
 _PTR = 3
+FUNC = 4
 
-symbol_table_size = 12
+symbol_table_size = 16
 
 ; struct context
 ; {
@@ -464,6 +506,8 @@ _r15d db 'r15d',0
 _r15w db 'r15w',0
 _r15b db 'r15b',0
 
+param_regs dd rdi_, rsi_, rdx_, rcx_, r8_, r9_
+
 _mov db 'mov ',0
 _movzx db 'movzx ',0
 _movsx db 'movsx ',0
@@ -494,7 +538,8 @@ _setle db 'setle ',0
 _sete db 'sete ',0
 _setne db 'setne ',0
 _lea db 'lea ',0
-_db dq 'db ',0
+_db db 'db ',0
+_rb db 'rb ',0
 
 _qword db "qword ",0
 _dword db "dword ",0

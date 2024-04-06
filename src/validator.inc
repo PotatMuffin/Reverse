@@ -226,47 +226,28 @@ valvisit_node_vardef: ; void valvisit_node_vardef(void* node, symbol_table table
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
-    mov rdi, types
     mov rbx, [rbp - 8]
-    mov rbx, [rbx + 18]
-    mov rsi, [rbx + 2]
-    call contains_str
-
-    cmp al, 0
+    mov rdi, [rbx + 18]
+    call get_real_type
+    cmp rax, -1
     jne vvnvL1
 
     mov rbx, [rbp - 8]
-    mov rdi, [rbx + 18]
+    mov rbx, [rbx + 18]
+    mov rdi, [rbx]
     call is_not_a_type
 
     vvnvL1:
+    cmp rax, -2
+    jne vvnvL2
 
-    
-    mov rdi, types
     mov rbx, [rbp - 8]
     mov rbx, [rbx + 18]
-    mov rsi, [rbx + 2]
-    call index_of
-    cmp rax, 0
-    jne vvnvL2
-    mov rbx, [rbp - 8]
-    cmp qword [rbx + 26], 0
-    jne vvnvL2
-    mov rdi, [rbx + 10]
+    mov rdi, [rbx]
     call cant_def_void
+
     vvnvL2:
-    mov rbx, [builtin_types + rax * 8]
-    mov [rbp - 24], rbx
-
-    mov rbx, [rbp - 8]
-    cmp qword [rbx + 26], 0
-    je vvnvL3
-
-    mov r15, [rbp - 8]
-    ptr [r15 + 26], [rbp - 24]
     mov [rbp - 24], rax
-    vvnvL3:
-
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 2]
     mov rsi, [rbp - 16]
@@ -278,13 +259,15 @@ valvisit_node_vardef: ; void valvisit_node_vardef(void* node, symbol_table table
     cmp al,0
     jne vvnvL4
     mov rbx, [rbp - 8]
-    mov rdi, [rbx + 18]
+    mov rbx, [rbx + 18]
+    mov rdi, [rbx]
     call type_mismatch
 
     vvnvL4:
 
     mov rdi, [rbp - 16]
-    mov rsi, [rbp - 8]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx + 10]
     mov rdx, [rbp - 24]
     call st_add_var
     
@@ -446,6 +429,68 @@ valvisit_node_asm: ; void valvisit_node_asm(void* node, symbol_table* table)
     nop
     ret
 
+valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* table)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 48
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 34]
+    call get_real_type
+    mov [rbp - 48], rax
+
+    symbol_table 256
+    mov [rbp - 24], rax
+
+    mov qword [rbp - 32], 0
+
+    jmp vvnfdL2
+    vvnfdL1:
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 18]
+    mov rax, [rbp - 32]
+    imul rax, 32
+    lea rbx, [rbx + rax]
+    mov [rbp - 40], rbx
+
+    mov rdi, [rbx + 8]
+    call get_real_type
+
+    mov rdx, rax
+    mov rdi, [rbp - 24]
+    mov rbx, [rbp - 40]
+    mov rsi, [rbx]
+    call st_add_var
+
+    inc qword [rbp - 32]
+
+    vvnfdL2:
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 26]
+    cmp qword [rbp - 32], rbx
+    jl vvnfdL1
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rsi, [rbp - 24]
+    call valvisit
+
+    mov rbx, [rbp - 8]
+    mov r15, [rbx + 26]
+    mov r14, [rbx + 18]
+    func r15, r14, [rbp - 48], [rbp - 24]
+    mov r15, rax
+
+    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx + 10]
+    mov rdx, r15
+    call st_add_func
+    leave
+    ret
+
 vallookuptable:
     dq 0
     dq valvisit_node_root
@@ -459,3 +504,54 @@ vallookuptable:
     dq valvisit_node_while
     dq valvisit_node_for
     dq valvisit_node_asm
+    dq valvisit_node_func_def
+
+get_real_type: ; void* get_real_type(type* type)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+
+    mov rdi, types
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    mov rsi, [rbx + 2]
+    call contains_str
+
+    cmp al, 0
+    jne grtL1
+
+    mov rax, -1
+    leave
+    ret
+    grtL1:
+
+    mov rdi, types
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    mov rsi, [rbx + 2]
+    call index_of
+    cmp rax, 0
+    jne grtL3
+
+    mov rax, -2
+    leave
+    ret
+    grtL3:
+
+    mov rbx, [builtin_types + rax * 8]
+    mov [rbp - 16], rbx
+
+    mov rbx, [rbp - 8]
+    mov r15, [rbx + 8]
+
+    cmp r15, 0
+    je grtL2
+
+    ptr r15, [rbp - 16]
+    mov [rbp - 16], rax
+
+    grtL2:
+    mov rax, [rbp - 16]
+    leave
+    ret
