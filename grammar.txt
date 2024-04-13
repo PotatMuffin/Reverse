@@ -5,6 +5,7 @@
 
 [expr]          : asm(STRLIT)
                 : [bin_expr]
+                : [bin_expr]? return
                 : [var_expr]
 
 [scope_expr]    : [scope]
@@ -59,3 +60,4 @@
                 : &[atom]
                 : *[atom]
                 : IDENT
+                : ([bin_expr]*)IDENT

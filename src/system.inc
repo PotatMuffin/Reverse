@@ -368,6 +368,32 @@ macro node_func_def scope, name, params, arity, return
     add [memory_pointer], node_func_def_size
 }
 
+macro node_return tok, value
+{
+    check_memory node_return_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_RETURN
+    mov rbx, tok
+    mov qword [rax + 2], rbx
+    mov rbx, value
+    mov qword [rax + 10], rbx
+    add [memory_pointer], node_return_size
+}   
+
+macro node_func_call func_name, params, count
+{
+    check_memory node_func_call_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_FUNC_CALL
+    mov rbx, func_name
+    mov qword [rax + 2], rbx
+    mov rbx, params
+    mov qword [rax + 10], rbx
+    mov ebx, count
+    mov dword [rax + 18], ebx
+    add [memory_pointer], node_func_call_size
+}
+
 macro immvalue value
 {
     check_memory immvalue_size
@@ -1155,4 +1181,53 @@ type_mismatch:
     call print
     print_tok_pos [rbp - 8]
     printmany typemismatch, suffix
+    exit_process 1
+last_stmt_return:
+    mov [rbp - 8], rdi
+    mov rdi, ERROR
+    call print
+    print_tok_pos [rbp - 8]
+    printmany laststmtreturn, suffix
+    exit_process 1
+cant_ret_outside_func:
+    mov [rbp - 8], rdi
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    printmany cantretoutfun, suffix
+    exit_process 1
+is_not_func:
+    mov [rbp - 8], rdi
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    mov r15, [rbp - 8]
+    printmany quote, [r15 + 2], isnotfunc, suffix
+    exit_process 1
+not_defined:
+    mov [rbp - 8], rdi
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    mov r15, [rbp - 8]
+    printmany quote, [r15 + 2], varnotdefined, suffix
+    exit_process 1
+expect_n_params:
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    mov [rbp - 24], rdx
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    mov r15, [rbp - 8]
+    printmany quote, [r15 + 2], expects
+    mov rdi, [rbp - 16]
+    call display_number
+    printmany parambutgot
+    mov rdi, [rbp - 24]
+    call display_number
+    printmany suffix
+    exit_process 1
+type_mismatch_param:
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    printmany typemismatchparam, [rbp - 16], quote, suffix
     exit_process 1

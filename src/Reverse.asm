@@ -63,9 +63,6 @@ main:
     call parse
     mov [rbp - 32], rax
 
-    ; mov rdi, [rbp - 32]
-    ; call display_ast
-
     symbol_table 10000h
     mov [rbp - 40], rax
 

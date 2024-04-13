@@ -15,7 +15,8 @@ while_label dq 1
 for_label   dq 1
 str_label   dq 1
 other_label dq 1
-func_label  dq 1
+
+in_function db 0
 
 builtin_types rq 5
 
@@ -79,9 +80,10 @@ else_ db "else",0
 while_ db "while",0
 for_ db "for",0
 asm_ db "asm",0
+return_ db "return",0
 
 keywords:
-   dq if_, else_, while_, for_, asm_, 0
+   dq if_, else_, while_, for_, asm_, return_, 0
 
 types:
    dq _void
@@ -281,19 +283,38 @@ node_asm_size = 10
 ; }
 node_func_def_size = 42
 
-node_count    = 12
-NODE_ROOT     = 1
-NODE_BINOP    = 2
-NODE_LIT      = 3
-NODE_UNOP     = 4
-NODE_VARDEF   = 5
-NODE_VARASS   = 6
-NODE_VAR      = 7
-NODE_IF       = 8
-NODE_WHILE    = 9
-NODE_FOR      = 10
-NODE_ASM      = 11
-NODE_FUNC_DEF = 12
+; struct node_return
+; {
+;   short type
+;   token* tok
+;   void value*
+; }
+node_return_size = 18
+
+; struct node_func_call
+; {
+;   short type
+;   token* func_name
+;   void params
+;   int param_count
+; }
+node_func_call_size = 22
+
+node_count     = 14
+NODE_ROOT      = 1
+NODE_BINOP     = 2
+NODE_LIT       = 3
+NODE_UNOP      = 4
+NODE_VARDEF    = 5
+NODE_VARASS    = 6
+NODE_VAR       = 7
+NODE_IF        = 8
+NODE_WHILE     = 9
+NODE_FOR       = 10
+NODE_ASM       = 11
+NODE_FUNC_DEF  = 12
+NODE_RETURN    = 13
+NODE_FUNC_CALL = 14
 
 ; struct type
 ; {
@@ -540,6 +561,7 @@ _setne db 'setne ',0
 _lea db 'lea ',0
 _db db 'db ',0
 _rb db 'rb ',0
+_call db 'call ',0
 
 _qword db "qword ",0
 _dword db "dword ",0

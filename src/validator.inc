@@ -436,6 +436,8 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
+    mov [in_function], 1
+
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 34]
     call get_real_type
@@ -478,6 +480,24 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
     call valvisit
 
     mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    mov rbx, [rbx + 2]
+    cmp rbx, 0
+    je vvnfdL4
+
+    mov rbx, [rbx]
+    cmp word [rbx], NODE_RETURN
+    je vvnfdL3
+
+    vvnfdL4:
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    call last_stmt_return
+
+    vvnfdL3:
+
+    mov rbx, [rbp - 8]
     mov r15, [rbx + 26]
     mov r14, [rbx + 18]
     func r15, r14, [rbp - 48], [rbp - 24]
@@ -488,6 +508,140 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
     mov rsi, [rbx + 10]
     mov rdx, r15
     call st_add_func
+    mov [in_function], 0
+    leave
+    ret
+
+valvisit_node_return: ; void* valvisit_node_return(void* node, symbol_table* table)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    cmp [in_function], 0
+    jne vvnrL2
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    call cant_ret_outside_func
+
+    vvnrL2:
+
+    mov rbx, [rbp - 8]
+    cmp qword [rbx + 10], 0
+    jne vvnrL1
+
+    mov rax, [builtin_types]
+    leave
+    ret
+    vvnrL1:
+
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    call valvisit
+
+    leave
+    ret
+
+valvisit_node_func_call: ; void* valvisit node_func_call(void* node, symbol_table* table)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 40
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx + 2]
+    call st_get_symbol
+
+    cmp rax, -1
+    jne vvnfcL2
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    call not_defined
+
+    vvnfcL2:
+
+    mov rbx, [rax + 8]
+    cmp word [rbx], FUNC
+    je vvnfcL1
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    call isnotfunc
+    vvnfcL1:
+    mov [rbp - 24], rbx
+    mov rcx, [rbp - 8]
+    mov ecx, [rcx + 18]
+    cmp qword [rbx + 2], rcx
+    je vvnfcL3
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rbx, [rbp - 24]
+    mov rsi, [rbx + 2]
+    mov rbx, [rbp - 8]
+    mov edx, [rbx + 18]
+    call expect_n_params
+
+    vvnfcL3:
+    mov rbx, [rbp - 24]
+    mov rbx, [rbx + 2]
+    mov [rbp - 32], rbx
+    dec qword [rbp - 32]
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 10]
+    mov [rbp - 40], rbx
+
+    vvnfcloop:
+    mov rbx, [rbp - 40]
+    mov rdi, [rbx]
+    mov rsi, [rbp - 16]
+    call valvisit
+    mov r14, rax
+
+    mov rcx, [rbp - 24]
+    mov rcx, [rcx + 10]
+    mov rbx, [rbp - 32]
+    imul rbx, 32
+    lea rbx, [rcx + rbx]
+    mov rdi, [rbx + 8]
+    call get_real_type
+
+    mov rdi, rax
+    mov rsi, r14
+    call type_equals
+    cmp al, 0
+    jne vvnfcL5
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rcx, [rbp - 24]
+    mov rcx, [rcx + 10]
+    mov rbx, [rbp - 32]
+    imul rbx, 32
+    lea rbx, [rcx + rbx]
+    mov rbx, [rbx]
+    mov rsi, [rbx + 2]
+    call type_mismatch_param
+
+    vvnfcL5:
+
+    dec qword [rbp - 32]
+    mov rbx, qword [rbp - 40]
+    cmp qword [rbx + 8], 0
+    je vvnfcL4
+    mov rbx, qword [rbx + 8]
+    mov qword [rbp - 40], rbx
+    jmp vvnfcloop
+    vvnfcL4:
+
+    mov rbx, [rbp - 24]
+    mov rax, [rbx + 18]
     leave
     ret
 
@@ -505,6 +659,8 @@ vallookuptable:
     dq valvisit_node_for
     dq valvisit_node_asm
     dq valvisit_node_func_def
+    dq valvisit_node_return
+    dq valvisit_node_func_call
 
 get_real_type: ; void* get_real_type(type* type)
     push rbp

@@ -658,19 +658,18 @@ visit_node_func_def: ; void visit_node_func_def(void* node, context* context)
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
-    mov rdi, [func_label]
-    call itoa
-    mov [rbp - 24], rax
-    inc qword [func_label]
-
     mov rbx, [rbp - 16]
     mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 10]
     call st_get_symbol
     mov rbx, [rax + 8]
-    mov rbx, [rbx + 26]
-    mov [rbp - 48], rbx
+    mov rcx, [rbx + 26]
+    mov [rbp - 48], rcx
+
+    mov edi, dword [rbx + 34]  
+    call itoa
+    mov [rbp - 24], rax
 
     fprintmany [outputfd], _jmp, _func, [rbp - 24], _end, newline
     fprintmany [outputfd], _func, [rbp - 24], colon, newline
@@ -747,9 +746,95 @@ visit_node_func_def: ; void visit_node_func_def(void* node, context* context)
     mov rsi, r15
     call visit
 
-    fprintmany [outputfd], _epilogue
     fprintmany [outputfd], _func, [rbp - 24], _end, colon, newline
 
+    leave
+    ret
+
+visit_node_return: ; void visit_node_return(void* node, context* context)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    cmp qword [rbx + 10], 0
+    je vnrL1
+
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    call visit
+    mov r15, rax
+    reg rax_, qword_
+    mov rdi, rax
+    mov rsi, r15
+    call mov_to_reg
+    vnrL1:
+
+    fprintmany [outputfd], _epilogue
+
+    leave
+    ret
+
+visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 10]
+    mov qword [rbp - 24], rbx
+    mov qword [rbp - 32], 0
+
+    vnfcloop1:
+    mov rbx, qword [rbp - 24]
+    cmp qword [rbx + 8], 0
+    je vnfcloop2
+    mov rbx, qword [rbx + 8]
+    mov qword [rbp - 24], rbx
+    jmp vnfcloop1
+    
+    vnfcloop2:
+    mov rbx, qword [rbp - 24]
+    mov rdi, qword [rbx]
+    mov rsi, [rbp - 16]
+    call visit
+    mov r14, rax
+
+    mov r15, [rbp - 32]
+    reg [param_regs + r15 * 4], qword_
+
+    mov rdi, rax
+    mov rsi, r14
+    call mov_to_reg
+
+    inc qword [rbp - 32]
+
+    mov rbx, qword [rbp - 24]
+    cmp qword [rbx + 16], 0
+    je vnfcL1
+    mov rbx, qword [rbx + 16]
+    mov qword [rbp - 24], rbx
+    jmp vnfcloop2
+
+    vnfcL1:
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx + 2]
+    call st_get_symbol
+    
+    mov rbx, [rax + 8]
+    mov edi, [rbx + 34]
+    call itoa
+    mov r15, rax
+
+    fprintmany [outputfd], _call, _func, r15, newline
+
+    reg rax_, qword_
     leave
     ret
 
@@ -767,6 +852,8 @@ genlookuptable:
     dq visit_node_for
     dq visit_node_asm
     dq visit_node_func_def
+    dq visit_node_return
+    dq visit_node_func_call
 
 mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     push rbp
@@ -1172,7 +1259,6 @@ logical_binop: ; void* logical_binop(void* node, context* context)
     mov dl, 1 
     call visit
     mov [rbp - 24], rax
-
 
     mov rbx, [rbp - 8]
     mov rbx, [rbx + 2]

@@ -97,7 +97,24 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     mov rsi, asm_
     call strcmp
     cmp al, 0
+    jne peL7
+
+    mov rdi, return_ 
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    mov rsi, [rbx + 2]
+    call strcmp
+    cmp al, 0
     je peL3
+
+    mov rbx, [rbp - 8]
+    mov r15, [rbx]
+    add qword [rbx], tok_len
+    node_return r15, 0
+    leave
+    ret
+
+    peL7:
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
     mov rcx, [rbx]
@@ -142,6 +159,25 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     call parse_bin_expr
     mov [rbp - 16], rax
 
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx]
+    cmp word [rcx], TT_KEYWORD
+    jne peL1
+
+    mov rdi, return_
+    mov rsi, [rcx + 2]
+    call strcmp
+    cmp al, 0
+    je peL1
+
+    mov rbx, [rbp - 8]
+    mov r15, [rbx]
+    add qword [rbx], tok_len
+    node_return r15, [rbp - 16]
+    leave
+    ret
+
+    peL1:
     mov rbx, [rbp - 8]
     mov rcx, [rbx]
     cmp word [rcx], TT_EQ
@@ -675,7 +711,7 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
 parse_atom: ; void* parse_atom(token** Ptokens)
     push rbp
     mov rbp, rsp
-    sub rsp, 24
+    sub rsp, 52
     mov [rbp - 8], rdi
 
     mov rbx, [rbp - 8]
@@ -700,6 +736,108 @@ parse_atom: ; void* parse_atom(token** Ptokens)
 
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
+
+    mov dword [rbp - 28], 0 
+    mov dword [rbp - 32], 1
+
+    paloop:
+    mov rbx, qword [rbp - 8]
+    mov rbx, [rbx]
+    mov eax, dword [rbp - 28]
+    imul rax, tok_len
+    lea rbx, [rbx + rax]
+
+    cmp word [rbx], TT_EOF
+    jne paL8
+
+    mov rdi, rbx
+    pushmany 0, _parenr
+    mov rsi, rsp
+    call syntax_error_expected
+
+    paL8:
+    cmp word [rbx], TT_PARENL
+    sete al
+    movzx eax, al
+    add dword [rbp - 32], eax
+
+    cmp word [rbx], TT_PARENR
+    sete al
+    movzx eax, al
+    sub dword [rbp - 32], eax
+
+    inc dword [rbp - 28]
+    cmp dword [rbp - 32], 0
+    jne paloop
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    mov eax, dword [rbp - 28]
+    imul rax, tok_len
+    lea rbx, [rbx + rax]
+
+    cmp word [rbx], TT_IDENT
+    jne paL9    
+    mov [rbp - 52], rbx
+
+    mov rcx, [rbp - 8]
+    mov rcx, [rcx]
+    cmp word [rcx], TT_PARENR
+    jne paL10
+
+    mov rbx, [rbp - 8]
+    mov ecx, [rbp - 28]
+    imul rcx, tok_len
+    add qword [rbx], rcx
+    add qword [rbx], tok_len
+
+    node_func_call qword [rbp - 52], 0, 0
+    leave
+    ret
+
+    paL10:
+    mov dword [rbp - 44], 0
+
+    mov rdi, [rbp - 8]
+    mov sil, 0
+    call parse_bin_expr
+    mov r15, rax
+
+    linked_list_item r15
+    mov [rbp - 40], rax
+    inc qword [rbp - 44]
+
+    jmp paL11
+
+    paloop1:
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+
+    mov rdi, rbx
+    mov sil, 0
+    call parse_bin_expr
+    mov r15, rax
+    linked_list_item r15
+    mov rcx, [rbp - 40]
+
+    mov qword [rax + 8], rcx
+    mov qword [rcx + 16], rax
+    mov qword [rbp - 40], rax
+    inc dword [rbp - 44]
+
+    paL11:
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_COMMA
+    je paloop1
+
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len*2
+    
+    node_func_call qword [rbp - 52], qword [rbp - 40], dword [rbp - 44]
+    leave
+    ret
+    paL9:
 
     mov rdi, [rbp - 8]
     mov sil, 0

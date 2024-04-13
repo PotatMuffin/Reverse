@@ -76,11 +76,11 @@ st_add_func: ; void st_add_func(symbol_table* table, token*, func* func)
     mov rax, qword [rax + 2]
     mov qword [rbx + rcx + symbol_table_size], rax
 
-
     mov rbx, [rbp - 8]
     mov rcx, [rbp - 32]
     imul rcx, symbol_size
     mov edx, [rbx + 12]
+    inc dword [rbx + 12]
     mov rax, [rbp - 24]
     mov [rax + 34], edx 
     mov qword [rbx + rcx + 8 + symbol_table_size], rax
