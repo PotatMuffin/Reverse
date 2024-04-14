@@ -63,6 +63,10 @@ main:
     call parse
     mov [rbp - 32], rax
 
+    mov rdi, LOGINFO
+    mov rsi, _validating
+    call log
+
     symbol_table 10000h
     mov [rbp - 40], rax
 

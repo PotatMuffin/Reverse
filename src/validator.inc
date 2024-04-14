@@ -459,6 +459,24 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
 
     mov rdi, [rbx + 8]
     call get_real_type
+    cmp rax, -1
+    jne vvnfdL5
+
+    mov rbx, [rbp - 40]
+    mov rbx, [rbx + 8]
+    mov rdi, [rbx]
+    call is_not_a_type
+
+    vvnfdL5:
+    cmp rax, -2
+    jne vvnfdL6
+
+    mov rbx, [rbp - 40]
+    mov rbx, [rbx + 8]
+    mov rdi, [rbx]
+    call cant_def_void
+
+    vvnfdL6:
 
     mov rdx, rax
     mov rdi, [rbp - 24]

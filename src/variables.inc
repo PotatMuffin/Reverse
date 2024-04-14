@@ -38,6 +38,7 @@ ERROR db "[ERROR] ",0
 
 _tokenizing db "Tokenizing file",10,0
 _parsing db "Parsing file",10,0
+_validating db "Validating program",10,0
 _generating db "Generating assembly",10,0
 
 L db "L",0
