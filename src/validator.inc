@@ -562,7 +562,7 @@ valvisit_node_return: ; void* valvisit_node_return(void* node, symbol_table* tab
     leave
     ret
 
-valvisit_node_func_call: ; void* valvisit node_func_call(void* node, symbol_table* table)
+valvisit_node_func_call: ; void* valvisit_node_func_call(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
     sub rsp, 40
@@ -663,6 +663,40 @@ valvisit_node_func_call: ; void* valvisit node_func_call(void* node, symbol_tabl
     leave
     ret
 
+valvisit_node_ptr_ass: ; void valvisit_node_ptr_ass(void* node, symbol_table* table)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rsi, [rbp - 16]
+    call valvisit
+    mov [rbp - 24], rax
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    call valvisit
+    mov [rbp - 32], rax
+
+    mov rdi, [rbp - 24]
+    mov rsi, [rbp - 32]
+    call type_equals
+    cmp al, 0
+    jne vvnpaL1
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 10]
+    mov rdi, [rbx + 2]
+    call type_mismatch
+
+    vvnpaL1:
+
+    leave
+    ret
+
 vallookuptable:
     dq 0
     dq valvisit_node_root
@@ -679,6 +713,7 @@ vallookuptable:
     dq valvisit_node_func_def
     dq valvisit_node_return
     dq valvisit_node_func_call
+    dq valvisit_node_ptr_ass
 
 get_real_type: ; void* get_real_type(type* type)
     push rbp

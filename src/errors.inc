@@ -11,7 +11,7 @@ vardefined db "' is already defined",0
 varnotdefined db "' is not defined",0
 cantdefvoid db "Can't define a variable with type void",0
 expectedvar db "Expected a variable",0
-expectedptr db "Expected pointer",0
+expectedptr db "Can only dereference a pointer",0
 typemismatch db "Type mismatch",0
 typemismatchparam db "type mismatch with parameter '",0
 isnottype db "' is not a type",0

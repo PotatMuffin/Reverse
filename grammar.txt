@@ -29,6 +29,7 @@
 
 [var_expr]      : [bin_expr] = IDENT [type]
                 : [bin_expr] = IDENT
+                : [bin_expr] = *[atom]
 
 [type]          : IDENT[*]*
 

@@ -394,6 +394,18 @@ macro node_func_call func_name, params, count
     add [memory_pointer], node_func_call_size
 }
 
+macro node_ptr_ass value, loc
+{
+    check_memory node_ptr_ass_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_PTR_ASS
+    mov rbx, value
+    mov qword [rax + 2], rbx
+    mov rbx, loc
+    mov qword [rax + 10], rbx
+    add [memory_pointer], node_ptr_ass_size
+}
+
 macro immvalue value
 {
     check_memory immvalue_size

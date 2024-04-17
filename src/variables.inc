@@ -301,7 +301,15 @@ node_return_size = 18
 ; }
 node_func_call_size = 22
 
-node_count     = 14
+; struct node_ptr_ass
+; {
+;   short type
+;   void* value
+;   void* loc
+; }
+node_ptr_ass_size = 18
+
+node_count     = 15
 NODE_ROOT      = 1
 NODE_BINOP     = 2
 NODE_LIT       = 3
@@ -316,6 +324,7 @@ NODE_ASM       = 11
 NODE_FUNC_DEF  = 12
 NODE_RETURN    = 13
 NODE_FUNC_CALL = 14
+NODE_PTR_ASS   = 15
 
 ; struct type
 ; {

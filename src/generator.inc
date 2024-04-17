@@ -161,7 +161,8 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
     je vnbL10
     cmp word [rbx], NODE_BINOP
     je vnbL10
-    jmp vnbL2
+    cmp word [rbx], NODE_FUNC_CALL
+    jne vnbL2
     vnbL10:
     mov rbx, [rbp - 8]
     mov rbx, qword [rbx + 18]
@@ -169,7 +170,8 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
     je vnbL9
     cmp word [rbx], NODE_BINOP
     je vnbL9
-    jmp vnbL2
+    cmp word [rbx], NODE_FUNC_CALL
+    jne vnbL2
 
     vnbL9:
     mov qword [rbp - 33], 0
@@ -838,6 +840,59 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     leave
     ret
 
+visit_node_ptr_ass: ; void* visit_node_ptr_ass(void* node, context* context)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rsi, [rbp - 16]
+    call visit
+    mov [rbp - 24], rax
+
+    cmp word [rax], REG
+    jne vnpaL1
+
+    mov rdi, rax
+    call value_to_string
+    mov r15, rax
+    fprintmany [outputfd], _push, r15, newline
+    vnpaL1:
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    call visit
+    mov [rbp - 32], rax
+
+    mov rbx, [rbp - 24]
+    cmp word [rbx], REG
+    jne vnpaL2
+
+    reg rcx_, qword_
+    mov [rbp - 24], rax
+    mov rdi, rax
+    call value_to_string
+    mov r15, rax
+    fprintmany [outputfd], _pop, r15, newline
+    vnpaL2:
+
+    reg rdi_, qword_
+    mov rdi, rax
+    mov rsi, [rbp - 24]
+    mov dx, MEMPOS
+    call mov_value_to_reg
+
+    mov rdi, [rbp - 32]
+    mov rsi, rax
+    call mov_to_mempos
+
+    leave
+    ret
+
 genlookuptable:
     dq 0
     dq visit_node_root
@@ -854,6 +909,7 @@ genlookuptable:
     dq visit_node_func_def
     dq visit_node_return
     dq visit_node_func_call
+    dq visit_node_ptr_ass
 
 mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     push rbp
@@ -913,7 +969,7 @@ mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     leave
     ret
 
-mov_to_mempos: ; void mov_to_mempos(void* mempos, void* value)
+mov_to_mempos: ; void* mov_to_mempos(void* mempos, void* value)
     push rbp
     mov rbp, rsp
     sub rsp, 32
@@ -962,7 +1018,7 @@ mov_to_mempos: ; void mov_to_mempos(void* mempos, void* value)
     mov [rbp - 32], rax
 
     fprintmany [outputfd], _mov, [rbp - 24], comma, [rbp - 32], newline
-
+    mov rax, [rbp - 8]
     leave
     ret
 

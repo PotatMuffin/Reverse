@@ -596,6 +596,8 @@ parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
     mov [rbp - 24], rcx
     cmp word [rcx], TT_IDENT
     je pveL1
+    cmp word [rcx], TT_STAR
+    je pveL4
 
     mov rdi, rcx
     pushmany 0, _ident
@@ -632,6 +634,14 @@ parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
 
     pveL3:
     node_varass [rbp - 16], [rbp - 24]
+    leave
+    ret
+    pveL4:
+    
+    mov rdi, [rbp - 8]
+    call parse_atom
+    mov [rbp - 24], rax
+    node_ptr_ass [rbp - 16], [rbp - 24]
     leave
     ret
 
