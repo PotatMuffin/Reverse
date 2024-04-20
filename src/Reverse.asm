@@ -67,7 +67,7 @@ main:
     mov rsi, _validating
     call log
 
-    symbol_table 10000h
+    symbol_table 10000h, 0 
     mov [rbp - 40], rax
 
     mov rdi, [rbp - 32]

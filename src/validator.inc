@@ -20,6 +20,11 @@ validate_prog: ; void validate_prog(node_root* prog, symbol_table* table)
     mov rsi, [rbp - 16]
     call valvisit_node_root
 
+    mov [pass], 1
+    mov rdi, [rbp - 8]
+    mov rsi, [rbp - 16]
+    call valvisit_node_root
+
     leave
     ret
 
@@ -36,6 +41,13 @@ valvisit: ; void* valvisit(void* node, symbol_table* table)
     mov rdi, rcx
     jg unimplemented_node
     
+    cmp [pass], 1
+    je vvL1
+    cmp rcx, NODE_FUNC_DEF
+    je vvL1
+    leave
+    ret
+    vvL1: 
     mov rdi, qword [rbp - 8]
     mov rsi, [rbp - 16]
     mov rax, qword [vallookuptable + rcx * 8]
@@ -197,6 +209,7 @@ valvisit_node_unop: ; void* valvisit_node_unop(void* node, symbol_table* table)
 
     mov rdi, [rbp - 16]
     mov rsi, [rcx + 2]
+    mov dl, 1
     call st_get_symbol
 
     mov rbx, [rax + 8]
@@ -290,6 +303,7 @@ valvisit_node_varass: ; void valvisit_node_varass(void* node, symbol_table* tabl
     mov rdi, [rbp - 16]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 10]
+    mov dl, 1
     call st_get_symbol
     mov [rbp - 32], rax
 
@@ -328,6 +342,7 @@ valvisit_node_var: ; void* valvisit_node_var(void* node, symbol_table* table)
     mov rdi, [rbp - 16]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
+    mov dl, 1
     call st_get_symbol
     mov [rbp - 24], rax
 
@@ -438,13 +453,41 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
 
     mov [in_function], 1
 
+    cmp [pass], 0
+    jne vvnfdL7
+    
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 34]
     call get_real_type
     mov [rbp - 48], rax
 
-    symbol_table 256
+    symbol_table 256, [rbp - 16]
     mov [rbp - 24], rax
+
+    mov rbx, [rbp - 8]
+    mov r15, [rbx + 26]
+    mov r14, [rbx + 18]
+    func r15, r14, [rbp - 48], [rbp - 24]
+    mov r15, rax
+
+    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx + 10]
+    mov rdx, r15
+    call st_add_func
+    leave
+    ret
+    vvnfdL7:
+    
+    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx + 10]
+    mov dl, 0
+    call st_get_symbol
+
+    mov rbx, [rax + 8]
+    mov rbx, [rbx + 26]
+    mov [rbp - 24], rbx
 
     mov qword [rbp - 32], 0
 
@@ -514,18 +557,6 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
     call last_stmt_return
 
     vvnfdL3:
-
-    mov rbx, [rbp - 8]
-    mov r15, [rbx + 26]
-    mov r14, [rbx + 18]
-    func r15, r14, [rbp - 48], [rbp - 24]
-    mov r15, rax
-
-    mov rdi, [rbp - 16]
-    mov rbx, [rbp - 8]
-    mov rsi, [rbx + 10]
-    mov rdx, r15
-    call st_add_func
     mov [in_function], 0
     leave
     ret
@@ -572,6 +603,7 @@ valvisit_node_func_call: ; void* valvisit_node_func_call(void* node, symbol_tabl
     mov rdi, [rbp - 16]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
+    mov dl, 1
     call st_get_symbol
 
     cmp rax, -1
@@ -594,6 +626,8 @@ valvisit_node_func_call: ; void* valvisit_node_func_call(void* node, symbol_tabl
     mov [rbp - 24], rbx
     mov rcx, [rbp - 8]
     mov ecx, [rcx + 18]
+    cmp qword [rbx + 2], 0
+    je vvnfcL4
     cmp qword [rbx + 2], rcx
     je vvnfcL3
 

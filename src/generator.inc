@@ -19,18 +19,6 @@ generate: ; void generate(void* node, symbol_table* table)
 
     fprintmany [outputfd], _format, _segment, _executable, _entry
 
-    mov rbx, [rbp - 16]
-    cmp dword [rbx + 8], 0
-    je gL1
-    movsxd rdi, dword [rbx + 8]
-    neg rdi
-    call itoa
-    mov r15, rax
-
-    fprintmany [outputfd], _prologue
-    fprintmany [outputfd], _sub, _rsp, comma, r15, newline
-    gL1:
-
     mov rdi, [rbp - 8]
     mov rsi, [rbp - 24]
     call visit_node_root
@@ -41,6 +29,18 @@ generate: ; void generate(void* node, symbol_table* table)
 
     fprintmany [outputfd], _segment, _writeable
     fprintmany [outputfd], [memory_text_pointer]
+
+    mov rbx, [rbp - 16]
+    cmp dword [rbx + 8], 0
+    je gL1
+    movsxd rdi, dword [rbx + 8]
+    neg rdi
+    call itoa
+    mov r15, rax
+
+    fprintmany [outputfd], _mem, space, _db, r15, newline
+
+    gL1:
 
     close [outputfd]
 
@@ -93,6 +93,7 @@ visit_node_root: ; void visit_node_root(void* node, context* context)
     jmp vnrloop1
     
     vnrloop2:
+    nop
     mov rbx, [memory_pointer]
     mov [rbp - 32], rbx
 
@@ -414,7 +415,6 @@ visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
     call st_get_var_pos
     mov [rbp - 32], rax
 
-
     mov rdi, [rbp - 32]
     mov rsi, [rbp - 24]
     call mov_to_mempos
@@ -664,6 +664,7 @@ visit_node_func_def: ; void visit_node_func_def(void* node, context* context)
     mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 10]
+    mov dl, 0
     call st_get_symbol
     mov rbx, [rax + 8]
     mov rcx, [rbx + 26]
@@ -791,6 +792,10 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     mov qword [rbp - 24], rbx
     mov qword [rbp - 32], 0
 
+    mov rbx, [rbp - 8]
+    cmp dword [rbx + 18], 0
+    je vnfcL1
+
     vnfcloop1:
     mov rbx, qword [rbp - 24]
     cmp qword [rbx + 8], 0
@@ -807,11 +812,23 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     mov r14, rax
 
     mov r15, [rbp - 32]
+    cmp r15, 6
+    jge vnfcL2
+
     reg [param_regs + r15 * 4], qword_
 
     mov rdi, rax
     mov rsi, r14
     call mov_to_reg
+    jmp vnfcL3
+    vnfcL2:
+
+    mov rdi, r14
+    call value_to_string
+    mov r14, rax
+    fprintmany [outputfd], _push, r14, newline
+
+    vnfcL3:
 
     inc qword [rbp - 32]
 
@@ -827,6 +844,7 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
+    mov dl, 1
     call st_get_symbol
     
     mov rbx, [rax + 8]

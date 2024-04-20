@@ -17,6 +17,7 @@ str_label   dq 1
 other_label dq 1
 
 in_function db 0
+pass db 0
 
 builtin_types rq 5
 
@@ -387,7 +388,7 @@ BUILTIN_TYPE = 2
 _PTR = 3
 FUNC = 4
 
-symbol_table_size = 16
+symbol_table_size = 24
 
 ; struct context
 ; {
@@ -536,6 +537,9 @@ _r15 db 'r15',0,0
 _r15d db 'r15d',0
 _r15w db 'r15w',0
 _r15b db 'r15b',0
+
+mem_ = 16
+_mem db "mem",0,0
 
 param_regs dd rdi_, rsi_, rdx_, rcx_, r8_, r9_
 

@@ -154,12 +154,13 @@ st_add_var: ; void st_add_var(symbol_table* table, token* name, void* type)
     leave
     ret
 
-st_get_symbol: ; symbol* st_get_symbol(symbol_table* table, token* token)
+st_get_symbol: ; symbol* st_get_symbol(symbol_table* table, token* token, bool check_parent)
     push rbp
     mov rbp, rsp
-    sub rsp, 24
+    sub rsp, 25
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
+    mov [rbp - 25], dl
 
     mov rbx, [rbp - 16]
     mov rdi, qword [rbx + 2]
@@ -200,6 +201,18 @@ st_get_symbol: ; symbol* st_get_symbol(symbol_table* table, token* token)
     ret
 
     getsymbolfail:
+    cmp byte [rbp - 25], 0
+    je gsL1
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 16]
+    cmp rbx, 0
+    je gsL1
+    mov rdi, rbx
+    mov rsi, [rbp - 16]
+    call st_get_symbol
+    leave
+    ret
+    gsL1:
     mov rax, -1
     leave
     ret
@@ -207,21 +220,48 @@ st_get_symbol: ; symbol* st_get_symbol(symbol_table* table, token* token)
 st_get_var_pos: ; mempos* st_get_var_pos(symbol_table* table, token* token)
     push rbp
     mov rbp, rsp
-    sub rsp, 24
+    sub rsp, 36
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
-    
+
     mov rdi, [rbp - 8]
     mov rsi, [rbp - 16]
+    mov dl, 0
     call st_get_symbol
     mov [rbp - 24], rax
+    cmp rax, -1
+    jne gvpL3
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 16]
+    mov rsi, [rbp - 16]
+    call st_get_var_pos
+    leave
+    ret
+    gvpL3:
 
     mov rbx, [rbp - 24]
     mov rbx, qword [rbx + 8]
     mov r15d, dword [rbx + 10]
     mov rbx, [rbx + 2]
     mov r14d, [rbx + 2]
-    mempos rbp_, r14d, r15d
+    mov [rbp - 32], r15d
+    mov [rbp - 36], r14d
+
+    mov rbx, [rbp - 8]
+    cmp qword [rbx + 16], 0
+    jne gvpL1
+    mov ebx, [rbp - 32]
+    neg ebx
+    mov [rbp - 32], ebx
+    mov dword [rbp - 28], mem_
+    jmp gvpL2
+    gvpL1:
+    mov dword [rbp - 28], rbp_
+    gvpL2:
+
+
+    mempos [rbp - 28], [rbp - 36], [rbp - 32]
 
     getvarRet:
     leave

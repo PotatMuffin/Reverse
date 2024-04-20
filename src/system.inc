@@ -115,16 +115,19 @@ macro linked_list_item item
     add [memory_pointer], 24
 }
 
-macro symbol_table table_size
+macro symbol_table table_size, parent
 {
-    mov rbx, table_size
-    imul rbx, symbol_size
-    add rbx, symbol_table_size
-    check_memory rbx
+    mov rcx, table_size
+    imul rcx, symbol_size
+    add rcx, symbol_table_size
+    check_memory rcx
     mov rax, [memory_pointer]
-    mov qword [rax], table_size
+    mov rbx, table_size
+    mov qword [rax], rbx
     mov dword [rax + 12], 1
-    add [memory_pointer], rbx
+    mov rbx, parent
+    mov qword [rax + 16], rbx
+    add [memory_pointer], rcx
 }
 
 macro var type, pos
