@@ -38,7 +38,7 @@ generate: ; void generate(void* node, symbol_table* table)
     call itoa
     mov r15, rax
 
-    fprintmany [outputfd], _mem, space, _db, r15, newline
+    fprintmany [outputfd], _mem, space, _rb, r15, newline
 
     gL1:
 
@@ -795,16 +795,9 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     mov rbx, [rbp - 8]
     cmp dword [rbx + 18], 0
     je vnfcL1
-
-    vnfcloop1:
-    mov rbx, qword [rbp - 24]
-    cmp qword [rbx + 8], 0
-    je vnfcloop2
-    mov rbx, qword [rbx + 8]
-    mov qword [rbp - 24], rbx
-    jmp vnfcloop1
     
-    vnfcloop2:
+    ; ===================== first loop for putting the first six parameters in correct registers =================
+    vnfcloop:
     mov rbx, qword [rbp - 24]
     mov rdi, qword [rbx]
     mov rsi, [rbp - 16]
@@ -813,24 +806,67 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
 
     mov r15, [rbp - 32]
     cmp r15, 6
-    jge vnfcL2
+    jge  vnfcL3
 
     reg [param_regs + r15 * 4], qword_
 
     mov rdi, rax
     mov rsi, r14
     call mov_to_reg
-    jmp vnfcL3
+
+    inc qword [rbp - 32]
+
+    mov rbx, qword [rbp - 24]
+    cmp qword [rbx + 8], 0
+    je vnfcL1
+    mov rbx, qword [rbx + 8]
+    mov qword [rbp - 24], rbx
+    jmp vnfcloop
+
+    vnfcL3:
+    mov rbx, [rbp - 8]
+    mov ebx, dword [rbx + 18]
+    mov [rbp - 32], rbx
+
+    ; =================== second loop for pushing the parameters in reverse ====================
+    vnfcloop1:
+    mov rbx, qword [rbp - 24]
+    cmp qword [rbx + 8], 0
+    je vnfcloop2
+    mov rbx, qword [rbx + 8]
+    mov qword [rbp - 24], rbx
+    jmp vnfcloop1
+
+    vnfcloop2:
+    cmp qword [rbp - 32], 6
+    jle vnfcL1
+
+    mov rbx, qword [rbp - 24]
+    mov rdi, qword [rbx]
+    mov rsi, [rbp - 16]
+    call visit
+    mov r14, rax
+
+    cmp word [r14], MEMPOS
+    jne vnfcL2
+    cmp dword [r14 + 6], qword_
+    je vnfcL2
+
+    reg rax_, qword_
+    mov rdi, rax
+    mov rsi, r14
+    call mov_to_reg
+    mov r14, rax
+    
     vnfcL2:
 
     mov rdi, r14
     call value_to_string
-    mov r14, rax
-    fprintmany [outputfd], _push, r14, newline
+    mov r15, rax
 
-    vnfcL3:
+    fprintmany [outputfd], _push, r15, newline
 
-    inc qword [rbp - 32]
+    dec qword [rbp - 32]
 
     mov rbx, qword [rbp - 24]
     cmp qword [rbx + 16], 0
@@ -839,7 +875,8 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     mov qword [rbp - 24], rbx
     jmp vnfcloop2
 
-    vnfcL1:
+    ; ==================== end of loops ==================
+    vnfcL1: 
     mov rbx, [rbp - 16]
     mov rdi, [rbx]
     mov rbx, [rbp - 8]
@@ -968,15 +1005,20 @@ mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     mov rbx, [rbp - 16]
     cmp dword [rbx + 6], dword_
     jne mtrL4
-    mov qword [rbp - 40], _movsxd
-    jmp mtrL2
+    mov qword [rbp - 40], _mov
+    reg rax_, dword_
+    mov rdi, rax
+    call value_to_string
+    mov [rbp - 24], rax
+    jmp mtrL5
     mtrL4: 
-    mov qword [rbp - 40], _movsx
+    mov qword [rbp - 40], _movzx
     mtrL2:
 
     mov rdi, [rbp - 8]
     call value_to_string
     mov [rbp - 24], rax
+    mtrL5:
 
     mov rdi, [rbp - 16]
     call value_to_string

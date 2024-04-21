@@ -489,7 +489,10 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
     mov rbx, [rbx + 26]
     mov [rbp - 24], rbx
 
-    mov qword [rbp - 32], 0
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 26]
+    mov qword [rbp - 32], rbx
+    dec qword [rbp - 32]
 
     jmp vvnfdL2
     vvnfdL1:
@@ -527,13 +530,11 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
     mov rsi, [rbx]
     call st_add_var
 
-    inc qword [rbp - 32]
+    dec qword [rbp - 32]
 
     vvnfdL2:
-    mov rbx, [rbp - 8]
-    mov rbx, [rbx + 26]
-    cmp qword [rbp - 32], rbx
-    jl vvnfdL1
+    cmp qword [rbp - 32], 0
+    jge vvnfdL1
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
