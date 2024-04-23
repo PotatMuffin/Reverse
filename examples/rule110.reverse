@@ -1,0 +1,55 @@
+150 = N long
+(0(byte*))brk = buf1 byte*
+buf1 + N = buf2 byte*
+buf1 = wrbuf byte*
+buf2 = rdbuf byte*
+(buf1 + N*2)brk
+1 = *(rdbuf + (N-1))
+
+{
+    (rdbuf)display_buf
+    {
+        0 = state long
+        state + *(rdbuf+j-1)*4 = state
+        state + *(rdbuf+j)*2 = state
+        {
+            state + *(rdbuf+j+1) = state
+        } else {
+            state + 1 = state
+        } (j == N - 1) if
+        
+        {
+            1 = *(wrbuf + j)
+        } else {
+            0 = *(wrbuf + j)
+        } (state == 7 || state == 4 || state == 0) if
+    } (j + 1 = j; j < N; 0 = j long) for
+    rdbuf = temp byte*
+    wrbuf = rdbuf
+    temp = wrbuf
+} (i + 2 = i; i < N; 0 = i int) for
+
+{
+    { 
+        {
+            (1, " ", 1)write
+        } else {
+            (1, "*", 1)write
+        } (*(buf + i)) if
+    } (i + 1 = i; i < N; 0 = i int) for
+    (1, "\n", 1)write
+    return
+} (buf byte*) display_buf void
+
+{
+    asm("mov rax, 12")
+    asm("syscall")
+    asm("mov [rbp - 8], rax")
+    brk return
+} (brk byte*) brk byte*
+
+{
+    asm("mov rax, 1")
+    asm("syscall")
+    return
+} (len long, buf byte*, fd long) write void

@@ -409,6 +409,18 @@ macro node_ptr_ass value, loc
     add [memory_pointer], node_ptr_ass_size
 }
 
+macro node_cast cast_type, castee
+{
+    check_memory_text node_cast_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_CAST
+    mov rbx, cast_type
+    mov qword [rax + 2], rbx
+    mov rbx, castee
+    mov qword [rax + 10], rbx
+    add [memory_pointer], node_cast_size
+}
+
 macro immvalue value
 {
     check_memory immvalue_size

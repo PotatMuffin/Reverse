@@ -732,6 +732,24 @@ valvisit_node_ptr_ass: ; void valvisit_node_ptr_ass(void* node, symbol_table* ta
     leave
     ret
 
+valvisit_node_cast: ; void* valvisit_node_cast(void* node, symbol_table* table)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    call valvisit
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    call get_real_type
+    leave
+    ret
+
 vallookuptable:
     dq 0
     dq valvisit_node_root
@@ -749,6 +767,7 @@ vallookuptable:
     dq valvisit_node_return
     dq valvisit_node_func_call
     dq valvisit_node_ptr_ass
+    dq valvisit_node_cast
 
 get_real_type: ; void* get_real_type(type* type)
     push rbp

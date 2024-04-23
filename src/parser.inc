@@ -721,7 +721,7 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
 parse_atom: ; void* parse_atom(token** Ptokens)
     push rbp
     mov rbp, rsp
-    sub rsp, 52
+    sub rsp, 60
     mov [rbp - 8], rdi
 
     mov rbx, [rbp - 8]
@@ -733,11 +733,11 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     jne paL1
     paL7:
     node_lit rbx
+    mov [rbp - 60], rax
 
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
-    leave
-    ret
+    jmp paL12
 
     paL1:
 
@@ -802,8 +802,8 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     add qword [rbx], tok_len
 
     node_func_call qword [rbp - 52], 0, 0
-    leave
-    ret
+    mov [rbp - 60], rax
+    jmp paL12
 
     paL10:
     mov dword [rbp - 44], 0
@@ -845,13 +845,14 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     add qword [rbx], tok_len*2
     
     node_func_call qword [rbp - 52], qword [rbp - 40], dword [rbp - 44]
-    leave
-    ret
+    mov [rbp - 60], rax
+    jmp paL12
     paL9:
 
     mov rdi, [rbp - 8]
     mov sil, 0
     call parse_bin_expr
+    mov [rbp - 60], rax
 
     mov rbx, [rbp - 8]
     mov rbx, [rbx]
@@ -866,8 +867,7 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     paL3:
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
-    leave 
-    ret
+    jmp paL12
 
     paL2:
     cmp word [rbx], TT_MIN
@@ -888,18 +888,18 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     mov [rbp - 24], rax
 
     node_unop [rbp - 16], [rbp - 24]
-    leave
-    ret
+    mov [rbp - 60], rax
+    jmp paL12
 
     paL4:
     cmp word [rbx], TT_IDENT
     jne paL5
 
     node_var rbx
+    mov [rbp - 60], rax
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
-    leave
-    ret
+    jmp paL12
 
     paL5:
     mov rdi, rbx
@@ -907,5 +907,44 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     mov rsi, rsp
     call syntax_error_expected
 
+    paL12:
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx]
+    cmp word [rcx], TT_PARENL
+    jne paL13
+
+    add qword [rbx], tok_len
+    mov rcx, [rbx]
+    cmp word [rcx], TT_IDENT
+    je paL14
+
+    mov rdi, rcx
+    pushmany 0, _type
+    mov rsi, rsp
+    call syntax_error_expected
+
+    paL14:
+
+    mov rdi, [rbp - 8]
+    call parse_type
+    mov r15, rax
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx]
+    cmp word [rcx], TT_PARENR
+    je paL15
+
+    mov rdi, rcx
+    pushmany 0, _parenr
+    mov rsi, rsp
+    call syntax_error_expected
+    paL15:
+    add qword [rbx], tok_len
+
+    node_cast r15, [rbp - 60]
+    mov [rbp - 60], rax
+    paL13:
+
+    mov rax, [rbp - 60]
     leave 
     ret

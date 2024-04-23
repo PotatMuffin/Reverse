@@ -310,7 +310,15 @@ node_func_call_size = 22
 ; }
 node_ptr_ass_size = 18
 
-node_count     = 15
+; struct node_cast
+; {
+;   short type
+;   void* cast_type
+;   void* castee
+; }
+node_cast_size = 18
+
+node_count     = 16
 NODE_ROOT      = 1
 NODE_BINOP     = 2
 NODE_LIT       = 3
@@ -326,6 +334,7 @@ NODE_FUNC_DEF  = 12
 NODE_RETURN    = 13
 NODE_FUNC_CALL = 14
 NODE_PTR_ASS   = 15
+NODE_CAST      = 16
 
 ; struct type
 ; {

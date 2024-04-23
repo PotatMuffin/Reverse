@@ -997,6 +997,21 @@ visit_node_ptr_ass: ; void* visit_node_ptr_ass(void* node, context* context)
     leave
     ret
 
+visit_node_cast: ; void* visit_node_cast(void* node, context* context)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 16
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    call visit
+
+    leave
+    ret
+
 genlookuptable:
     dq 0
     dq visit_node_root
@@ -1014,6 +1029,7 @@ genlookuptable:
     dq visit_node_return
     dq visit_node_func_call
     dq visit_node_ptr_ass
+    dq visit_node_cast
 
 mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     push rbp
@@ -1374,6 +1390,7 @@ logical_binop: ; void* logical_binop(void* node, context* context)
     jne laL1
 
     laL12:
+    mov rbx, [rbp - 16]
     mov rax, [rbx + 8]
     mov [rbp - 40], rax
     mov rax, [rbx + 16]
