@@ -783,7 +783,7 @@ visit_node_return: ; void visit_node_return(void* node, context* context)
 visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     push rbp
     mov rbp, rsp
-    sub rsp, 32
+    sub rsp, 37
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
@@ -791,6 +791,12 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     mov rbx, [rbx + 10]
     mov qword [rbp - 24], rbx
     mov qword [rbp - 32], 0
+
+    mov byte [rbp - 33], 0 ; stored first param in r15
+    mov byte [rbp - 34], 0 ; stored second param in r14
+    mov byte [rbp - 35], 0 ; stored third param in r13
+    mov byte [rbp - 36], 0 ; stored fourth param in r12
+    mov byte [rbp - 37], 0 ; stored fifth param in rbx
 
     mov rbx, [rbp - 8]
     cmp dword [rbx + 18], 0
@@ -806,7 +812,26 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
 
     mov r15, [rbp - 32]
     cmp r15, 6
-    jge  vnfcL3
+    jge vnfcL3
+
+    mov rdi, [rbp - 8]
+    mov rsi, r15
+    call should_store_param
+    cmp al, 0
+    je vnfcL4
+
+    mov rcx, rbp
+    sub rcx, r15
+    sub rcx, 33
+
+    mov byte [rcx], 1
+
+    reg [param_save_regs + r15 * 4], qword_
+    mov rdi, rax
+    mov rsi, r14
+    call mov_to_reg
+    jmp vnfcl5
+    vnfcL4:
 
     reg [param_regs + r15 * 4], qword_
 
@@ -814,6 +839,7 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     mov rsi, r14
     call mov_to_reg
 
+    vnfcl5:
     inc qword [rbp - 32]
 
     mov rbx, qword [rbp - 24]
@@ -877,6 +903,29 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
 
     ; ==================== end of loops ==================
     vnfcL1: 
+    mov qword [rbp - 32], 0
+    jmp vnfcL7
+
+    vnfcL6:
+    mov rcx, rbp
+    sub rcx, [rbp - 32]
+    sub rcx, 33
+    cmp byte [rcx], 0
+    je vnfcL8
+
+    mov rcx, [rbp - 32]
+    reg [param_regs + rcx * 4], qword_
+    mov rdi, rax
+    reg [param_save_regs + rcx * 4], qword_
+    mov rsi, rax
+    call mov_to_reg
+    vnfcL8:
+
+    inc qword [rbp - 32]
+    vnfcL7:
+    cmp qword [rbp - 32], 6
+    jl vnfcL6
+
     mov rbx, [rbp - 16]
     mov rdi, [rbx]
     mov rbx, [rbp - 8]
@@ -1006,7 +1055,8 @@ mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     cmp dword [rbx + 6], dword_
     jne mtrL4
     mov qword [rbp - 40], _mov
-    reg rax_, dword_
+    mov rcx, [rbp - 8]
+    reg dword [rcx + 2], dword_
     mov rdi, rax
     call value_to_string
     mov [rbp - 24], rax
@@ -1470,5 +1520,60 @@ logical_binop: ; void* logical_binop(void* node, context* context)
     laL8:
 
     mov rax, [rbp - 64]
+    leave
+    ret
+
+should_store_param: ; bool should_store_param(void* node, long index)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 10]
+    mov [rbp - 24], rbx
+    mov qword [rbp - 32], 0
+
+    stploop:
+    mov rbx, [rbp - 32]
+    cmp rbx, [rbp - 16]
+    jle stpL1
+
+    stploop2:
+    mov rbx, [rbp - 24]
+    mov rbx, [rbx]
+    cmp word [rbx], NODE_BINOP
+    je stpL3
+    cmp word [rbx], NODE_UNOP
+    je stpL3
+    cmp word [rbx], NODE_FUNC_CALL
+    jne stpL2
+    stpL3:
+    mov al, 1
+    leave
+    ret
+    stpL2:
+
+    mov rbx, [rbp - 24]
+    cmp qword [rbx + 8], 0
+    je stpRet
+
+    mov rbx, [rbx + 8]
+    mov [rbp - 24], rbx
+    jmp stploop2
+
+    stpL1:
+    inc qword [rbp - 32]
+    mov rbx, [rbp - 24]
+    cmp qword [rbx + 8], 0
+    je stpRet
+
+    mov rbx, [rbx + 8]
+    mov [rbp - 24], rbx
+    jmp stploop
+
+    stpRet:
+    mov al, 0
     leave
     ret

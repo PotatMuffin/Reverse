@@ -542,6 +542,7 @@ mem_ = 16
 _mem db "mem",0,0
 
 param_regs dd rdi_, rsi_, rdx_, rcx_, r8_, r9_
+param_save_regs dd r15_, r14_, r13_, r12_, rbx_
 
 _mov db 'mov ',0
 _movzx db 'movzx ',0
