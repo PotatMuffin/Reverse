@@ -251,9 +251,6 @@ st_get_var_pos: ; mempos* st_get_var_pos(symbol_table* table, token* token)
     mov rbx, [rbp - 8]
     cmp qword [rbx + 16], 0
     jne gvpL1
-    mov ebx, [rbp - 32]
-    neg ebx
-    mov [rbp - 32], ebx
     mov dword [rbp - 28], mem_
     jmp gvpL2
     gvpL1:

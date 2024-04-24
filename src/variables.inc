@@ -548,7 +548,8 @@ _r15w db 'r15w',0
 _r15b db 'r15b',0
 
 mem_ = 16
-_mem db "mem",0,0
+_memend db 'memend',0
+_mem db 'mem',0
 
 param_regs dd rdi_, rsi_, rdx_, rcx_, r8_, r9_
 param_save_regs dd r15_, r14_, r13_, r12_, rbx_

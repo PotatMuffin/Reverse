@@ -9,7 +9,7 @@ buf2 = rdbuf byte*
 {
     (rdbuf)display_buf
     {
-        0 = state long
+        0 = state int
         state + *(rdbuf+j-1)*4 = state
         state + *(rdbuf+j)*2 = state
         {
@@ -23,11 +23,11 @@ buf2 = rdbuf byte*
         } else {
             0 = *(wrbuf + j)
         } (state == 7 || state == 4 || state == 0) if
-    } (j + 1 = j; j < N; 0 = j long) for
+    } (j + 1 = j; j < N; 0 = j int) for
     rdbuf = temp byte*
     wrbuf = rdbuf
     temp = wrbuf
-} (i + 2 = i; i < N; 0 = i int) for
+} (i + 1 = i; i < N; 0 = i int) for
 
 {
     { 

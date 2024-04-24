@@ -39,6 +39,7 @@ generate: ; void generate(void* node, symbol_table* table)
     mov r15, rax
 
     fprintmany [outputfd], _mem, space, _rb, r15, newline
+    fprintmany [outputfd], _memend, colon, newline
 
     gL1:
 
