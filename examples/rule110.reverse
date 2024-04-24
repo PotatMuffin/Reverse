@@ -1,9 +1,7 @@
 150 = N long
-(0(byte*))brk = buf1 byte*
-buf1 + N = buf2 byte*
-buf1 = wrbuf byte*
-buf2 = rdbuf byte*
-(buf1 + N*2)brk
+(0(byte*))brk = wrbuf byte*
+wrbuf + N = rdbuf byte*
+(wrbuf + N*2)brk
 1 = *(rdbuf + (N-1))
 
 {

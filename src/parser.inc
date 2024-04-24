@@ -77,6 +77,21 @@ parse_stmt: ; void* parse_stmt(token** Ptokens)
 
     psL1:
 
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_IDENT
+    jne psL2
+    add rbx, tok_len
+    cmp word [rbx], TT_BRACEL
+    jne psL2
+
+    mov rdi, [rbp - 8]
+    call parse_struct
+    leave
+    ret
+
+    psL2:
+
     mov rdi, [rbp - 8]
     call parse_expr
 
@@ -153,7 +168,7 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     leave
     ret
     peL3:
-    
+
     mov rdi, [rbp - 8]
     mov sil, 0
     call parse_bin_expr
@@ -189,6 +204,106 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     call parse_var_expr
 
     peL2:
+
+    leave
+    ret
+
+parse_struct: ; void* parse_struct(token** Ptokens)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 40
+    mov [rbp - 8], rdi
+    mov qword [rbp - 32], 0
+    mov qword [rbp - 40], 0
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx]
+    mov [rbp - 16], rcx
+    add qword [rbx], tok_len*2
+
+    ps_L1:
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_NEWLINE
+    jne ps_L2
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    jmp ps_L1
+    ps_L2:
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_BRACER
+    je ps_L8
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx]
+    cmp word [rcx], TT_IDENT
+    je ps_L3
+
+    mov rdi, rcx
+    pushmany 0, _ident
+    mov rsi, rsp
+    call syntax_error_expected
+
+    ps_L3:
+    mov [rbp - 24], rcx
+    add qword [rbx], tok_len
+    mov rcx, [rbx]
+    cmp word [rcx], TT_IDENT
+    je ps_L4
+
+    mov rdi, rcx
+    pushmany 0, _type
+    mov rsi, rsp
+    call syntax_error_expected
+
+    ps_L4:
+
+    mov rdi, [rbp - 8]
+    call parse_type
+    mov r15, rax
+
+    param [rbp - 24], r15
+    cmp qword [rbp - 32], 0
+    jne ps_L5
+    mov [rbp - 32], rax
+    ps_L5:
+    inc qword [rbp - 40]
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_NEWLINE
+    je ps_L1
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx]
+    call syntax_error_token
+
+    ps_L8:
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    mov rbx, [rbx]
+    cmp word [rbx], TT_KEYWORD
+    jne ps_L7
+    mov rdi, [rbx + 2]
+    mov rsi, struct_
+    call strcmp
+    cmp al, 0
+    je ps_L7
+
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    node_struct [rbp - 16], [rbp - 32], [rbp - 40]
+    leave
+    ret
+
+    ps_L7:
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx]
+    pushmany 0, _struct
+    mov rsi, rsp
+    call syntax_error_expected
 
     leave
     ret

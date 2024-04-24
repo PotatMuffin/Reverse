@@ -25,7 +25,67 @@ hash: ; ulong hash(char* str)
     leave
     ret
 
-st_add_func: ; void st_add_func(symbol_table* table, token*, func* func)
+st_add_struct: ; void st_add_struct(symbol_table table, token* struct* struct)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    mov [rbp - 24], rdx
+
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx + 2]
+    call hash
+
+    mov rbx, [rbp - 8]
+    mov rbx, qword [rbx]
+    xor rdx, rdx
+    idiv rbx
+    mov [rbp - 32], rdx
+
+    tryaddstruct:
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 32]
+    imul rcx, symbol_size
+    mov rax, [rbx + rcx + symbol_table_size]
+    cmp rax, 0
+    je addstruct
+
+    mov rdi, rax
+    mov rbx, [rbp - 16]
+    mov rsi, [rbx + 2]
+    call strcmp
+    movzx rax, al
+
+    add qword [rbp - 32], 1
+    sub qword [rbp - 32], rax
+    
+    cmp al, 0
+    je tryaddstruct
+
+    mov rdi, [rbp - 16]
+    call already_defined
+
+    addstruct:
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 32]
+    imul rcx, symbol_size
+
+    mov rax, [rbp - 16]
+    mov rax, qword [rax + 2]
+    mov qword [rbx + rcx + symbol_table_size], rax    
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 32]
+    imul rcx, symbol_size
+    mov rax, [rbp - 24]
+    mov qword [rbx + rcx + 8 + symbol_table_size], rax
+
+    leave
+    ret
+
+st_add_func: ; void st_add_func(symbol_table* table, token* name, func* func)
     push rbp
     mov rbp, rsp
     sub rsp, 32
@@ -64,7 +124,7 @@ st_add_func: ; void st_add_func(symbol_table* table, token*, func* func)
     je tryaddfunc
 
     mov rdi, [rbp - 16]
-    call name_error_var_defined
+    call already_defined
 
     addfunc:
 

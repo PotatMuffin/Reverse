@@ -142,6 +142,16 @@ macro var type, pos
     add [memory_pointer], var_size
 }
 
+macro struct fields
+{
+    check_memory struct_size
+    mov rax, [memory_pointer]
+    mov word [rax], STRUCT
+    mov rbx, fields
+    mov qword [rax + 2], rbx
+    add [memory_pointer], struct_size
+}
+
 macro builtin_type size
 {
     check_memory builtin_type_size
@@ -419,6 +429,20 @@ macro node_cast cast_type, castee
     mov rbx, castee
     mov qword [rax + 10], rbx
     add [memory_pointer], node_cast_size
+}
+
+macro node_struct name, fields, field_count
+{
+    check_memory node_struct_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_STRUCT
+    mov rbx, name
+    mov qword [rax + 2], rbx
+    mov rbx, fields
+    mov qword [rax + 10], rbx
+    mov rbx, field_count
+    mov qword [rax + 18], rbx
+    add [memory_pointer], node_struct_size
 }
 
 macro immvalue value
@@ -1235,6 +1259,13 @@ not_defined:
     print_tok_pos [rbp - 8]
     mov r15, [rbp - 8]
     printmany quote, [r15 + 2], varnotdefined, suffix
+    exit_process 1
+already_defined:
+    mov [rbp - 8], rdi
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    mov r15, [rbp - 8]
+    printmany quote, [r15 + 2], vardefined, suffix
     exit_process 1
 expect_n_params:
     mov [rbp - 8], rdi

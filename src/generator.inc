@@ -1013,6 +1013,10 @@ visit_node_cast: ; void* visit_node_cast(void* node, context* context)
     leave
     ret
 
+visit_node_struct: ; void visit_node_struct()
+    nop
+    ret
+
 genlookuptable:
     dq 0
     dq visit_node_root
@@ -1031,6 +1035,7 @@ genlookuptable:
     dq visit_node_func_call
     dq visit_node_ptr_ass
     dq visit_node_cast
+    dq visit_node_struct
 
 mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     push rbp

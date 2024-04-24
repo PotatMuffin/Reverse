@@ -1,6 +1,7 @@
 [program]       : [stmt]*
 
 [stmt]          : [scope_expr]
+                : [struct_expr]
                 : [expr]
 
 [expr]          : asm(STRLIT)
@@ -30,6 +31,8 @@
 [var_expr]      : [bin_expr] = IDENT [type]
                 : [bin_expr] = IDENT
                 : [bin_expr] = *[atom]
+
+[struct_expr]   : IDENT { [IDENT [type]]* } struct
 
 [type]          : IDENT[*]*
 

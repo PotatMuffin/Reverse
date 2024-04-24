@@ -76,6 +76,7 @@ one db '1',0
 _type db 'type',0
 _func db 'func',0
 _end db 'end',0
+_struct db "'struct'",0
 
 if_ db "if",0
 else_ db "else",0
@@ -83,9 +84,10 @@ while_ db "while",0
 for_ db "for",0
 asm_ db "asm",0
 return_ db "return",0
+struct_ db "struct",0
 
 keywords:
-   dq if_, else_, while_, for_, asm_, return_, 0
+   dq if_, else_, while_, for_, asm_, return_, struct_, 0
 
 types:
    dq _void
@@ -318,7 +320,16 @@ node_ptr_ass_size = 18
 ; }
 node_cast_size = 18
 
-node_count     = 16
+; struct node_struct
+; {
+;   short type
+;   token* name
+;   void* fields
+;   long field_count
+; }
+node_struct_size = 26
+
+node_count     = 17
 NODE_ROOT      = 1
 NODE_BINOP     = 2
 NODE_LIT       = 3
@@ -335,6 +346,7 @@ NODE_RETURN    = 13
 NODE_FUNC_CALL = 14
 NODE_PTR_ASS   = 15
 NODE_CAST      = 16
+NODE_STRUCT    = 17
 
 ; struct type
 ; {
@@ -392,10 +404,18 @@ ptr_size = 22
 ; }
 func_size = 38
 
-VAR = 1
+; struct struct
+; {
+;   short type
+;   void* fields
+; }
+struct_size = 10
+
+VAR          = 1
 BUILTIN_TYPE = 2
-_PTR = 3
-FUNC = 4
+_PTR         = 3
+FUNC         = 4
+STRUCT       = 5
 
 symbol_table_size = 24
 
