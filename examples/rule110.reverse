@@ -8,8 +8,14 @@ wrbuf + N = rdbuf byte*
     (rdbuf)display_buf
     {
         0 = state int
-        state + *(rdbuf+j-1)*4 = state
+        { 
+            state + 4 = state 
+        } else {
+            state + *(rdbuf+j-1)*4 = state
+        } (j > 0) if
+
         state + *(rdbuf+j)*2 = state
+        
         {
             state + *(rdbuf+j+1) = state
         } else {
