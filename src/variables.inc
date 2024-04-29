@@ -362,6 +362,14 @@ type_size = 16
 ; }
 param_size = 16
 
+; struct field
+; {
+;   token* name
+;   type* type
+;   int pos
+; }
+field_size = 20
+
 ; struct symbol
 ; {
 ;   char* name
@@ -408,8 +416,10 @@ func_size = 38
 ; {
 ;   short type
 ;   void* fields
+;   int sizeof
+;   int num
 ; }
-struct_size = 10
+struct_size = 18
 
 VAR          = 1
 BUILTIN_TYPE = 2
@@ -417,7 +427,7 @@ _PTR         = 3
 FUNC         = 4
 STRUCT       = 5
 
-symbol_table_size = 24
+symbol_table_size = 28
 
 ; struct context
 ; {
@@ -425,8 +435,9 @@ symbol_table_size = 24
 ;   char* logop_true
 ;   char* logop_false
 ;   token* logop_token
+;   mempos* mem_pos
 ; }
-context_size = 32
+context_size = 40
 
 ; struct value
 ; {
@@ -464,11 +475,12 @@ REG      = 2
 MEMPOS   = 3
 _LABEL   = 4
 
-qword_ = 0
-dword_ = 1
-word_  = 2
-byte_  = 3
-none_  = 4
+qword_  = 0
+dword_  = 1
+word_   = 2
+byte_   = 3
+none_   = 4
+custom_ = 5
 sizes db 8, 4, 2, 1, 0 
 
 rax_ = 0

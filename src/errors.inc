@@ -14,6 +14,7 @@ expectedvar db "Expected a variable",0
 expectedptr db "Can only dereference a pointer",0
 typemismatch db "Type mismatch",0
 typemismatchparam db "type mismatch with parameter '",0
+illegalcast db "Illegal cast",0
 isnottype db "' is not a type",0
 locnotreg db "Given location is not a register",0
 locnotmem db "Given location is not a memory address",0

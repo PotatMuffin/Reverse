@@ -20,13 +20,13 @@
 
 [else_expr]     : [scope] else [if_expr]
 
-[if_expr]       : [scope] ([expr]) if
+[if_expr]       : [scope] ( [expr] ) if
 
-[while_expr]    : [scope] ([expr]) while
+[while_expr]    : [scope] ( [expr] ) while
 
-[for_expr]      : [scope] ([expr]; [expr]; [expr]) for
+[for_expr]      : [scope] ( [expr]; [expr]; [expr] ) for
 
-[func_expr]     : [scope] ([IDENT [type]]*) IDENT [type]
+[func_expr]     : [scope] ( [IDENT [type]]* ) IDENT [type]
 
 [var_expr]      : [bin_expr] = IDENT [type]
                 : [bin_expr] = IDENT
@@ -58,11 +58,11 @@
 
 [atom]          : INTLIT
                 : STRLIT
-                : ([bin_expr])
+                : ( [bin_expr] )
                 : -[atom]
                 : ![atom]
                 : &[atom]
                 : *[atom]
                 : IDENT
-                : ([bin_expr]*)IDENT
-                : [atom]([type])
+                : ( [bin_expr]* )IDENT
+                : [atom]( [type] )

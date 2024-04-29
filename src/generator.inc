@@ -11,7 +11,7 @@ generate: ; void generate(void* node, symbol_table* table)
     sub [memory_text_pointer], r15
     mov byte [memory_text_pointer], 0
 
-    context [rbp - 16], 0, 0, 0
+    context [rbp - 16], 0, 0, 0, 0
     mov [rbp - 24], rax
 
     open [output], default_open_flags, default_open_mode
@@ -147,7 +147,7 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 2]
     mov r15, [rbp - 57]
-    context [r15], 0, 0, 0
+    context [r15], 0, 0, 0, 0
     mov rsi, rax
     mov dl, 1
     call visit
@@ -191,7 +191,7 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 18]
     mov r15, [rbp - 57]
-    context [r15], 0, 0, 0
+    context [r15], 0, 0, 0, 0
     mov rsi, rax
     mov dl, 0
     call visit
@@ -368,10 +368,27 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
     mov rbx, [rbp - 16]
     mov rsi, [rbx]
     call valvisit
+
+    cmp word [rax], STRUCT
+    je vnuL3
+
     mov r15d, dword [rax + 2]
     mov rbx, [rbp - 32]
     mov r14d, dword [rbx + 2]
     mempos r14d, r15d, 0
+    leave
+    ret
+    vnuL3:  
+
+    mov rdi, rax
+    mov rbx, [rbp - 32]
+    mov r15d, [rbx + 2]
+    mempos r15d, qword_, 0
+    mov rsi, rax
+    mov rbx, [rbp - 16]
+    mov rdx, [rbx + 32]
+    call copy_struct
+    mov rax, 0
     leave
     ret
     vnuL2:
@@ -395,12 +412,27 @@ visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx + 10]
+    call st_get_var_pos
+    mov [rbp - 32], rax
+
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 2]
-    mov rsi, [rbp - 16]
+    
+    mov r15, [rbp - 16]
+    context [r15], 0, 0, 0, [rbp - 32]
+    mov rsi, rax
+
     mov dl, 1
     call visit
     mov [rbp - 24], rax
+
+    mov rbx, [rbp - 32]
+    cmp dword [rbx + 6], custom_
+    je vnvL1
 
     reg rax_, qword_
     mov rdi, rax
@@ -409,16 +441,10 @@ visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
     call mov_value_to_reg
     mov [rbp - 24], rax
 
-    mov rbx, [rbp - 16]
-    mov rdi, [rbx]
-    mov rbx, [rbp - 8]
-    mov rsi, [rbx + 10]
-    call st_get_var_pos
-    mov [rbp - 32], rax
-
     mov rdi, [rbp - 32]
     mov rsi, [rbp - 24]
     call mov_to_mempos
+    vnvL1:
 
     mov rax, [rbp - 32]
     leave
@@ -427,16 +453,40 @@ visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
 visit_node_var: ; void* visit_node_var(void* node, context* context)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 32
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
-
+    
     mov rbx, [rbp - 16]
     mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
     call st_get_var_pos
+    mov [rbp - 32], rax
 
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx + 2]
+    call st_get_symbol
+
+    mov rbx, [rax + 8]
+    mov rbx, [rbx + 2]
+    mov [rbp - 24], rbx
+
+    cmp word [rbx], STRUCT
+    jne vnv_L1
+
+    mov rdi, [rbp - 24]
+    mov rsi, [rbp - 32]
+    mov rbx, [rbp - 16]
+    mov rdx, [rbx + 32]
+    call copy_struct
+    mov rax, 0
+    leave
+    ret
+    vnv_L1:
+    mov rax, [rbp - 32]
     leave
     ret
 
@@ -465,6 +515,7 @@ visit_node_if: ; void visit_node_if(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
     mov [rbp - 32], rax
 
@@ -484,6 +535,7 @@ visit_node_if: ; void visit_node_if(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 10]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
 
     mov rbx, [rbp - 8]
@@ -503,6 +555,7 @@ visit_node_if: ; void visit_node_if(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 18]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
 
     fprintmany [outputfd], if_, [rbp - 40], colon, newline
@@ -541,6 +594,7 @@ visit_node_while: ; void visit_node_while(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 10]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
 
     fprintmany [outputfd], while_, [rbp - 32], colon, newline
@@ -548,6 +602,7 @@ visit_node_while: ; void visit_node_while(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
     mov [rbp - 48], rax
 
@@ -598,6 +653,7 @@ visit_node_for: ; void visit_node_for(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
 
     fprintmany [outputfd], _jmp, for_, [rbp - 40], newline
@@ -606,6 +662,7 @@ visit_node_for: ; void visit_node_for(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 26]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
 
     fprintmany [outputfd], for_, [rbp - 32], colon, newline
@@ -613,6 +670,7 @@ visit_node_for: ; void visit_node_for(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 18]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
 
     fprintmany [outputfd], for_, [rbp - 40], colon, newline
@@ -620,6 +678,7 @@ visit_node_for: ; void visit_node_for(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 10]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
     mov [rbp - 56], rax
 
@@ -743,11 +802,12 @@ visit_node_func_def: ; void visit_node_func_def(void* node, context* context)
     jl vnfdL2
     vnfdL1:
 
-    context [rbp - 48], 0, 0, 0
+    context [rbp - 48], 0, 0, 0, 0
     mov r15, rax
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     mov rsi, r15
+    mov dl, 1
     call visit
 
     fprintmany [outputfd], _func, [rbp - 24], _end, colon, newline
@@ -768,6 +828,7 @@ visit_node_return: ; void visit_node_return(void* node, context* context)
 
     mov rdi, [rbx + 10]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
     mov r15, rax
     reg rax_, qword_
@@ -808,6 +869,7 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     mov rbx, qword [rbp - 24]
     mov rdi, qword [rbx]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
     mov r14, rax
 
@@ -871,6 +933,7 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     mov rbx, qword [rbp - 24]
     mov rdi, qword [rbx]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
     mov r14, rax
 
@@ -955,6 +1018,7 @@ visit_node_ptr_ass: ; void* visit_node_ptr_ass(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
     mov [rbp - 24], rax
 
@@ -970,6 +1034,7 @@ visit_node_ptr_ass: ; void* visit_node_ptr_ass(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 10]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
     mov [rbp - 32], rax
 
@@ -1008,6 +1073,7 @@ visit_node_cast: ; void* visit_node_cast(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 10]
     mov rsi, [rbp - 16]
+    mov dl, 1
     call visit
 
     leave
@@ -1443,7 +1509,7 @@ logical_binop: ; void* logical_binop(void* node, context* context)
     mov rdi, [rbx + 2]
     mov r14, [rbx + 10]
     mov r15, [rbp - 16]
-    context [r15], [rbp - 40], [rbp - 48], r14
+    context [r15], [rbp - 40], [rbp - 48], r14, 0
     mov rsi, rax
     mov dl, 1 
     call visit
@@ -1482,7 +1548,7 @@ logical_binop: ; void* logical_binop(void* node, context* context)
     mov rdi, [rbx + 18]
     mov r14, [rbx + 10]
     mov r15, [rbp - 16]
-    context [r15], [rbp - 40], [rbp - 48], r14
+    context [r15], [rbp - 40], [rbp - 48], r14, 0
     mov rsi, rax
     mov dl, 0
     call visit
@@ -1599,4 +1665,105 @@ should_store_param: ; bool should_store_param(void* node, long index)
     stpRet:
     mov al, 0
     leave
+    ret
+
+copy_struct: ; void copy_struct(void* struct, void* src, void* dest)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 72
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+    mov [rbp - 24], rdx
+
+    reg rdi_, qword_
+    mov [rbp - 64], rax
+
+    mov r15, [rbp - 16]
+    mempos [r15 + 2], [r15 + 6], [r15 + 10]
+    mov [rbp - 48], rax
+
+    mov r15, [rbp - 24]
+    mempos [r15 + 2], [r15 + 6], [r15 + 10]
+    mov [rbp - 56], rax
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    mov [rbp - 40], rbx
+
+    jmp csL2
+    csL1:
+
+    mov rbx, [rbp - 40]
+    mov rbx, [rbx]
+
+    mov ecx, [rbx + 16]
+    mov dword [rbp - 72], ecx
+
+    mov r15, [rbx + 8]
+    cmp word [r15], STRUCT
+    je csL3
+
+    mov ecx, [r15 + 2]
+    mov dword [rbp - 68], ecx
+
+    mov ecx, [rbp - 72]
+    mov rbx, [rbp - 48]
+    mov rax, [rbp - 16]
+    add ecx, dword [rax + 10]
+    mov [rbx + 10], ecx
+    mov ecx, [rbp - 68]
+    mov [rbx + 6], ecx
+
+    mov ecx, [rbp - 72]
+    mov rbx, [rbp - 56]
+    mov rax, [rbp - 24]
+    add ecx, dword [rax + 10]
+    mov [rbx + 10], ecx
+    mov ecx, [rbp - 68]
+    mov [rbx + 6], ecx
+
+    mov rdi, [rbp - 64]
+    mov rsi, [rbp - 48]
+    call mov_to_reg
+
+    mov rdi, [rbp - 56]
+    mov rsi, rax
+    call mov_to_mempos
+
+    jmp csL4
+    csL3:
+
+    mov ecx, [rbp - 72]
+    mov rbx, [rbp - 48]
+    mov rax, [rbp - 16]
+    add ecx, dword [rax + 10]
+    mov [rbx + 10], ecx
+
+    mov ecx, [rbp - 72]
+    mov rbx, [rbp - 56]
+    mov rax, [rbp - 24]
+    add ecx, dword [rax + 10]
+    mov [rbx + 10], ecx
+    
+    mov rdi, r15
+    mov rsi, [rbp - 48]
+    mov rdx, [rbp - 56]
+    call copy_struct
+
+    csL4:
+
+    mov rbx, [rbp - 40]
+    mov rbx, [rbx + 8]
+    mov [rbp - 40], rbx
+
+    csL2:
+    mov rbx, [rbp - 40]
+    cmp rbx, 0
+    jne csL1
+
+    leave
+    ret
+
+init_struct: ; void init_struct()
+    nop
     ret

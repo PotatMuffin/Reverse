@@ -76,10 +76,15 @@ st_add_struct: ; void st_add_struct(symbol_table table, token* struct* struct)
     mov rax, qword [rax + 2]
     mov qword [rbx + rcx + symbol_table_size], rax    
 
+
     mov rbx, [rbp - 8]
     mov rcx, [rbp - 32]
     imul rcx, symbol_size
+
+    mov edx, [rbx + 24]
+    inc dword [rbx + 24]
     mov rax, [rbp - 24]
+    mov [rax + 14], edx 
     mov qword [rbx + rcx + 8 + symbol_table_size], rax
 
     leave
@@ -199,11 +204,20 @@ st_add_var: ; void st_add_var(symbol_table* table, token* name, void* type)
     mov qword [rbx + rcx + symbol_table_size], rax
 
     mov rcx, [rbp - 40]
+    cmp word [rcx], STRUCT
+    je savL1
+
     mov ecx, [rcx + 2]
-    movzx rcx, byte [sizes + rcx]
+    movzx ecx, byte [sizes + rcx]
+    jmp savL2
+    savL1:
+
+    mov ecx, [rcx + 10]
+    savL2:
 
     sub dword [rbx + 8], ecx
     mov r15d, dword [rbx + 8]
+
     var [rbp - 40], r15d
 
     mov rbx, [rbp - 8]
@@ -304,9 +318,18 @@ st_get_var_pos: ; mempos* st_get_var_pos(symbol_table* table, token* token)
     mov rbx, qword [rbx + 8]
     mov r15d, dword [rbx + 10]
     mov rbx, [rbx + 2]
-    mov r14d, [rbx + 2]
     mov [rbp - 32], r15d
+
+    cmp word [rbx], STRUCT
+    je gvpL4
+
+    mov r14d, [rbx + 2]
     mov [rbp - 36], r14d
+    jmp gvpL5
+    gvpL4:
+
+    mov dword [rbp - 36], custom_
+    gvpL5:
 
     mov rbx, [rbp - 8]
     cmp qword [rbx + 16], 0

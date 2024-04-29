@@ -127,6 +127,7 @@ macro symbol_table table_size, parent
     mov dword [rax + 12], 1
     mov rbx, parent
     mov qword [rax + 16], rbx
+    mov dword [rax + 24], 1
     add [memory_pointer], rcx
 }
 
@@ -142,13 +143,16 @@ macro var type, pos
     add [memory_pointer], var_size
 }
 
-macro struct fields
+macro struct fields, sizeof
 {
     check_memory struct_size
     mov rax, [memory_pointer]
     mov word [rax], STRUCT
     mov rbx, fields
     mov qword [rax + 2], rbx
+    mov ebx, sizeof
+    mov dword [rax + 10], ebx
+    mov dword [rax + 14], 0
     add [memory_pointer], struct_size
 }
 
@@ -192,7 +196,7 @@ macro func arity, params, return, table
     add [memory_pointer], func_size
 }
 
-macro context table, logop_true, logop_false, logop_token
+macro context table, logop_true, logop_false, logop_token, mem_pos
 {
     check_memory context_size
     mov rax, [memory_pointer]
@@ -204,6 +208,8 @@ macro context table, logop_true, logop_false, logop_token
     mov [rax + 16], rbx
     mov rbx, logop_token
     mov [rax + 24], rbx
+    mov rbx, mem_pos
+    mov [rax + 32], rbx
     add [memory_pointer], context_size
 }
 
@@ -431,6 +437,19 @@ macro node_cast cast_type, castee
     add [memory_pointer], node_cast_size
 }
 
+macro field name, type, pos
+{
+    check_memory field_size
+    mov rax, [memory_pointer]
+    mov rbx, name
+    mov qword [rax], rbx
+    mov rbx, type
+    mov qword [rax + 8], rbx
+    mov ebx, pos
+    mov dword [rax + 16], ebx
+    add [memory_pointer], field_size
+}
+
 macro node_struct name, fields, field_count
 {
     check_memory node_struct_size
@@ -641,6 +660,13 @@ itoa: ; char* iota(long num)
     add [memory_pointer], 24
     mov rbx, [memory_pointer]
     mov qword [rbp - 16], rbx
+
+    cmp qword [rbp - 8], 0
+    jne itoaL1
+    mov rax, zero
+    leave
+    ret
+    itoaL1:
 
     cmp qword [rbp - 8], 0
     setl byte [rbp - 17]
@@ -984,7 +1010,7 @@ index_of: ; bool index_of(char** charArr, char* str)
 value_to_string: ; char* value_to_string(void* value)
     push rbp
     mov rbp, rsp
-    sub rsp, 32
+    sub rsp, 40
     mov [rbp - 8], rdi
 
     mov rbx, [rbp - 8]
@@ -1024,10 +1050,32 @@ value_to_string: ; char* value_to_string(void* value)
     mov qword [rbp - 32], rax
 
     movsxd rdi, dword [rbx + 10]
+    cmp rdi, 0
+    jne vtsL6
+
+    pushmany 0, brackr, qword [rbp - 16], brackl, qword [rbp - 32]
+    mov rdi, rsp
+    push rsp
+    call concat_str
+    pop rsp
+
+    leave
+    ret
+
+    vtsL6:
+    cmp rdi, 0
+    jg vtsL4
+    neg rdi
+    mov qword [rbp - 40], _min
+    jmp vtsL5
+    vtsL4:
+    mov qword [rbp - 40], _plus
+    vtsL5:
+
     call itoa
     mov [rbp - 24], rax
 
-    pushmany 0, brackr, qword [rbp - 24], _plus, qword [rbp - 16], brackl, qword [rbp - 32]
+    pushmany 0, brackr, qword [rbp - 24], qword [rbp - 40], qword [rbp - 16], brackl, qword [rbp - 32]
     mov rdi, rsp
     push rsp
     call concat_str
@@ -1062,14 +1110,25 @@ type_equals: ; bool type_equals(void* type1, void* type2)
     jne teL1
 
     mov rbx, [rbp - 8]
-    mov rbx, [rbx + 14]
+    mov rdi, [rbx + 14]
     mov rcx, [rbp - 16]
-    mov rcx, [rcx + 14]
-    mov ecx, dword [rcx + 2]
-    cmp dword [rbx + 2], ecx
-    jne teL1
+    mov rsi, [rcx + 14]
+    call type_equals
+    leave
+    ret
 
     teL2:
+    cmp word [rbx], STRUCT
+    jne teL3
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 16]
+
+    mov ecx, [rcx + 10]
+    cmp dword [rbx + 10], ecx
+    jne teL1
+
+    teL3:
 
     mov al, 1
     leave
@@ -1288,4 +1347,10 @@ type_mismatch_param:
     printmany ERROR
     print_tok_pos [rbp - 8]
     printmany typemismatchparam, [rbp - 16], quote, suffix
+    exit_process 1
+illegal_cast:
+    mov [rbp - 8], rdi
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    printmany illegalcast, suffix
     exit_process 1

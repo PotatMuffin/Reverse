@@ -252,7 +252,7 @@ valvisit_node_vardef: ; void valvisit_node_vardef(void* node, symbol_table table
     call is_not_a_type
 
     vvnvL1:
-    cmp rax, -2
+    cmp rax, [builtin_types]
     jne vvnvL2
 
     mov rbx, [rbp - 8]
@@ -517,7 +517,7 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
     call is_not_a_type
 
     vvnfdL5:
-    cmp rax, -2
+    cmp rax, [builtin_types]
     jne vvnfdL6
 
     mov rbx, [rbp - 40]
@@ -739,7 +739,7 @@ valvisit_node_ptr_ass: ; void valvisit_node_ptr_ass(void* node, symbol_table* ta
 valvisit_node_cast: ; void* valvisit_node_cast(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 32
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
     
@@ -747,21 +747,37 @@ valvisit_node_cast: ; void* valvisit_node_cast(void* node, symbol_table* table)
     mov rdi, [rbx + 10]
     mov rsi, [rbp - 16]
     call valvisit
+    mov [rbp - 24], rax
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     mov rsi, [rbp - 16]
     call get_real_type
+    mov [rbp - 32], rax
+
+    mov rdi, [rbp - 24]
+    mov rsi, [rbp - 32]
+    call can_convert_expl
+    cmp al, 0
+    jne vvncL1
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    mov rdi, [rbx]
+    call illegal_cast
+
+    vvncL1:
+    mov rax, [rbp - 32]
     leave
     ret
 
 valvisit_node_struct: ; void valvisit_node_struct(void* node, symbol_table* table)
     push rbp
     mov rbp, rsp
-    sub rsp, 32
+    sub rsp, 36
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
+    mov dword [rbp - 36], 0
     mov qword [rbp - 32], 0
     mov qword [rbp - 24], 0
     jmp vvnsL2
@@ -778,13 +794,12 @@ valvisit_node_struct: ; void valvisit_node_struct(void* node, symbol_table* tabl
     cmp rax, -1
     jne vvnsL3
 
-    mov rbx, [rbp - 8]
-    mov rbx, [rbx + 18]
+    mov rbx, [r15 + 8]
     mov rdi, [rbx]
     call is_not_a_type
 
     vvnsL3:
-    cmp rax, -2
+    cmp rax, [builtin_types]
     jne vvnsL4
 
     mov rbx, [rbp - 8]
@@ -794,10 +809,28 @@ valvisit_node_struct: ; void valvisit_node_struct(void* node, symbol_table* tabl
 
     vvnsL4:
     pop r15
-    
+
+    mov r12d, [rbp - 36]
+
+    cmp word [rax], BUILTIN_TYPE
+    je vvnsL7
+    cmp word [rax], _PTR
+    jne vvnsL5
+
+    vvnsL7:
+    mov ebx, [rax + 2]
+    movzx ebx, byte [sizes + ebx]
+    add dword [rbp - 36], ebx
+    jmp vvnsL6
+    vvnsL5:
+
+    mov ebx, [rax + 10]
+    add dword [rbp - 36], ebx
+    vvnsL6:
+
     mov r14, [r15]
     mov r13, rax
-    param r14, r13
+    field r14, r13, r12d
     mov r14, rax
 
     linked_list_item r14
@@ -813,7 +846,7 @@ valvisit_node_struct: ; void valvisit_node_struct(void* node, symbol_table* tabl
     cmp rbx, [rcx + 18]
     jl vvnsL1
 
-    struct [rbp - 32]
+    struct [rbp - 32], dword [rbp - 36]
     mov [rbp - 32], rax
 
     mov rdi, [rbp - 16]
@@ -845,6 +878,40 @@ vallookuptable:
     dq valvisit_node_cast
     dq valvisit_node_struct
 
+; returns a boolean value depeding on if you can convert type a to type b
+can_convert_expl: ; bool can_convert_expl(void* a, void* b)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 8
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbp - 16]
+    cmp word [rbx], _PTR
+    je cceL1
+
+    cmp word [rbx], STRUCT
+    je cceL2
+    cmp word [rcx], STRUCT
+    je cceL2
+    jmp cceL3
+
+    cceL1:
+    cmp word [rcx], _PTR
+    je cceL3
+    cmp word [rcx], BUILTIN_TYPE
+    jne cceL2
+
+    cceL3:
+    mov al, 1
+    leave
+    ret
+    cceL2:
+    mov al, 0
+    leave
+    ret
+
 get_real_type: ; void* get_real_type(type* type, symbol_table* table)
     push rbp
     mov rbp, rsp
@@ -866,16 +933,22 @@ get_real_type: ; void* get_real_type(type* type, symbol_table* table)
     mov rbx, [rbx]
     mov rsi, [rbx + 2]
     call index_of
-    cmp rax, 0
-    jne grtL3
-
-    mov rax, -2
-    leave
-    ret
-    grtL3:
 
     mov rbx, [builtin_types + rax * 8]
     mov [rbp - 16], rbx
+    jmp grtL3
+
+    grtL1:
+    mov rdi, [rbp - 24]
+    mov rbx, [rbp - 8]
+    mov rsi, [rbx]
+    call st_get_symbol
+    cmp rax, -1 
+    je grtL4
+    mov rax, [rax + 8]
+    cmp word [rax], STRUCT
+    mov [rbp - 16], rax
+    grtL3:
 
     mov rbx, [rbp - 8]
     mov r15, [rbx + 8]
@@ -891,22 +964,7 @@ get_real_type: ; void* get_real_type(type* type, symbol_table* table)
     leave
     ret
 
-    grtL1:
-    mov rdi, [rbp - 24]
-    mov rbx, [rbp - 8]
-    mov rsi, [rbx]
-    call st_get_symbol
-    cmp rax, -1 
-    je grtL5
-    mov rax, [rax + 8]
-    cmp word [rax], STRUCT
-    je grtL4
-
-    grtL5:
-    mov rax, -1
-    leave
-    ret
     grtL4:
-
+    mov rax, -1
     leave
     ret
