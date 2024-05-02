@@ -366,7 +366,8 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
 
     mov rdi, [rbp - 8]
     mov rbx, [rbp - 16]
-    mov rsi, [rbx]
+    valcontext [rbx], 0
+    mov rsi, rax
     call valvisit
 
     cmp word [rax], STRUCT

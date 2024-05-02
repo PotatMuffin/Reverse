@@ -213,6 +213,17 @@ macro context table, logop_true, logop_false, logop_token, mem_pos
     add [memory_pointer], context_size
 }
 
+macro valcontext table, type
+{
+    check_memory valcontext_size
+    mov rax, [memory_pointer]
+    mov rbx, table
+    mov qword [rax], rbx
+    mov rbx, type
+    mov qword [rax + 8], rbx
+    add [memory_pointer], valcontext_size
+}
+
 macro node_root
 {
     check_memory node_root_size
@@ -462,6 +473,17 @@ macro node_struct name, fields, field_count
     mov rbx, field_count
     mov qword [rax + 18], rbx
     add [memory_pointer], node_struct_size
+}
+
+macro node_struct_ini fields
+{
+    check_memory node_struct_ini_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_STRUCT_INI
+    mov rbx, fields
+    mov qword [rax + 2], rbx
+    mov qword [rax + 10], 0
+    add [memory_pointer], node_struct_ini_size
 }
 
 macro immvalue value

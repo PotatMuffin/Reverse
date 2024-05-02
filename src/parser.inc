@@ -855,6 +855,57 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     jmp paL12
 
     paL1:
+    cmp word [rbx], TT_BRACKL
+    jne paL16
+
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+
+    mov rdi, [rbp - 8]
+    mov sil, 0
+    call parse_bin_expr
+    mov r15, rax
+
+    linked_list_item r15
+    mov [rbp - 24], rax
+
+    jmp paL18
+    paL17:
+
+    mov rdi, [rbp - 8]
+    mov sil, 0
+    call parse_bin_expr
+    mov r15, rax
+
+    linked_list_item r15
+    mov r15, rax
+
+    mov rbx, [rbp - 24]
+    mov [r15 + 8], rbx
+    mov [rbx + 16], r15
+    mov [rbp - 24], r15
+
+    paL18:
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx]
+    add qword [rbx], tok_len
+    cmp word [rcx], TT_COMMA
+    je paL17
+
+    cmp word [rcx], TT_BRACKR
+    je paL19
+
+    mov rdi, rcx
+    pushmany 0, _brackr
+    mov rsi, rsp
+    call syntax_error_expected
+
+    paL19:
+    node_struct_ini [rbp - 24]
+    mov [rbp - 60], rax
+    jmp paL12
+
+    paL16:
 
     cmp word [rbx], TT_PARENL
     jne paL2

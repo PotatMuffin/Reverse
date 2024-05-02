@@ -47,6 +47,8 @@ _parenl db "'('",0
 _parenr db "')'",0
 _bracel db "'{'",0
 _bracer db "'}'",0
+_brackl db "'['",0
+_brackr db "']'",0
 parenl db "(",0
 parenr db ")",0
 brackl db "[",0
@@ -329,24 +331,33 @@ node_cast_size = 18
 ; }
 node_struct_size = 26
 
-node_count     = 17
-NODE_ROOT      = 1
-NODE_BINOP     = 2
-NODE_LIT       = 3
-NODE_UNOP      = 4
-NODE_VARDEF    = 5
-NODE_VARASS    = 6
-NODE_VAR       = 7
-NODE_IF        = 8
-NODE_WHILE     = 9
-NODE_FOR       = 10
-NODE_ASM       = 11
-NODE_FUNC_DEF  = 12
-NODE_RETURN    = 13
-NODE_FUNC_CALL = 14
-NODE_PTR_ASS   = 15
-NODE_CAST      = 16
-NODE_STRUCT    = 17
+; struct node_struct_ini
+; {
+;   short type
+;   void* fields
+;   void* type
+; }
+node_struct_ini_size = 18
+
+node_count      = 17
+NODE_ROOT       = 1
+NODE_BINOP      = 2
+NODE_LIT        = 3
+NODE_UNOP       = 4
+NODE_VARDEF     = 5
+NODE_VARASS     = 6
+NODE_VAR        = 7
+NODE_IF         = 8
+NODE_WHILE      = 9
+NODE_FOR        = 10
+NODE_ASM        = 11
+NODE_FUNC_DEF   = 12
+NODE_RETURN     = 13
+NODE_FUNC_CALL  = 14
+NODE_PTR_ASS    = 15
+NODE_CAST       = 16
+NODE_STRUCT     = 17
+NODE_STRUCT_INI = 18
 
 ; struct type
 ; {
@@ -438,6 +449,13 @@ symbol_table_size = 28
 ;   mempos* mem_pos
 ; }
 context_size = 40
+
+; struct valcontext
+; {
+;   symbol_table* table
+;   void* type
+; }
+valcontext_size = 16
 
 ; struct value
 ; {

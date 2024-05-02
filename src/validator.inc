@@ -16,19 +16,22 @@ validate_prog: ; void validate_prog(node_root* prog, symbol_table* table)
     builtin_type qword_
     mov [builtin_types + 32], rax
 
+    valcontext [rbp - 16], 0
+    mov [rbp - 24], rax
+
     mov rdi, [rbp - 8]
-    mov rsi, [rbp - 16]
+    mov rsi, [rbp - 24]
     call valvisit_node_root
 
     mov [pass], 1
     mov rdi, [rbp - 8]
-    mov rsi, [rbp - 16]
+    mov rsi, [rbp - 24]
     call valvisit_node_root
 
     leave
     ret
 
-valvisit: ; void* valvisit(void* node, symbol_table* table)
+valvisit: ; void* valvisit(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 16
@@ -45,6 +48,8 @@ valvisit: ; void* valvisit(void* node, symbol_table* table)
     je vvL1
     cmp rcx, NODE_FUNC_DEF
     je vvL1
+    cmp rcx, NODE_STRUCT
+    je vvL1
     leave
     ret
     vvL1: 
@@ -56,7 +61,7 @@ valvisit: ; void* valvisit(void* node, symbol_table* table)
     leave
     ret
 
-valvisit_node_root: ; void* valvisit_node_root(void* node symbol_table* table)
+valvisit_node_root: ; void* valvisit_node_root(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 24
@@ -95,7 +100,7 @@ valvisit_node_root: ; void* valvisit_node_root(void* node symbol_table* table)
     leave
     ret
 
-valvisit_node_binop: ; void* valvisit_node_binop(void* node, symbol_table* table)
+valvisit_node_binop: ; void* valvisit_node_binop(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 24
@@ -117,16 +122,12 @@ valvisit_node_binop: ; void* valvisit_node_binop(void* node, symbol_table* table
     mov rdi, qword [rbx + 18]
     mov rsi, [rbp - 16]
     call valvisit
-    cmp word [rax], _PTR
-    jne vvnbL2
-    mov [rbp - 24], rax
-    vvnbL2:
 
     mov rax, [rbp - 24]
     leave
     ret
 
-valvisit_node_lit: ; void* valvisit_node_lit(void* node, symbol_table* table)
+valvisit_node_lit: ; void* valvisit_node_lit(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 8
@@ -143,7 +144,7 @@ valvisit_node_lit: ; void* valvisit_node_lit(void* node, symbol_table* table)
     leave
     ret
 
-valvisit_node_unop: ; void* valvisit_node_unop(void* node, symbol_table* table)
+valvisit_node_unop: ; void* valvisit_node_unop(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 24
@@ -207,7 +208,8 @@ valvisit_node_unop: ; void* valvisit_node_unop(void* node, symbol_table* table)
     cmp word [rbx], TT_AND
     jne vvnuL2
 
-    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
     mov rsi, [rcx + 2]
     mov dl, 1
     call st_get_symbol
@@ -232,7 +234,7 @@ valvisit_node_unop: ; void* valvisit_node_unop(void* node, symbol_table* table)
     leave
     ret
 
-valvisit_node_vardef: ; void valvisit_node_vardef(void* node, symbol_table table)
+valvisit_node_vardef: ; void valvisit_node_vardef(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 24
@@ -241,7 +243,8 @@ valvisit_node_vardef: ; void valvisit_node_vardef(void* node, symbol_table table
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 18]
-    mov rsi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rsi, [rbx]
     call get_real_type
     cmp rax, -1
     jne vvnvL1
@@ -264,7 +267,9 @@ valvisit_node_vardef: ; void valvisit_node_vardef(void* node, symbol_table table
     mov [rbp - 24], rax
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 2]
-    mov rsi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    valcontext [rbx], [rbp - 24]
+    mov rsi, rax
     call valvisit
 
     mov rdi, rax
@@ -279,7 +284,8 @@ valvisit_node_vardef: ; void valvisit_node_vardef(void* node, symbol_table table
 
     vvnvL4:
 
-    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 10]
     mov rdx, [rbp - 24]
@@ -288,20 +294,15 @@ valvisit_node_vardef: ; void valvisit_node_vardef(void* node, symbol_table table
     leave
     ret
 
-valvisit_node_varass: ; void valvisit_node_varass(void* node, symbol_table* table)
+valvisit_node_varass: ; void valvisit_node_varass(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 32
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
-    mov rbx, [rbp - 8]
-    mov rdi, qword [rbx + 2]
-    mov rsi, [rbp - 16]
-    call valvisit
-    mov [rbp - 24], rax
-
-    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 10]
     mov dl, 1
@@ -316,6 +317,16 @@ valvisit_node_varass: ; void valvisit_node_varass(void* node, symbol_table* tabl
     call name_error_var_undefined
 
     vvnv_L2:
+
+    mov rbx, [rbp - 8]
+    mov rdi, qword [rbx + 2]
+    mov r15, [rbp - 32]
+    mov r15, [r15 + 8]
+    mov rbx, [rbp - 16]
+    valcontext [rbx], [r15 + 2]
+    mov rsi, rax
+    call valvisit
+    mov [rbp - 24], rax
 
     mov rbx, [rbp - 32]
     mov rbx, [rbx + 8]
@@ -333,14 +344,15 @@ valvisit_node_varass: ; void valvisit_node_varass(void* node, symbol_table* tabl
     leave
     ret
     
-valvisit_node_var: ; void* valvisit_node_var(void* node, symbol_table* table)
+valvisit_node_var: ; void* valvisit_node_var(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 24
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
-    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
     mov dl, 1
@@ -361,7 +373,7 @@ valvisit_node_var: ; void* valvisit_node_var(void* node, symbol_table* table)
     leave
     ret
 
-valvisit_node_if: ; void valvisit_node_if(void* node, symbol_table* table)
+valvisit_node_if: ; void valvisit_node_if(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 16
@@ -391,7 +403,7 @@ valvisit_node_if: ; void valvisit_node_if(void* node, symbol_table* table)
     leave
     ret
 
-valvisit_node_while: ; void valvisit_node_while(void* node, symbol_table* table)
+valvisit_node_while: ; void valvisit_node_while(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 16
@@ -411,7 +423,7 @@ valvisit_node_while: ; void valvisit_node_while(void* node, symbol_table* table)
     leave
     ret
 
-valvisit_node_for: ; void valisit_node_for(void* node, symbol_table* table)
+valvisit_node_for: ; void valisit_node_for(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 16
@@ -441,11 +453,11 @@ valvisit_node_for: ; void valisit_node_for(void* node, symbol_table* table)
     leave
     ret
 
-valvisit_node_asm: ; void valvisit_node_asm(void* node, symbol_table* table)
+valvisit_node_asm: ; void valvisit_node_asm(void* node, valcontext* context)
     nop
     ret
 
-valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* table)
+valvisit_node_func_def: ;void valvisit_node_func_def(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 48
@@ -459,7 +471,8 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
     
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 34]
-    mov rsi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rsi, [rbx]
     call get_real_type
     mov [rbp - 48], rax
 
@@ -472,7 +485,8 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
     func r15, r14, [rbp - 48], [rbp - 24]
     mov r15, rax
 
-    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 10]
     mov rdx, r15
@@ -481,7 +495,8 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
     ret
     vvnfdL7:
     
-    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 10]
     mov dl, 0
@@ -506,7 +521,8 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
     mov [rbp - 40], rbx
 
     mov rdi, [rbx + 8]
-    mov rsi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rsi, [rbx]
     call get_real_type
     cmp rax, -1
     jne vvnfdL5
@@ -541,7 +557,8 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
-    mov rsi, [rbp - 24]
+    valcontext [rbp - 24], 0
+    mov rsi, rax
     call valvisit
 
     mov rbx, [rbp - 8]
@@ -565,7 +582,7 @@ valvisit_node_func_def: ;void valvist_node_func_def(void* node, symbol_table* ta
     leave
     ret
 
-valvisit_node_return: ; void* valvisit_node_return(void* node, symbol_table* table)
+valvisit_node_return: ; void* valvisit_node_return(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 16
@@ -597,14 +614,15 @@ valvisit_node_return: ; void* valvisit_node_return(void* node, symbol_table* tab
     leave
     ret
 
-valvisit_node_func_call: ; void* valvisit_node_func_call(void* node, symbol_table* table)
+valvisit_node_func_call: ; void* valvisit_node_func_call(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 40
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
-    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
     mov dl, 1
@@ -666,7 +684,8 @@ valvisit_node_func_call: ; void* valvisit_node_func_call(void* node, symbol_tabl
     imul rbx, 32
     lea rbx, [rcx + rbx]
     mov rdi, [rbx + 8]
-    mov rsi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rsi, [rbx]
     call get_real_type
 
     mov rdi, rax
@@ -702,7 +721,7 @@ valvisit_node_func_call: ; void* valvisit_node_func_call(void* node, symbol_tabl
     leave
     ret
 
-valvisit_node_ptr_ass: ; void valvisit_node_ptr_ass(void* node, symbol_table* table)
+valvisit_node_ptr_ass: ; void valvisit_node_ptr_ass(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 32
@@ -736,7 +755,7 @@ valvisit_node_ptr_ass: ; void valvisit_node_ptr_ass(void* node, symbol_table* ta
     leave
     ret
 
-valvisit_node_cast: ; void* valvisit_node_cast(void* node, symbol_table* table)
+valvisit_node_cast: ; void* valvisit_node_cast(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 32
@@ -751,7 +770,8 @@ valvisit_node_cast: ; void* valvisit_node_cast(void* node, symbol_table* table)
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
-    mov rsi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rsi, [rbx]
     call get_real_type
     mov [rbp - 32], rax
 
@@ -770,12 +790,18 @@ valvisit_node_cast: ; void* valvisit_node_cast(void* node, symbol_table* table)
     leave
     ret
 
-valvisit_node_struct: ; void valvisit_node_struct(void* node, symbol_table* table)
+valvisit_node_struct: ; void valvisit_node_struct(void* node, valcontext* context)
     push rbp
     mov rbp, rsp
     sub rsp, 36
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
+
+    cmp [pass], 0
+    je vvnsL8
+    leave
+    ret
+    vvnsL8:
 
     mov dword [rbp - 36], 0
     mov qword [rbp - 32], 0
@@ -789,7 +815,8 @@ valvisit_node_struct: ; void valvisit_node_struct(void* node, symbol_table* tabl
     lea r15, [rbx + rcx]
     push r15
     mov rdi, [r15 + 8]
-    mov rsi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rsi, [rbx]
     call get_real_type
     cmp rax, -1
     jne vvnsL3
@@ -849,13 +876,18 @@ valvisit_node_struct: ; void valvisit_node_struct(void* node, symbol_table* tabl
     struct [rbp - 32], dword [rbp - 36]
     mov [rbp - 32], rax
 
-    mov rdi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
     mov rdx, [rbp - 32]
     call st_add_struct
 
     leave
+    ret
+
+valvisit_node_struct_ini: ; void* valvisit_node_struct_ini(void* node, valcontext* context)
+    nop 
     ret
 
 vallookuptable:
@@ -877,6 +909,7 @@ vallookuptable:
     dq valvisit_node_ptr_ass
     dq valvisit_node_cast
     dq valvisit_node_struct
+    dq valvisit_node_struct_ini
 
 ; returns a boolean value depeding on if you can convert type a to type b
 can_convert_expl: ; bool can_convert_expl(void* a, void* b)
