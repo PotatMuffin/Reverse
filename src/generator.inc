@@ -334,11 +334,13 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
 
     mov rbx, qword [rbp - 8]
     mov rdi, qword [rbx + 10]
-    mov rsi, [rbp - 16]
+    mov rbx, [rbp - 16]
+    context [rbx],0,0,0,0
+    mov rsi, rax
     mov dl, 1
     call visit
     mov [rbp - 24], rax
-
+    
     reg rax_, qword_
     mov [rbp - 32], rax
 
@@ -346,6 +348,12 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
     mov rbx, [rbx + 2]
     cmp word [rbx], TT_AND
     jne vnuL1
+
+    mov rax, [rbp - 24]
+    cmp dword [rax + 6], custom_
+    jne vnuL5
+    mov dword [rax + 6], qword_
+    vnuL5:
 
     mov rdi, [rbp - 32]
     call value_to_string
@@ -360,6 +368,14 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
     vnuL1:
     cmp word [rbx], TT_STAR
     jne vnuL2
+    mov rbx, [rbp - 16]
+    cmp qword [rbx + 32], 0
+    je vnuL6
+
+    reg rcx_, qword_
+    mov [rbp - 32], rax
+    vnuL6:
+
     mov rdi, [rbp - 32]
     mov rsi, [rbp - 24]
     call mov_to_reg
@@ -380,6 +396,15 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
     leave
     ret
     vnuL3:  
+    mov rbx, [rbp - 16]
+    cmp qword [rbx + 32], 0
+    jne vnuL4
+
+    mov rbx, [rbp - 32]
+    mempos [rbx + 2], custom_, 0
+    leave
+    ret
+    vnuL4:
 
     mov rdi, rax
     mov rbx, [rbp - 32]
@@ -477,6 +502,9 @@ visit_node_var: ; void* visit_node_var(void* node, context* context)
 
     cmp word [rbx], STRUCT
     jne vnv_L1
+    mov rbx, [rbp - 16]
+    cmp qword [rbx + 32], 0
+    je vnv_L1
 
     mov rdi, [rbp - 24]
     mov rsi, [rbp - 32]
@@ -1017,13 +1045,48 @@ visit_node_ptr_ass: ; void* visit_node_ptr_ass(void* node, context* context)
     mov [rbp - 16], rsi
 
     mov rbx, [rbp - 8]
-    mov rdi, [rbx + 2]
+    mov rdi, [rbx + 10]
     mov rsi, [rbp - 16]
+    mov dl, 1
+    call visit
+    mov [rbp - 32], rax
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    cmp word [rbx], NODE_STRUCT_INI
+    jne vnpaL4
+
+    reg r11_, qword_
+    mov rdi, rax
+    mov r15, [rbp - 32]
+    reg [r15 + 2], qword_
+    mov rsi, rax
+    call mov_to_reg
+    mempos r11_, custom_, 0
+    mov [rbp - 32], rax
+
+    vnpaL4:
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rbx, [rbp - 16]
+    context [rbx],0,0,0,[rbp - 32]
+    mov rsi, rax
     mov dl, 1
     call visit
     mov [rbp - 24], rax
 
-    cmp word [rax], REG
+    mov rbx, [rbp - 32]
+    cmp dword [rbx + 6], custom_
+    jne vnpaL3
+
+    mov rax, 0
+    leave
+    ret
+    vnpaL3:
+
+    mov rbx, [rbp - 24]
+    cmp word [rbx], REG
     jne vnpaL1
 
     mov rdi, rax
@@ -1031,13 +1094,6 @@ visit_node_ptr_ass: ; void* visit_node_ptr_ass(void* node, context* context)
     mov r15, rax
     fprintmany [outputfd], _push, r15, newline
     vnpaL1:
-
-    mov rbx, [rbp - 8]
-    mov rdi, [rbx + 10]
-    mov rsi, [rbp - 16]
-    mov dl, 1
-    call visit
-    mov [rbp - 32], rax
 
     mov rbx, [rbp - 24]
     cmp word [rbx], REG
@@ -1084,6 +1140,86 @@ visit_node_struct: ; void visit_node_struct()
     nop
     ret
 
+visit_node_struct_ini: ; void visit_node_struct_ini(void* node, context* context)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 56
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    reg rax_, qword_
+    mov [rbp - 56], rax
+
+    mov rbx, [rbp - 16]
+    mov r15, [rbx + 32]
+    mempos [r15 + 2], [r15 + 6], [r15 + 10]
+    mov [rbp - 24], rax
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx + 18]
+    mov rcx, [rcx + 2]
+    mov rbx, [rbx + 2]
+    mov [rbp - 32], rbx
+    mov [rbp - 40], rcx
+
+    vnsiL1:
+    mov rbx, [rbp - 40]
+    mov r15, [rbx]
+    mov rbx, [r15 + 8]
+
+    mov ebx, [rbx + 2]
+    mov rcx, [rbp - 24]
+    mov [rcx + 6], ebx
+
+    mov ebx, [r15 + 16]
+    mov rcx, [rbp - 16]
+    mov rcx, [rcx + 32]
+    mov eax, [rcx + 10]
+    add ebx, eax
+    mov rcx, [rbp - 24]
+    mov [rcx + 10], ebx
+
+    mov rbx, [rbp - 32]
+    mov rdi, [rbx]
+    mov rbx, [rbp - 16]
+    context [rbx],0,0,0,[rbp - 24]
+    mov rsi, rax
+    mov dl, 1
+    call visit
+    mov [rbp - 48], rax
+
+    mov rbx, [rbp - 40]
+    mov rbx, [rbx]
+    mov rbx, [rbx + 8]
+    cmp word [rbx], STRUCT
+    je vnsiL2
+
+    mov rdi, [rbp - 56]
+    mov rsi, [rbp - 48]
+    mov dx, MEMPOS
+    call mov_value_to_reg
+
+    mov rdi, [rbp - 24]
+    mov rsi, rax
+    call mov_to_mempos
+
+    vnsiL2:
+    mov rbx, [rbp - 32]
+    mov rbx, [rbx + 8]
+    mov [rbp - 32], rbx
+    cmp rbx, 0
+    je vnsiL3
+    mov rbx, [rbp - 40]
+    mov rbx, [rbx + 8]
+    mov [rbp - 40], rbx
+    cmp rbx, 0
+    jne vnsiL1
+
+    vnsiL3:
+
+    leave
+    ret
+
 genlookuptable:
     dq 0
     dq visit_node_root
@@ -1103,6 +1239,7 @@ genlookuptable:
     dq visit_node_ptr_ass
     dq visit_node_cast
     dq visit_node_struct
+    dq visit_node_struct_ini
 
 mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     push rbp
@@ -1763,8 +1900,4 @@ copy_struct: ; void copy_struct(void* struct, void* src, void* dest)
     jne csL1
 
     leave
-    ret
-
-init_struct: ; void init_struct()
-    nop
     ret

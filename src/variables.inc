@@ -335,11 +335,12 @@ node_struct_size = 26
 ; {
 ;   short type
 ;   void* fields
+;   token* tok
 ;   void* type
 ; }
-node_struct_ini_size = 18
+node_struct_ini_size = 26
 
-node_count      = 17
+node_count      = 18
 NODE_ROOT       = 1
 NODE_BINOP      = 2
 NODE_LIT        = 3

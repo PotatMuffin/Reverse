@@ -901,7 +901,7 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     call syntax_error_expected
 
     paL19:
-    node_struct_ini [rbp - 24]
+    node_struct_ini [rbp - 24], [rbp - 16]
     mov [rbp - 60], rax
     jmp paL12
 

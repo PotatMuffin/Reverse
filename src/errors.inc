@@ -26,4 +26,6 @@ cantretoutfun db "Cant return outside of a function",0
 isnotfunc db "' is not a function",0
 expects db "' expects ",0
 parambutgot db " parameters but got ",0
+cantinfertype db "Cant infer type of struct",0
+invalidconstruct db "Invalid type for constructor",0
 unreachable db "Unreachable",10,0

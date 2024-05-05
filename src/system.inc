@@ -475,14 +475,16 @@ macro node_struct name, fields, field_count
     add [memory_pointer], node_struct_size
 }
 
-macro node_struct_ini fields
+macro node_struct_ini fields, tok
 {
     check_memory node_struct_ini_size
     mov rax, [memory_pointer]
     mov word [rax], NODE_STRUCT_INI
     mov rbx, fields
     mov qword [rax + 2], rbx
-    mov qword [rax + 10], 0
+    mov rbx, tok
+    mov qword [rax + 10], rbx
+    mov qword [rax + 18], 0
     add [memory_pointer], node_struct_ini_size
 }
 
@@ -1375,4 +1377,16 @@ illegal_cast:
     printmany ERROR
     print_tok_pos [rbp - 8]
     printmany illegalcast, suffix
+    exit_process 1
+cant_infer_type:
+    mov [rbp - 8], rdi
+    printmany ERROR
+    print_tok_pos [rbp  - 8]
+    printmany cantinfertype, suffix
+    exit_process 1
+invalid_construct:
+    mov [rbp - 8], rdi
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    printmany invalidconstruct, suffix
     exit_process 1

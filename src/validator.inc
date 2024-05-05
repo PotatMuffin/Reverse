@@ -729,16 +729,18 @@ valvisit_node_ptr_ass: ; void valvisit_node_ptr_ass(void* node, valcontext* cont
     mov [rbp - 16], rsi
 
     mov rbx, [rbp - 8]
-    mov rdi, [rbx + 2]
-    mov rsi, [rbp - 16]
-    call valvisit
-    mov [rbp - 24], rax
-
-    mov rbx, [rbp - 8]
     mov rdi, [rbx + 10]
     mov rsi, [rbp - 16]
     call valvisit
     mov [rbp - 32], rax
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rbx, [rbp - 16]
+    valcontext [rbx], [rbp - 32]
+    mov rsi, rax
+    call valvisit
+    mov [rbp - 24], rax
 
     mov rdi, [rbp - 24]
     mov rsi, [rbp - 32]
@@ -887,7 +889,76 @@ valvisit_node_struct: ; void valvisit_node_struct(void* node, valcontext* contex
     ret
 
 valvisit_node_struct_ini: ; void* valvisit_node_struct_ini(void* node, valcontext* context)
-    nop 
+    push rbp
+    mov rbp, rsp
+    sub rsp, 40
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 16]
+    cmp qword [rbx + 8], 0
+    jne vvnsiL1
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    call cant_infer_type
+    vvnsiL1:
+
+    mov rbx, [rbx + 8]
+    cmp word [rbx], STRUCT
+    je vvnsiL2
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    call invalid_construct
+    vvnsiL2:
+
+    mov rcx, [rbp - 8]
+    mov [rcx + 18], rbx
+
+    mov rbx, [rbp - 8]
+    mov rcx, [rbx + 18]
+    mov rbx, [rbx + 2]
+    mov rcx, [rcx + 2]
+    mov [rbp - 24], rbx
+    mov [rbp - 32], rcx
+
+    vvnsiL3:
+    mov rbx, [rbp - 24]
+    mov rdi, [rbx]
+    mov rsi, [rbp - 16]
+    call valvisit
+    mov [rbp - 40], rax
+
+    mov rdi, [rbp - 40]
+    mov rbx, [rbp - 32]
+    mov rbx, [rbx]
+    mov rsi, [rbx + 8]
+    call type_equals
+    cmp al, 0
+    jne vvnsiL5
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    call type_mismatch
+
+    vvnsiL5:
+    
+    vvnsiL4:
+    mov rbx, [rbp - 24]
+    mov rbx, [rbx + 8]
+    mov [rbp - 24], rbx
+    cmp rbx, 0
+    je vvnsiL6
+    mov rbx, [rbp - 32]
+    mov rbx, [rbx + 8]
+    mov [rbp - 32], rbx
+    cmp rbx, 0
+    jne vvnsiL3
+
+    vvnsiL6:
+
+    mov rbx, [rbp - 16]
+    mov rax, [rbx + 8]
+    leave
     ret
 
 vallookuptable:
