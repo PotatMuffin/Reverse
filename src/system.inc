@@ -488,6 +488,19 @@ macro node_struct_ini fields, tok
     add [memory_pointer], node_struct_ini_size
 }
 
+macro node_field_access field_name, struct
+{
+    check_memory node_field_access_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_FIELD_ACCESS
+    mov rbx, field_name
+    mov qword [rax + 2], rbx
+    mov rbx, struct
+    mov qword [rax + 10], rbx
+    mov qword [rax + 18], 0
+    add [memory_pointer], node_field_access_size
+}
+
 macro immvalue value
 {
     check_memory immvalue_size
@@ -1389,4 +1402,16 @@ invalid_construct:
     printmany ERROR
     print_tok_pos [rbp - 8]
     printmany invalidconstruct, suffix
+    exit_process 1
+builtin_no_field:
+    mov [rbp - 8], rdi
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    printmany builtinnofield, suffix
+    exit_process 1
+invalid_field:
+    mov [rbp - 8], rdi
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    printmany invalidfield, suffix
     exit_process 1

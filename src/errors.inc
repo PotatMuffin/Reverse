@@ -28,4 +28,6 @@ expects db "' expects ",0
 parambutgot db " parameters but got ",0
 cantinfertype db "Cant infer type of struct",0
 invalidconstruct db "Invalid type for constructor",0
+builtinnofield db "Builtin types have no fields",0
+invalidfield db "Invalid field",0
 unreachable db "Unreachable",10,0

@@ -367,9 +367,12 @@ valvisit_node_var: ; void* valvisit_node_var(void* node, valcontext* context)
     call name_error_var_undefined
     _vvnv_L1:
 
-    mov rbx, [rbp - 24]
-    mov rbx, [rbx + 8]
-    mov rax, [rbx + 2]
+    mov rax, [rbp - 24]
+    mov rax, [rax + 8]
+    cmp word [rax], FUNC
+    je _vvnv_L2
+    mov rax, [rax + 2]
+    _vvnv_L2:
     leave
     ret
 
@@ -924,7 +927,11 @@ valvisit_node_struct_ini: ; void* valvisit_node_struct_ini(void* node, valcontex
     vvnsiL3:
     mov rbx, [rbp - 24]
     mov rdi, [rbx]
-    mov rsi, [rbp - 16]
+    mov r15, [rbp - 16]
+    mov r14, [rbp - 32]
+    mov r14, [r14]
+    valcontext [r15], [r14 + 8]
+    mov rsi, rax
     call valvisit
     mov [rbp - 40], rax
 
@@ -961,6 +968,76 @@ valvisit_node_struct_ini: ; void* valvisit_node_struct_ini(void* node, valcontex
     leave
     ret
 
+valvisit_node_field_access: ; void* valvisit_node_field_access(void* node, valcontext* context)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 36
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    call valvisit
+    mov [rbp - 24], rax
+
+    cmp word [rax], STRUCT
+    je vvnfaL1
+    cmp word [rax], _PTR
+    jne vvnfaL2
+    cmp word [rax + 6], 1
+    jg vvnfaL2
+
+    mov rbx, [rax + 14]
+    mov [rbp - 24], rbx
+    cmp word [rbx], STRUCT
+    je vvnfaL1
+
+    vvnfaL2:
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    call builtin_no_field
+
+    vvnfaL1:
+
+    mov rbx, [rbp - 24]
+    mov rbx, [rbx + 2]
+    mov [rbp - 32], rbx
+
+    vvnfaL3:
+    mov rbx, [rbp - 32]
+    mov rbx, [rbx]
+    mov rax, [rbp - 8]
+    mov [rax + 18], rbx
+
+    mov rbx, [rbx]
+    mov rdi, [rbx + 2]
+    mov rcx, [rbp - 8]
+    mov rcx, [rcx + 2]
+    mov rsi, [rcx + 2]
+    call strcmp
+    cmp al, 0
+    jne vvnfaL5
+
+    vvnfaL4:
+    mov rbx, [rbp - 32]
+    mov rbx, [rbx + 8]
+    mov [rbp - 32], rbx
+    cmp rbx, 0
+    jne vvnfaL3
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    call invalid_field
+
+    vvnfaL5:
+
+    mov rbx, [rbp - 32]
+    mov rbx, [rbx]
+    mov rax, [rbx + 8]
+    leave
+    ret
+
 vallookuptable:
     dq 0
     dq valvisit_node_root
@@ -981,6 +1058,7 @@ vallookuptable:
     dq valvisit_node_cast
     dq valvisit_node_struct
     dq valvisit_node_struct_ini
+    dq valvisit_node_field_access
 
 ; returns a boolean value depeding on if you can convert type a to type b
 can_convert_expl: ; bool can_convert_expl(void* a, void* b)

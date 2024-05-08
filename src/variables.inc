@@ -169,6 +169,7 @@ TT_SHL       = 17 ; <<
 TT_SHR       = 18 ; >>
 TT_EXCL      = 128 ; !
 TT_NOT       = 129
+TT_FIELD     = 130 ; ::
 TT_BSLASH    = 256 ; \
 TT_PARENL    = 257 ; (
 TT_PARENR    = 258 ; )
@@ -340,25 +341,35 @@ node_struct_size = 26
 ; }
 node_struct_ini_size = 26
 
-node_count      = 18
-NODE_ROOT       = 1
-NODE_BINOP      = 2
-NODE_LIT        = 3
-NODE_UNOP       = 4
-NODE_VARDEF     = 5
-NODE_VARASS     = 6
-NODE_VAR        = 7
-NODE_IF         = 8
-NODE_WHILE      = 9
-NODE_FOR        = 10
-NODE_ASM        = 11
-NODE_FUNC_DEF   = 12
-NODE_RETURN     = 13
-NODE_FUNC_CALL  = 14
-NODE_PTR_ASS    = 15
-NODE_CAST       = 16
-NODE_STRUCT     = 17
-NODE_STRUCT_INI = 18
+; struct node_field_access
+; {
+;   short type
+;   char* field_name
+;   void* struct
+;   void* field
+; }
+node_field_access_size = 26
+
+node_count        = 19
+NODE_ROOT         = 1
+NODE_BINOP        = 2
+NODE_LIT          = 3
+NODE_UNOP         = 4
+NODE_VARDEF       = 5
+NODE_VARASS       = 6
+NODE_VAR          = 7
+NODE_IF           = 8
+NODE_WHILE        = 9
+NODE_FOR          = 10
+NODE_ASM          = 11
+NODE_FUNC_DEF     = 12
+NODE_RETURN       = 13
+NODE_FUNC_CALL    = 14
+NODE_PTR_ASS      = 15
+NODE_CAST         = 16
+NODE_STRUCT       = 17
+NODE_STRUCT_INI   = 18
+NODE_FIELD_ACCESS = 19
 
 ; struct type
 ; {

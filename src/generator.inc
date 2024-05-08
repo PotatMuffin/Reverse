@@ -1220,6 +1220,55 @@ visit_node_struct_ini: ; void visit_node_struct_ini(void* node, context* context
     leave
     ret
 
+visit_node_field_access: ; void visit_node_field_access(void*, context* context)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 24
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    mov rbx, [rbp - 16]
+    context [rbx],0,0,0,0
+    mov rsi, rax
+    call visit
+    mov [rbp - 24], rax
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 18]
+    mov ecx, [rbx + 16]
+    add [rax + 10], ecx
+
+    mov rbx, [rbx + 8]
+    cmp word [rbx], STRUCT
+    je vnfaL1
+    mov ebx, [rbx + 2]
+    mov [rax + 6], ebx
+    vnfaL1:
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 18]
+    mov rbx, [rbx + 8]
+    cmp word [rbx], STRUCT
+    jne vnfaL2
+    mov rbx, [rbp - 16]
+    cmp qword [rbx + 32], 0
+    je vnfaL2
+    
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 18]
+    mov rdi, [rbx + 8]
+    mov rsi, [rbp - 24]
+    mov rbx, [rbp - 16]
+    mov rdx, [rbx + 32]
+    call copy_struct
+
+    vnfaL2:
+    mov rax, [rbp - 24]
+    leave
+    ret
+
 genlookuptable:
     dq 0
     dq visit_node_root
@@ -1240,6 +1289,7 @@ genlookuptable:
     dq visit_node_cast
     dq visit_node_struct
     dq visit_node_struct_ini
+    dq visit_node_field_access
 
 mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     push rbp

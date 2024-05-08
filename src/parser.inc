@@ -754,6 +754,7 @@ parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
     pveL4:
     
     mov rdi, [rbp - 8]
+    mov sil, 1
     call parse_atom
     mov [rbp - 24], rax
     node_ptr_ass [rbp - 16], [rbp - 24]
@@ -794,6 +795,7 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
     mov [rbp - 9], sil ; min_prec
 
     mov rdi, [rbp - 8]
+    mov sil, 1
     call parse_atom
     mov [rbp - 17], rax ; left
 
@@ -833,11 +835,12 @@ parse_bin_expr: ; void* parse_bin_expr(token** Ptokens, byte min_prec)
     leave
     ret
 
-parse_atom: ; void* parse_atom(token** Ptokens)
+parse_atom: ; void* parse_atom(token** Ptokens, bool cast)
     push rbp
     mov rbp, rsp
-    sub rsp, 60
+    sub rsp, 61
     mov [rbp - 8], rdi
+    mov [rbp - 61], sil
 
     mov rbx, [rbp - 8]
     mov rbx, [rbx]
@@ -1050,6 +1053,7 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
     mov rdi, rbx
+    mov sil, 0
     call parse_atom
     mov [rbp - 24], rax
 
@@ -1061,10 +1065,28 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     cmp word [rbx], TT_IDENT
     jne paL5
 
-    node_var rbx
-    mov [rbp - 60], rax
+    mov [rbp - 24], rbx
+
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
+    mov rcx, [rbx]
+    cmp word [rcx], TT_FIELD
+    jne paL20
+    add qword [rbx], tok_len
+
+    mov rdi, [rbp - 8]
+    mov sil, 0
+    call parse_atom
+    mov r15, rax
+
+    node_field_access [rbp - 24], r15
+
+    mov [rbp - 60], rax
+    jmp paL12
+
+    paL20:
+    node_var [rbp - 24]
+    mov [rbp - 60], rax
     jmp paL12
 
     paL5:
@@ -1074,6 +1096,9 @@ parse_atom: ; void* parse_atom(token** Ptokens)
     call syntax_error_expected
 
     paL12:
+    cmp byte [rbp - 61], 0
+    je paL13
+
     mov rbx, [rbp - 8]
     mov rcx, [rbx]
     cmp word [rcx], TT_PARENL
