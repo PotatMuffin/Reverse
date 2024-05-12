@@ -1269,6 +1269,63 @@ visit_node_field_access: ; void visit_node_field_access(void*, context* context)
     leave
     ret
 
+visit_node_field_assign: ; void visit_node_field_assign(void* node, context* context)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    mov dl, 1
+    call visit
+    mov [rbp - 32], rax
+
+    mov rbx, [rbp - 32]
+    cmp dword [rbx + 2], rbp_
+    je vnfa_L1
+    cmp dword [rbx + 2], mem_
+    je vnfa_L1
+    mov r15, rbx
+
+    reg r10_, qword_
+    mov rdi, rax
+    reg [r15 + 2], qword_
+    mov rsi, rax
+    call mov_to_reg
+    mov dword [r15 + 2], r10_
+
+    vnfa_L1:
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rbx, [rbp - 16]
+    context [rbx],0,0,0, [rbp - 32]
+    mov rsi, rax
+    call visit
+    mov [rbp - 24], rax
+
+    mov rbx, [rbp - 32]
+    cmp dword [rbx + 6], custom_
+    je vvnfa_L2
+
+    reg rax_, qword_
+    mov rdi, rax
+    mov rsi, [rbp - 24]
+    mov dx, MEMPOS
+    call mov_value_to_reg
+    mov [rbp - 24], rax
+
+    mov rdi, [rbp - 32]
+    mov rsi, [rbp - 24]
+    call mov_to_mempos
+    vvnfa_L2:
+    
+    leave
+    ret
+
 genlookuptable:
     dq 0
     dq visit_node_root
@@ -1290,6 +1347,7 @@ genlookuptable:
     dq visit_node_struct
     dq visit_node_struct_ini
     dq visit_node_field_access
+    dq visit_node_field_assign
 
 mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     push rbp

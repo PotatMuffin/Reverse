@@ -501,6 +501,18 @@ macro node_field_access field_name, struct
     add [memory_pointer], node_field_access_size
 }
 
+macro node_field_assign value, field
+{
+    check_memory node_field_assign_size
+    mov rax, [memory_pointer]
+    mov word [rax], NODE_FIELD_ASSIGN
+    mov rbx, value
+    mov qword [rax + 2], rbx
+    mov rbx, field
+    mov qword [rax + 10], rbx
+    add [memory_pointer], node_field_assign_size
+}
+
 macro immvalue value
 {
     check_memory immvalue_size

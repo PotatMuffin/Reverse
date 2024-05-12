@@ -730,6 +730,8 @@ parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
     je pveL3
     cmp word [rcx], TT_BRACER
     je pveL3
+    cmp word [rcx], TT_FIELD
+    je pveL5
     cmp word [rcx], TT_IDENT
     jne pveL2
 
@@ -758,6 +760,18 @@ parse_var_expr: ; void* parse_var_expr(token** Ptokens, void* value)
     call parse_atom
     mov [rbp - 24], rax
     node_ptr_ass [rbp - 16], [rbp - 24]
+    leave
+    ret
+    pveL5:
+
+    mov rbx, [rbp - 8]
+    sub qword [rbx], tok_len
+    mov rdi, [rbp - 8]
+    mov sil, 1
+    call parse_atom
+    mov r15, rax
+    node_field_assign [rbp - 16], r15
+
     leave
     ret
 

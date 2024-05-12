@@ -1038,6 +1038,43 @@ valvisit_node_field_access: ; void* valvisit_node_field_access(void* node, valco
     leave
     ret
 
+valvisit_node_field_assign: ; void* valvisit_node_field_assign(void* node, valcontext* context)
+    push rbp
+    mov rbp, rsp
+    sub rsp, 32
+    mov [rbp - 8], rdi
+    mov [rbp - 16], rsi
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 10]
+    mov rsi, [rbp - 16]
+    call valvisit
+    mov [rbp - 32], rax
+
+    mov rbx, [rbp - 8]
+    mov rdi, [rbx + 2]
+    mov rbx, [rbp - 16]
+    valcontext [rbx], [rbp - 32]
+    mov rsi, rax
+    call valvisit
+    mov [rbp - 24], rax
+
+    mov rdi, [rbp - 32]
+    mov rsi, [rbp - 24]
+    call type_equals
+    cmp al, 0
+    jne vvnfa_L1
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 10]
+    mov rdi, [rbx + 2]
+    call type_mismatch
+
+    vvnfa_L1:
+    mov rax, [rbp - 32]
+    leave
+    ret
+
 vallookuptable:
     dq 0
     dq valvisit_node_root
@@ -1059,6 +1096,7 @@ vallookuptable:
     dq valvisit_node_struct
     dq valvisit_node_struct_ini
     dq valvisit_node_field_access
+    dq valvisit_node_field_assign
 
 ; returns a boolean value depeding on if you can convert type a to type b
 can_convert_expl: ; bool can_convert_expl(void* a, void* b)

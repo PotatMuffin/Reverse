@@ -344,13 +344,21 @@ node_struct_ini_size = 26
 ; struct node_field_access
 ; {
 ;   short type
-;   char* field_name
+;   token* field_name
 ;   void* struct
 ;   void* field
 ; }
 node_field_access_size = 26
 
-node_count        = 19
+; struct node_field_assign
+; {
+;   short type
+;   void* value
+;   void* field
+; }
+node_field_assign_size = 18
+
+node_count        = 20
 NODE_ROOT         = 1
 NODE_BINOP        = 2
 NODE_LIT          = 3
@@ -370,6 +378,7 @@ NODE_CAST         = 16
 NODE_STRUCT       = 17
 NODE_STRUCT_INI   = 18
 NODE_FIELD_ACCESS = 19
+NODE_FIELD_ASSIGN = 20
 
 ; struct type
 ; {
