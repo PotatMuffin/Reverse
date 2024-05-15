@@ -21,6 +21,7 @@
 [else_expr]     : [scope] else [if_expr]
 
 [if_expr]       : [scope] ( [expr] ) if
+                : [scope] ( [expr] ) if else [if_expr]
 
 [while_expr]    : [scope] ( [expr] ) while
 

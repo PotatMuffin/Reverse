@@ -196,7 +196,7 @@ macro func arity, params, return, table
     add [memory_pointer], func_size
 }
 
-macro context table, logop_true, logop_false, logop_token, mem_pos
+macro context table, logop_true, logop_false, logop_token, mem_pos, if_end
 {
     check_memory context_size
     mov rax, [memory_pointer]
@@ -210,6 +210,8 @@ macro context table, logop_true, logop_false, logop_token, mem_pos
     mov [rax + 24], rbx
     mov rbx, mem_pos
     mov [rax + 32], rbx
+    mov rbx, if_end
+    mov [rax + 40], rbx
     add [memory_pointer], context_size
 }
 

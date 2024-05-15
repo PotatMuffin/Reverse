@@ -468,8 +468,9 @@ symbol_table_size = 28
 ;   char* logop_false
 ;   token* logop_token
 ;   mempos* mem_pos
+;   char* if_end
 ; }
-context_size = 40
+context_size = 48
 
 ; struct valcontext
 ; {
