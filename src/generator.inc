@@ -1009,7 +1009,7 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     sub rcx, [rbp - 32]
     cmp byte [rcx], 0
     je vnfcL8
-    printmany suffix
+
     mov rcx, [rbp - 32]
     reg [param_regs + rcx * 4], qword_
     mov rdi, rax
