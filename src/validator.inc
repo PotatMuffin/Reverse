@@ -479,7 +479,8 @@ valvisit_node_func_def: ;void valvisit_node_func_def(void* node, valcontext* con
     call get_real_type
     mov [rbp - 48], rax
 
-    symbol_table 256, [rbp - 16]
+    mov r15, [rbp - 16]
+    symbol_table 256, [r15]
     mov [rbp - 24], rax
 
     mov rbx, [rbp - 8]
@@ -647,12 +648,11 @@ valvisit_node_func_call: ; void* valvisit_node_func_call(void* node, valcontext*
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     call isnotfunc
+    
     vvnfcL1:
     mov [rbp - 24], rbx
     mov rcx, [rbp - 8]
     mov ecx, [rcx + 18]
-    cmp qword [rbx + 2], 0
-    je vvnfcL4
     cmp qword [rbx + 2], rcx
     je vvnfcL3
 
@@ -665,6 +665,9 @@ valvisit_node_func_call: ; void* valvisit_node_func_call(void* node, valcontext*
     call expect_n_params
 
     vvnfcL3:
+    cmp qword [rbx + 2], 0
+    je vvnfcL4
+
     mov rbx, [rbp - 24]
     mov rbx, [rbx + 2]
     mov [rbp - 32], rbx

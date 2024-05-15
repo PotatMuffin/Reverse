@@ -494,6 +494,7 @@ visit_node_var: ; void* visit_node_var(void* node, context* context)
     mov rdi, [rbx]
     mov rbx, [rbp - 8]
     mov rsi, [rbx + 2]
+    mov dl, 1
     call st_get_symbol
 
     mov rbx, [rax + 8]
@@ -892,7 +893,7 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     mov rbx, [rbp - 8]
     cmp dword [rbx + 18], 0
     je vnfcL1
-    
+
     ; ===================== first loop for putting the first six parameters in correct registers =================
     vnfcloop:
     mov rbx, qword [rbp - 24]
@@ -996,16 +997,19 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
 
     ; ==================== end of loops ==================
     vnfcL1: 
+    mov rbx, [rbp - 8]
+    cmp dword [rbx + 18], 0
+    je vnfcL9
+
     mov qword [rbp - 32], 0
     jmp vnfcL7
 
     vnfcL6:
-    mov rcx, rbp
+    lea rcx, [rbp - 33]
     sub rcx, [rbp - 32]
-    sub rcx, 33
     cmp byte [rcx], 0
     je vnfcL8
-
+    printmany suffix
     mov rcx, [rbp - 32]
     reg [param_regs + rcx * 4], qword_
     mov rdi, rax
@@ -1018,6 +1022,7 @@ visit_node_func_call: ; void* visit_node_func_call(void* node, context* context)
     vnfcL7:
     cmp qword [rbp - 32], 6
     jl vnfcL6
+    vnfcL9:
 
     mov rbx, [rbp - 16]
     mov rdi, [rbx]

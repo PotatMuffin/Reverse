@@ -26,7 +26,7 @@ tokenize: ; void* tokenize(char* buf)
     jmp tokloopstart1
 
     tokif0:
-    cmp [rbp - 21], byte '$'
+    cmp [rbp - 21], byte '#'
     jne tokif1
 
     tokif_11:
