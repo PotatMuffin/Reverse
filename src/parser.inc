@@ -326,7 +326,7 @@ parse_struct: ; void* parse_struct(token** Ptokens)
 parse_scope_expr: ; void* parse_scope_expr(token** Ptokens)
     push rbp
     mov rbp, rsp
-    sub rsp, 32
+    sub rsp, 40
     mov [rbp - 8], rdi
 
     mov rdi, [rbp - 8]
@@ -486,9 +486,32 @@ parse_scope_expr: ; void* parse_scope_expr(token** Ptokens)
     ret
 
     pse_parse_if:
+    node_if [rbp - 24], [rbp - 16]
+    mov [rbp - 40], rax
+
     mov rbx, [rbp - 8]
     add qword [rbx], tok_len
-    node_if [rbp - 24], [rbp - 16]
+    mov rbx, [rbx]
+    cmp word [rbx], TT_KEYWORD
+    jne pseL8
+
+    mov rdi, [rbx + 2]
+    mov rsi, else_
+    call strcmp
+    cmp al, 0
+    je pseL8
+
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+
+    mov rdi, [rbp - 8]
+    mov rsi, [rbp - 40]
+    call parse_else_expr
+    mov [rbp - 40], rax
+    
+    pseL8:
+
+    mov rax, [rbp - 40]
     leave
     ret
     pseL1:
@@ -709,8 +732,18 @@ parse_else_expr: ; void* parse_else_expr(token** Ptokens, void* scope)
     peeL2:
 
     mov rax, [rbp - 24]
+    cmp qword [rax + 18], 0
+    je peeL3
+
+    mov rcx, [rbp - 16]
+    mov rbx, [rax + 18]
+    mov [rcx + 18], rbx
+    mov [rax + 18], rcx
+    jmp peeL4
+    peeL3:
     mov rbx, [rbp - 16]
     mov [rax + 18], rbx
+    peeL4:
     leave
     ret
 
