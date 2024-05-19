@@ -11,7 +11,7 @@ generate: ; void generate(void* node, symbol_table* table)
     sub [memory_text_pointer], r15
     mov byte [memory_text_pointer], 0
 
-    context [rbp - 16], 0, 0, 0, 0
+    context [rbp - 16], 0, 0, 0, 0, 0, 0
     mov [rbp - 24], rax
 
     open [output], default_open_flags, default_open_mode
@@ -147,7 +147,7 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 2]
     mov r15, [rbp - 57]
-    context [r15], 0, 0, 0, 0
+    context [r15], 0, 0, 0, 0, 0, 0
     mov rsi, rax
     mov dl, 1
     call visit
@@ -191,7 +191,7 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 18]
     mov r15, [rbp - 57]
-    context [r15], 0, 0, 0, 0
+    context [r15], 0, 0, 0, 0, 0, 0
     mov rsi, rax
     mov dl, 0
     call visit
@@ -335,7 +335,7 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
     mov rbx, qword [rbp - 8]
     mov rdi, qword [rbx + 10]
     mov rbx, [rbp - 16]
-    context [rbx],0,0,0,0
+    context [rbx],0,0,0,0,0,0
     mov rsi, rax
     mov dl, 1
     call visit
@@ -382,7 +382,7 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
 
     mov rdi, [rbp - 8]
     mov rbx, [rbp - 16]
-    valcontext [rbx], 0
+    valcontext [rbx],0,0,0
     mov rsi, rax
     call valvisit
 
@@ -449,7 +449,7 @@ visit_node_vardef: ; void* visit_node_vardef(void* node, context* context)
     mov rdi, qword [rbx + 2]
     
     mov r15, [rbp - 16]
-    context [r15], 0, 0, 0, [rbp - 32]
+    context [r15], 0, 0, 0, [rbp - 32],0,0
     mov rsi, rax
 
     mov dl, 1
@@ -602,32 +602,34 @@ visit_node_while: ; void visit_node_while(void* node, context* context)
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
-    mov rdi, [while_label]
+    mov rdi, [loop_label]
     call itoa
     mov [rbp - 24], rax
-    inc qword [while_label]
+    inc qword [loop_label]
 
-    mov rdi, [while_label]
+    mov rdi, [loop_label]
     call itoa
     mov [rbp - 32], rax
-    inc qword [while_label]
+    inc qword [loop_label]
 
-    mov rdi, [while_label]
+    mov rdi, [loop_label]
     call itoa
     mov [rbp - 40], rax
-    inc qword [while_label]
+    inc qword [loop_label]
 
-    fprintmany [outputfd], _jmp, while_, [rbp - 32], newline
+    fprintmany [outputfd], _jmp, loop_, [rbp - 32], newline
 
-    fprintmany [outputfd], while_, [rbp - 24], colon, newline
+    fprintmany [outputfd], loop_, [rbp - 24], colon, newline
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 10]
-    mov rsi, [rbp - 16]
+    mov r15, [rbp - 16]
+    context [r15], 0,0,0,0,[rbp - 32], [rbp - 40]
+    mov rsi, rax
     mov dl, 1
     call visit
 
-    fprintmany [outputfd], while_, [rbp - 32], colon, newline
+    fprintmany [outputfd], loop_, [rbp - 32], colon, newline
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
@@ -647,8 +649,8 @@ visit_node_while: ; void visit_node_while(void* node, context* context)
     mov r15, rax
 
     fprintmany [outputfd], _cmp, r15, comma, zero, newline
-    fprintmany [outputfd], _jne, while_, [rbp - 24], newline
-    fprintmany [outputfd], while_, [rbp - 40], colon, newline
+    fprintmany [outputfd], _jne, loop_, [rbp - 24], newline
+    fprintmany [outputfd], loop_, [rbp - 40], colon, newline
 
     leave
     ret
@@ -660,25 +662,25 @@ visit_node_for: ; void visit_node_for(void* node, context* context)
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
     
-    mov rdi, [for_label]
+    mov rdi, [loop_label]
     call itoa
     mov [rbp - 24], rax
-    inc qword [for_label]
+    inc qword [loop_label]
 
-    mov rdi, [for_label]
+    mov rdi, [loop_label]
     call itoa
     mov [rbp - 32], rax
-    inc qword [for_label]
+    inc qword [loop_label]
 
-    mov rdi, [for_label]
+    mov rdi, [loop_label]
     call itoa
     mov [rbp - 40], rax
-    inc qword [for_label]
+    inc qword [loop_label]
 
-    mov rdi, [for_label]
+    mov rdi, [loop_label]
     call itoa
     mov [rbp - 48], rax
-    inc qword [for_label]
+    inc qword [loop_label]
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
@@ -686,16 +688,18 @@ visit_node_for: ; void visit_node_for(void* node, context* context)
     mov dl, 1
     call visit
 
-    fprintmany [outputfd], _jmp, for_, [rbp - 40], newline
-    fprintmany [outputfd], for_, [rbp - 24], colon, newline
+    fprintmany [outputfd], _jmp, loop_, [rbp - 40], newline
+    fprintmany [outputfd], loop_, [rbp - 24], colon, newline
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 26]
-    mov rsi, [rbp - 16]
+    mov r15, [rbp - 16]
+    context [r15],0,0,0,0,[rbp - 32], [rbp - 48]
+    mov rsi, rax
     mov dl, 1
     call visit
 
-    fprintmany [outputfd], for_, [rbp - 32], colon, newline
+    fprintmany [outputfd], loop_, [rbp - 32], colon, newline
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 18]
@@ -703,7 +707,7 @@ visit_node_for: ; void visit_node_for(void* node, context* context)
     mov dl, 1
     call visit
 
-    fprintmany [outputfd], for_, [rbp - 40], colon, newline
+    fprintmany [outputfd], loop_, [rbp - 40], colon, newline
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 10]
@@ -723,9 +727,9 @@ visit_node_for: ; void visit_node_for(void* node, context* context)
     mov [rbp - 56], rax
 
     fprintmany [outputfd], _cmp, [rbp - 56], comma, zero, newline
-    fprintmany [outputfd], _jne, for_, [rbp - 24], newline
+    fprintmany [outputfd], _jne, loop_, [rbp - 24], newline
 
-    fprintmany [outputfd], for_, [rbp - 48], colon, newline
+    fprintmany [outputfd], loop_, [rbp - 48], colon, newline
 
     leave
     ret
@@ -832,7 +836,7 @@ visit_node_func_def: ; void visit_node_func_def(void* node, context* context)
     jl vnfdL2
     vnfdL1:
 
-    context [rbp - 48], 0, 0, 0, 0
+    context [rbp - 48], 0, 0, 0, 0,0,0
     mov r15, rax
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
@@ -845,16 +849,27 @@ visit_node_func_def: ; void visit_node_func_def(void* node, context* context)
     leave
     ret
 
-visit_node_return: ; void visit_node_return(void* node, context* context)
+visit_node_control: ; void visit_node_control(void* node, context* context)
     push rbp
     mov rbp, rsp
-    sub rsp, 16
+    sub rsp, 24
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
     mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    mov rbx, [rbx + 2]
+    mov [rbp - 24], rbx
+
+    mov rdi, return_
+    mov rsi, [rbp - 24]
+    call strcmp
+    cmp al, 0
+    je vncL2
+
+    mov rbx, [rbp - 8]
     cmp qword [rbx + 10], 0
-    je vnrL1
+    je vncL1
 
     mov rdi, [rbx + 10]
     mov rsi, [rbp - 16]
@@ -865,9 +880,28 @@ visit_node_return: ; void visit_node_return(void* node, context* context)
     mov rdi, rax
     mov rsi, r15
     call mov_to_reg
-    vnrL1:
+    vncL1:
 
     fprintmany [outputfd], _epilogue
+
+    leave
+    ret
+    vncL2:
+    mov rdi, continue_
+    mov rsi, [rbp - 24]
+    call strcmp
+    cmp al, 0
+    je vncL3
+
+    mov r15, [rbp - 16]
+    fprintmany [outputfd], _jmp, loop_, [r15 + 40], newline
+
+    leave
+    ret
+    vncL3:
+
+    mov r15, [rbp - 16]
+    fprintmany [outputfd], _jmp, loop_, [r15 + 48], newline
 
     leave
     ret
@@ -1075,7 +1109,7 @@ visit_node_ptr_ass: ; void* visit_node_ptr_ass(void* node, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     mov rbx, [rbp - 16]
-    context [rbx],0,0,0,[rbp - 32]
+    context [rbx],0,0,0,[rbp - 32],0,0
     mov rsi, rax
     mov dl, 1
     call visit
@@ -1187,7 +1221,7 @@ visit_node_struct_ini: ; void visit_node_struct_ini(void* node, context* context
     mov rbx, [rbp - 32]
     mov rdi, [rbx]
     mov rbx, [rbp - 16]
-    context [rbx],0,0,0,[rbp - 24]
+    context [rbx],0,0,0,[rbp - 24],0,0
     mov rsi, rax
     mov dl, 1
     call visit
@@ -1235,7 +1269,7 @@ visit_node_field_access: ; void visit_node_field_access(void*, context* context)
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 10]
     mov rbx, [rbp - 16]
-    context [rbx],0,0,0,0
+    context [rbx],0,0,0,0,0,0
     mov rsi, rax
     call visit
     mov [rbp - 24], rax
@@ -1307,7 +1341,7 @@ visit_node_field_assign: ; void visit_node_field_assign(void* node, context* con
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
     mov rbx, [rbp - 16]
-    context [rbx],0,0,0, [rbp - 32]
+    context [rbx],0,0,0, [rbp - 32],0,0
     mov rsi, rax
     call visit
     mov [rbp - 24], rax
@@ -1345,7 +1379,7 @@ genlookuptable:
     dq visit_node_for
     dq visit_node_asm
     dq visit_node_func_def
-    dq visit_node_return
+    dq visit_node_control
     dq visit_node_func_call
     dq visit_node_ptr_ass
     dq visit_node_cast
@@ -1760,7 +1794,7 @@ logical_binop: ; void* logical_binop(void* node, context* context)
     mov rdi, [rbx + 2]
     mov r14, [rbx + 10]
     mov r15, [rbp - 16]
-    context [r15], [rbp - 40], [rbp - 48], r14, 0
+    context [r15], [rbp - 40], [rbp - 48], r14, 0,0,0
     mov rsi, rax
     mov dl, 1 
     call visit
@@ -1799,7 +1833,7 @@ logical_binop: ; void* logical_binop(void* node, context* context)
     mov rdi, [rbx + 18]
     mov r14, [rbx + 10]
     mov r15, [rbp - 16]
-    context [r15], [rbp - 40], [rbp - 48], r14, 0
+    context [r15], [rbp - 40], [rbp - 48], r14, 0,0,0
     mov rsi, rax
     mov dl, 0
     call visit

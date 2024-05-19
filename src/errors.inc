@@ -30,4 +30,7 @@ cantinfertype db "Cant infer type of struct",0
 invalidconstruct db "Invalid type for constructor",0
 builtinnofield db "Builtin types have no fields",0
 invalidfield db "Invalid field",0
+noreturnval db "No return value has been provided",0
+returnvalbutvoid db "A return value has been provided but the return type is void",0
+outsideloop db "' outside of a loop",0
 unreachable db "Unreachable",10,0

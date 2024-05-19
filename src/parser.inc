@@ -120,12 +120,27 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     mov rsi, [rbx + 2]
     call strcmp
     cmp al, 0
+    jne peL8
+    mov rdi, continue_
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    mov rsi, [rbx + 2]
+    call strcmp
+    cmp al, 0
+    jne peL8
+    mov rdi, break_
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx]
+    mov rsi, [rbx + 2]
+    call strcmp
+    cmp al, 0
     je peL3
+    peL8:
 
     mov rbx, [rbp - 8]
     mov r15, [rbx]
     add qword [rbx], tok_len
-    node_return r15, 0
+    node_control r15, 0
     leave
     ret
 
@@ -188,7 +203,7 @@ parse_expr: ; void* parse_expr(token** Ptokens)
     mov rbx, [rbp - 8]
     mov r15, [rbx]
     add qword [rbx], tok_len
-    node_return r15, [rbp - 16]
+    node_control r15, [rbp - 16]
     leave
     ret
 

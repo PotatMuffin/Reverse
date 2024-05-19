@@ -196,7 +196,7 @@ macro func arity, params, return, table
     add [memory_pointer], func_size
 }
 
-macro context table, logop_true, logop_false, logop_token, mem_pos
+macro context table, logop_true, logop_false, logop_token, mem_pos, loop_continue, loop_break
 {
     check_memory context_size
     mov rax, [memory_pointer]
@@ -210,10 +210,14 @@ macro context table, logop_true, logop_false, logop_token, mem_pos
     mov [rax + 24], rbx
     mov rbx, mem_pos
     mov [rax + 32], rbx
+    mov rbx, loop_continue
+    mov [rax + 40], rbx
+    mov rbx, loop_break
+    mov [rax + 48], rbx
     add [memory_pointer], context_size
 }
 
-macro valcontext table, type
+macro valcontext table, type, return_type, in_loop
 {
     check_memory valcontext_size
     mov rax, [memory_pointer]
@@ -221,6 +225,10 @@ macro valcontext table, type
     mov qword [rax], rbx
     mov rbx, type
     mov qword [rax + 8], rbx
+    mov rbx, return_type
+    mov qword [rax + 16], rbx
+    mov bl, in_loop
+    mov byte [rax + 24], bl
     add [memory_pointer], valcontext_size
 }
 
@@ -398,16 +406,16 @@ macro node_func_def scope, name, params, arity, return
     add [memory_pointer], node_func_def_size
 }
 
-macro node_return tok, value
+macro node_control tok, value
 {
-    check_memory node_return_size
+    check_memory node_control_size
     mov rax, [memory_pointer]
-    mov word [rax], NODE_RETURN
+    mov word [rax], NODE_CONTROL
     mov rbx, tok
     mov qword [rax + 2], rbx
     mov rbx, value
     mov qword [rax + 10], rbx
-    add [memory_pointer], node_return_size
+    add [memory_pointer], node_control_size
 }   
 
 macro node_func_call func_name, params, count
@@ -1426,4 +1434,23 @@ invalid_field:
     printmany ERROR
     print_tok_pos [rbp - 8]
     printmany invalidfield, suffix
+    exit_process 1
+no_return_val:
+    mov [rbp - 8], rdi
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    printmany noreturnval, suffix
+    exit_process 1
+return_val_but_void:
+    mov [rbp - 8], rdi
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    printmany returnvalbutvoid, suffix
+    exit_process 1
+outside_loop:
+    mov [rbp - 8], rdi
+    printmany ERROR
+    print_tok_pos [rbp - 8]
+    mov r15, [rbp - 8]
+    printmany quote, [r15 + 2], outsideloop, suffix
     exit_process 1

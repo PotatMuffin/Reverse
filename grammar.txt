@@ -7,6 +7,8 @@
 [expr]          : asm(STRLIT)
                 : [bin_expr]
                 : [bin_expr]? return
+                : continue
+                : break
                 : [var_expr]
 
 [scope_expr]    : [scope]

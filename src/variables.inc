@@ -11,12 +11,10 @@ output   rq 1
 outputfd rq 1
 
 if_label    dq 1
-while_label dq 1
-for_label   dq 1
+loop_label  dq 1
 str_label   dq 1
 other_label dq 1
 
-in_function db 0
 pass db 0
 
 builtin_types rq 5
@@ -43,6 +41,7 @@ _validating db "Validating program",10,0
 _generating db "Generating assembly",10,0
 
 L db "L",0
+loop_ db "loop",0
 _parenl db "'('",0
 _parenr db "')'",0
 _bracel db "'{'",0
@@ -87,9 +86,11 @@ for_ db "for",0
 asm_ db "asm",0
 return_ db "return",0
 struct_ db "struct",0
+break_ db "break",0
+continue_ db "continue",0
 
 keywords:
-   dq if_, else_, while_, for_, asm_, return_, struct_, 0
+   dq if_, else_, while_, for_, asm_, return_, struct_, break_, continue_, 0
 
 types:
    dq _void
@@ -290,13 +291,13 @@ node_asm_size = 10
 ; }
 node_func_def_size = 42
 
-; struct node_return
+; struct node_control
 ; {
 ;   short type
 ;   token* tok
 ;   void value*
 ; }
-node_return_size = 18
+node_control_size = 18
 
 ; struct node_func_call
 ; {
@@ -371,7 +372,7 @@ NODE_WHILE        = 9
 NODE_FOR          = 10
 NODE_ASM          = 11
 NODE_FUNC_DEF     = 12
-NODE_RETURN       = 13
+NODE_CONTROL      = 13
 NODE_FUNC_CALL    = 14
 NODE_PTR_ASS      = 15
 NODE_CAST         = 16
@@ -438,7 +439,7 @@ ptr_size = 22
 ;   short type
 ;   long arity
 ;   param* params
-;   type* return
+;   void* return_type
 ;   symbol_table* table
 ;   int num
 ; }
@@ -468,15 +469,19 @@ symbol_table_size = 28
 ;   char* logop_false
 ;   token* logop_token
 ;   mempos* mem_pos
+;   char* loop_continue
+;   char* loop_break
 ; }
-context_size = 40
+context_size = 56
 
 ; struct valcontext
 ; {
 ;   symbol_table* table
 ;   void* type
+;   void* return_type
+;   bool in_loop
 ; }
-valcontext_size = 16
+valcontext_size = 25
 
 ; struct value
 ; {
