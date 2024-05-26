@@ -262,32 +262,39 @@ tokenize: ; void* tokenize(char* buf)
     jmp tokloopcontinue
 
     tokif22:
-    cmp [rbp - 21], byte 10
+    cmp [rbp - 21], byte '@'
     jne tokif23
+
+    mov [r13], word TT_SIZEOF
+    jmp tokloopcontinue
+
+    tokif23:
+    cmp [rbp - 21], byte 10
+    jne tokif24
 
     mov [r13], word TT_NEWLINE
     inc dword [rbp - 12]
     jmp tokloopcontinue
 
-    tokif23:
+    tokif24:
     cmp [rbp - 21], byte ';'
-    jne tokif24
+    jne tokif25
 
     mov [r13], word TT_NEWLINE
     jmp tokloopcontinue
 
-    tokif24:
+    tokif25:
     cmp [rbp - 21], byte ','
-    jne tokif25
+    jne tokif26
 
     mov [r13], word TT_COMMA
     jmp tokloopcontinue
 
-    tokif25:
+    tokif26:
     cmp [rbp - 21], byte '0'
-    jl tokif26
+    jl tokif27
     cmp [rbp - 21], byte '9'
-    jg tokif26
+    jg tokif27
     mov [r13], word TT_INTLIT
     xor rax, rax
     L1:
@@ -311,9 +318,9 @@ tokenize: ; void* tokenize(char* buf)
     mov qword [r13 + 2], rax
     jmp tokloopcontinue
 
-    tokif26:
+    tokif27:
     cmp [rbp - 21], byte "'"
-    jne tokif27
+    jne tokif28
     mov [r13], word TT_INTLIT
     mov rbx, [rbp - 8]
     movzx rax, byte [rbx + 1]
@@ -330,9 +337,9 @@ tokenize: ; void* tokenize(char* buf)
     mov qword [r13 + 2], rax
     jmp tokloopcontinue
 
-    tokif27:
+    tokif28:
     cmp [rbp - 21], byte '"'
-    jne tokif28
+    jne tokif29
     mov word [r13], TT_STRLIT
     mov r15, [memory_text_pointer]
     mov rbx, [rbp - 8]
@@ -340,10 +347,6 @@ tokenize: ; void* tokenize(char* buf)
     call fcopy_str
     cmp rax, -1
     jne tokif_10
-    mov rdi, rax
-    call display_number
-    mov rdi, suffix
-    call print
     printmany ERROR, brackl
     movsxd rdi, dword [rbp - 12]
     call display_number
@@ -358,12 +361,12 @@ tokenize: ; void* tokenize(char* buf)
     mov qword [r13 + 2], rax
     jmp tokloopcontinue
 
-    tokif28:
+    tokif29:
     mov rdi, alpha
     mov sil, byte [rbp - 21]
     call contains_char
     cmp al, 0
-    je tokif29
+    je tokif30
 
     mov rdi, [rbp - 8]
     mov rsi, alphanumeric 
@@ -382,7 +385,7 @@ tokenize: ; void* tokenize(char* buf)
 
     jmp tokloopcontinue
 
-    tokif29:
+    tokif30:
 
     mov rdi, brackl
     call print

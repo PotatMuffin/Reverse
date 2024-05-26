@@ -332,6 +332,11 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
     mov [rbp - 8], rdi
     mov [rbp - 16], rsi
 
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    cmp word [rbx], TT_SIZEOF
+    je vnuL2
+
     mov rbx, qword [rbp - 8]
     mov rdi, qword [rbx + 10]
     mov rbx, [rbp - 16]
@@ -367,7 +372,7 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
     ret
     vnuL1:
     cmp word [rbx], TT_STAR
-    jne vnuL2
+    jne vnuL7
     mov rbx, [rbp - 16]
     cmp qword [rbx + 32], 0
     je vnuL6
@@ -418,6 +423,34 @@ visit_node_unop: ; void* visit_node_unop(void* node, context* context)
     leave
     ret
     vnuL2:
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 10]
+    cmp word [rbx], STRUCT
+    je vnuL8
+
+    mov ebx, [rbx + 2]
+    movzx ebx, [sizes + rbx]
+    mov [rbp - 24], rbx
+
+    jmp vnuL9
+    vnuL8:
+
+    mov ebx, [rbx + 10]
+    mov [rbp - 24], rbx
+    
+    vnuL9:
+
+    mov r15, [memory_pointer]
+    mov word [r15], TT_INTLIT
+    mov rbx, [rbp - 24]
+    mov [r15 + 2], rbx
+    add [memory_pointer], tok_len
+
+    immvalue r15
+    leave
+    ret
+    vnuL7:
 
     mov rdi, [rbp - 32]
     mov rsi, [rbp - 24]
@@ -1427,15 +1460,13 @@ mov_to_reg: ; void* mov_to_reg(void* reg, void* value)
     mov rbx, [rbp - 16]
     cmp dword [rbx + 6], dword_
     jne mtrL4
-    mov qword [rbp - 40], _mov
-    mov rcx, [rbp - 8]
-    reg dword [rcx + 2], dword_
-    mov rdi, rax
+    mov qword [rbp - 40], _movsxd
+    mov rdi, [rbp - 8]
     call value_to_string
     mov [rbp - 24], rax
     jmp mtrL5
     mtrL4: 
-    mov qword [rbp - 40], _movzx
+    mov qword [rbp - 40], _movsx
     mtrL2:
 
     mov rdi, [rbp - 8]

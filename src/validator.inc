@@ -152,6 +152,11 @@ valvisit_node_unop: ; void* valvisit_node_unop(void* node, valcontext* context)
     mov [rbp - 16], rsi
 
     mov rbx, [rbp - 8]
+    mov rcx, [rbx + 2]
+    cmp word [rcx], TT_SIZEOF
+    je vvnuL7
+
+    mov rbx, [rbp - 8]
     mov rcx, [rbx + 10]
     mov rbx, [rbx + 2]
     cmp word [rbx], TT_AND
@@ -184,6 +189,26 @@ valvisit_node_unop: ; void* valvisit_node_unop(void* node, valcontext* context)
     printmany expectedptr, suffix
     exit_process 1
 
+    vvnuL7:
+    mov rdi, [rbx + 10]
+    mov rbx, [rbp - 16]
+    mov rsi, [rbx]
+    call get_real_type
+    cmp rax, -1
+    jne vvnuL8
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    mov rdi, [rbx]
+    call is_not_a_type
+
+    vvnuL8:
+    mov rbx, [rbp - 8]
+    mov [rbx + 10], rax
+
+    mov rax, [builtin_types + 32]
+    leave
+    ret
     vvnuL5:
 
     cmp qword [rbx + 6], 1

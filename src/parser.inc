@@ -1109,6 +1109,8 @@ parse_atom: ; void* parse_atom(token** Ptokens, bool cast)
     je paL6
     cmp word [rbx], TT_AND
     je paL6
+    cmp word [rbx], TT_SIZEOF
+    je paL21
     cmp word [rbx], TT_STAR
     jne paL4
     paL6:
@@ -1120,6 +1122,29 @@ parse_atom: ; void* parse_atom(token** Ptokens, bool cast)
     mov [rbp - 24], rax
 
     node_unop [rbp - 16], [rbp - 24]
+    mov [rbp - 60], rax
+    jmp paL12
+
+    paL21:
+    mov rbx, [rbp - 8]
+    add qword [rbx], tok_len
+    mov rbx, [rbx]
+    cmp word [rbx], TT_IDENT
+    je paL22 
+
+    mov rdi, rbx
+    pushmany 0, _type
+    mov rsi, rsp
+    call syntax_error_expected
+
+    paL22: 
+
+    mov rdi, [rbp - 8]
+    call parse_type
+    mov [rbp - 24], rax
+    mov r15, rax
+
+    node_unop [rbp - 16], r15
     mov [rbp - 60], rax
     jmp paL12
 

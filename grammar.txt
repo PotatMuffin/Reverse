@@ -67,6 +67,7 @@
                 : ![atom]
                 : &[atom]
                 : *[atom]
+                : @[type]
                 : IDENT
                 : IDENT::[atom]
                 : ( [bin_expr]* )IDENT
