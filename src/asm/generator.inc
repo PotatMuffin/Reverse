@@ -833,7 +833,12 @@ visit_node_func_def: ; void visit_node_func_def(void* node, context* context)
     mov rbx, [rbp - 32]
     cmp rbx, 6
     jge vnfdL4
-    reg dword [param_regs + rbx * 4], qword_
+    mov rcx, [rbp - 8]
+    mov rcx, [rcx + 26]
+    sub rcx, rbx
+    sub rcx, 1
+
+    reg dword [param_regs + rcx * 4], qword_
     mov rdi, r15
     mov rsi, rax
     call mov_to_mempos
