@@ -13,37 +13,78 @@
 
 1 = true byte
 0 = false byte
- 
+
+settings {
+    source_fn byte*
+    output_fn byte*
+    memory long
+} struct
+
 (()get_argc, ()get_argv)main = exit_code int
 (exit_code)exit
 
 {
-    { 1 return } ((argc, argv)parse_args != 0) if
-    [0(heapchunk_t*),0,0,null,0] = heap heapinfo_t
+    [null(byte*), "out.asm", 16 << 20] = _settings settings
+    { 1 return } ((argc, argv, &_settings)parse_args != 0) if
+
+    [0(heapchunk_t*),0,0,null] = heap heapinfo_t
 
     {   
         (LOG_ERROR, "Could not initialize heap\n")log
         1 return
-    } ((&heap, 16 << 20)init_heap != 0) if
-
-    (&heap, 10)heap_alloc(byte*) = buf byte*
+    } ((&heap, memory::_settings)init_heap != 0) if
 
     0 return
 } (argc int, argv byte**) main int
 
 {
+    false = found_source byte
+    false = found_output byte
+
     {
-        (*argv)print_usage 
-        1 return 
-    } (argc < 2) if
+        (argv + i * @void*) = arg byte**
+
+        { 
+            0 = num long
+            arg + @void* = arg
+            
+            {
+                (LOG_ERROR, "Invalid argument for -m\n")log
+                1 return
+            } ((*arg, &num)try_parse_int) if
+
+            num << 10 = memory::_settings
+            i + 1 = i
+            continue
+        } ( ("-m", *arg)strcmp ) if
+
+        {
+            *arg == output_fn::_settings
+            true = found_output
+            continue
+        } (!found_output) if else  
+        {
+            *arg == source_fn::_settings
+            true = found_source
+            continue
+        } (!found_source) if
+
+        (*argv)print_usage
+        1 return
+
+    } (i + 1 = i; i < argc; 1 = i int) for
+
+    { (*argv)print_usage; 1 return } (!found_source) if
 
     0 return
-} (argc int, argv byte**) parse_args int
+} (argc int, argv byte**, _settings settings*) parse_args int
 
 {
     ("Usage: ")print
     (prog)print
     (" <source> [output]\n")print
+    ("optional settings:\n")print
+    ("  -m <limit>   set the available memory in kilobytes\n") print
     return
 } (prog byte*) print_usage void
 
@@ -82,11 +123,50 @@
     return
 } (str byte*) print void
 
+{
+    null(byte*) = str byte*
+    asm("sub rsp, 32")
+    asm("mov [rbp - 16], rsp")
+    false = is_neg byte
+
+    { ("0")print; return } (num == 0) if
+    { -num = num; true = is_neg } (num < 0) if
+
+    (num)log10l + is_neg + 1 = length int
+    {
+        { 0 = *(str + i); continue } (i == length) if
+
+        num % 10 = digit byte
+        num / 10 = num
+
+        digit + '0' = digit
+        digit = *(str + i)
+    } (i - 1 = i; i >= 0; length = i int) for
+
+    (str)print
+
+    return
+} (num long) print_num void
+
 {   
     0 = len long
     { len + 1 = len } (*(str + len)) while
     len return
 } (str byte*) strlen long
+
+{
+    (str1)strlen = str1len long
+    (str2)strlen = str2len long
+    { false return } (str1len != str2len) if
+    true = is_equal byte
+
+    {
+        (*(str1 + i) == *(str2 + i)) = is_equal
+        { break } (!is_equal) if
+    } (i + 1 = i; i < str1len; 0 = i int) for
+
+    is_equal return
+} (str1 byte*, str2 byte*) strcmp byte
 
 {
     (src)strlen = len long
@@ -98,6 +178,23 @@
     } (i + 1 = i; true; 0 = i long) for  
     return
 } (src byte*, dest byte*) strcpy void
+
+{
+    (str)strlen = len long
+    0 = *res
+
+    {
+        *res * 10 = *res
+        *(str + i) = n long
+        { break } (n == 0) if
+        { 1 return } (n > '9' || n < '0') if
+
+        n - '0' = n
+        n + *res = *res
+    } (i + 1 = i; i < len; 0 = i int) for
+
+    0 return
+} (str byte*, res long*) try_parse_int byte
 
 {
     0 = y int 
@@ -155,7 +252,6 @@ heapinfo_t {
     nchunks long
     chunks_cap long
     memory void*
-    avail long
 } struct
 
 {       
@@ -170,7 +266,7 @@ heapinfo_t {
 
     chunk_memory = chunks::heap
     size / @heapchunk_t = chunks_cap::heap
-    size::chunk = avail::heap
+    1 = nchunks::heap
     
     chunk = *(chunks::heap)
 
@@ -178,36 +274,122 @@ heapinfo_t {
 } (heap heapinfo_t*, size long) init_heap int
 
 {
-    return
-} (heap heapinfo_t*, chunk heapchunk_t*, index long) insert_chunk void
+    { 1 return } ( nchunks::heap + 1 == chunks_cap::heap) if
+
+    {
+        (chunks::heap + i * @heapchunk_t) = Pchunk heapchunk_t*
+        *Pchunk = _chunk heapchunk_t
+        (chunks::heap + (i + 1) * @heapchunk_t) = Pchunk
+        _chunk = *Pchunk
+    } (i - 1 = i; i >= index; nchunks::heap - 1 = i int) for
+
+    (chunks::heap + index * @heapchunk_t) = Pchunk
+    *chunk = *Pchunk
+
+    nchunks::heap + 1 = nchunks::heap
+    0 return
+} (heap heapinfo_t*, chunk heapchunk_t*, index long) insert_chunk int
 
 {
-    (chunks::*heap + chunk_index * @heapchunk_t) = Pchunk heapchunk_t*
-    *Pchunk = chunk heapchunk_t
+    {
+        nchunks::heap - 1 = nchunks::heap
+        return
+    } (index == nchunks::heap - 1) if
 
-    nchunks::*heap = new_chunk_index long
-    [bytes, start::chunk, true] = new_chunk heapchunk_t
-    (chunks::*heap + new_chunk_index * @heapchunk_t) = Pnew_chunk heapchunk_t*
+    {
+        (chunks::heap + i + 1 * @heapchunk_t) = Pchunk heapchunk_t*
+        *Pchunk = _chunk heapchunk_t
+        (chunks::heap + (i) * @heapchunk_t) = Pchunk
+        _chunk = *Pchunk
+    } (i + 1 = i; i < nchunks::heap; index = i int) for
+
+    nchunks::heap - 1 = nchunks::heap
+    return
+} (heap heapinfo_t*, index long) remove_chunk void
+
+{
+    (chunks::heap + chunk_index * @heapchunk_t) = chunk heapchunk_t*
+
+    nchunks::heap = new_chunk_index long
+    [bytes, start::chunk, false] = new_chunk heapchunk_t
 
     start::chunk + bytes = start::chunk
     size::chunk - bytes = size::chunk
 
-    chunk = *Pnew_chunk
-    new_chunk = *Pchunk
+    {
+        null(heapchunk_t*) return
+    } ((heap, &new_chunk, chunk_index)insert_chunk) if
 
-    Pchunk return
+    chunk return
 } (chunk_index long, heap heapinfo_t*, bytes long) split_chunk heapchunk_t*
 
-{
+{ 
     nchunks::heap - 1 = chunk_index long
-    ((chunks::heap) + chunk_index * @heapchunk_t) = chunk heapchunk_t*
-    start::chunk return
 
     {
-        (chunk_index, heap, bytes)split_chunk = chunk
-    } (size::chunk > bytes) if  
+        ((chunks::heap) + i * @heapchunk_t) = chunk heapchunk_t*
 
-    { null return } (chunk == null) if
+        { continue } (size::chunk < bytes) if
+        { continue } (inuse::chunk) if
 
-    start::chunk return
+        { 
+            (i, heap, bytes)split_chunk = chunk
+        } (size::chunk > bytes) if
+
+        true = inuse::chunk
+        start::chunk return
+    } (i - 1 = i; i >= 0; chunk_index = i int) for
+
+    null return
 } (heap heapinfo_t*, bytes long) heap_alloc void*
+
+{
+    {
+        ((chunks::heap) + i * @heapchunk_t) = chunk heapchunk_t*
+
+        { 
+            i return 
+        } (start::chunk == ptr) if
+
+    } (i + 1 = i; i < nchunks::heap; 0 = i int) for
+
+    -1 return
+} (heap heapinfo_t*, ptr void*) find_chunk long
+
+{
+    ((chunks::heap) + index * @heapchunk_t) = chunk heapchunk_t*
+    {
+        ((chunks::heap) + index - 1 * @heapchunk_t) = Lchunk heapchunk_t*
+
+        { 
+            start::Lchunk = start::chunk
+            size::chunk + size::Lchunk = size::chunk
+        } ( !inuse::Lchunk ) if
+
+        (heap, index - 1)remove_chunk
+    } (index > 0) if
+
+
+    {
+        ((chunks::heap) + index + 1 * @heapchunk_t) = Rchunk heapchunk_t*
+
+        { 
+            size::Rchunk + size::chunk = size::chunk
+        } ( !inuse::Rchunk ) if
+
+        (heap, index + 1)remove_chunk
+    } (index < nchunks::heap - 1) if
+
+    return
+} (heap heapinfo_t*, index long) merge_chunk void
+
+{
+    (heap, ptr)find_chunk = index long
+    { return } ( index == -1 ) if
+    
+    ((chunks::heap) + index * @heapchunk_t) = chunk heapchunk_t*
+    false = inuse::chunk
+    (heap, index)merge_chunk
+
+    return
+} (heap heapinfo_t*, ptr void*) heap_free void

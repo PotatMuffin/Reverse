@@ -176,11 +176,26 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
     je vnbL9
     cmp word [rbx], NODE_BINOP
     je vnbL9
+    cmp word [rbx], NODE_FIELD_ACCESS
+    je vnbL9
     cmp word [rbx], NODE_FUNC_CALL
     jne vnbL2
 
     vnbL9:
     mov qword [rbp - 33], 0
+
+    mov r15, [rbp - 16]
+    cmp word [r15], MEMPOS
+    jne vnbL11
+
+    reg [r15 + 2], qword_
+    mov rdi, rax
+    mov rsi, [rbp - 16]
+    call mov_to_reg
+    mov [rbp - 16], rax
+
+    vnbL11:
+
     mov rdi, [rbp - 16]
     call value_to_string
     mov r15, rax
@@ -1145,8 +1160,17 @@ visit_node_ptr_ass: ; void* visit_node_ptr_ass(void* node, context* context)
     call mov_to_reg
     mempos r11_, custom_, 0
     mov [rbp - 32], rax
-
+    jmp vnpaL5
     vnpaL4:
+
+    mov r15, [rbp - 32]
+    reg r10_, qword_
+    mov rdi, rax
+    reg [r15 + 2], qword_
+    mov rsi, rax
+    call mov_to_reg
+    mov dword [r15 + 2], r10_
+    vnpaL5:
 
     mov rbx, [rbp - 8]
     mov rdi, [rbx + 2]
@@ -1301,7 +1325,7 @@ visit_node_struct_ini: ; void visit_node_struct_ini(void* node, context* context
     leave
     ret
 
-visit_node_field_access: ; void visit_node_field_access(void* node, context* context)
+visit_node_field_access: ; void visit_node_field_access(void* node, context* context, bool lhs)
     push rbp
     mov rbp, rsp
     sub rsp, 24
@@ -1320,14 +1344,14 @@ visit_node_field_access: ; void visit_node_field_access(void* node, context* con
     cmp byte [rbx + 26], 0
     je vnfaL3 
 
-    reg rax_, qword_
+    reg rdi_, qword_
 
     mov rdi, rax
     mov rsi, [rbp - 24]
     call mov_to_reg
 
     mov r15, [rbp - 24]
-    mempos rax_, [r15 + 6], 0
+    mempos rdi_, [r15 + 6], 0
     mov [rbp- 24], rax
 
     vnfaL3:
@@ -1853,7 +1877,7 @@ logical_binop: ; void* logical_binop(void* node, context* context)
     mov r15, [rbp - 16]
     context [r15], [rbp - 40], [rbp - 48], r14, 0,0,0
     mov rsi, rax
-    mov dl, 1 
+    mov dl, 1
     call visit
     mov [rbp - 24], rax
 
@@ -1977,6 +2001,8 @@ should_store_param: ; bool should_store_param(void* node, long index)
     cmp word [rbx], NODE_BINOP
     je stpL3
     cmp word [rbx], NODE_UNOP
+    je stpL3
+    cmp word [rbx], NODE_FIELD_ACCESS
     je stpL3
     cmp word [rbx], NODE_FUNC_CALL
     jne stpL2
