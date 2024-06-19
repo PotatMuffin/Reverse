@@ -1093,6 +1093,8 @@ valvisit_node_field_access: ; void* valvisit_node_field_access(void* node, valco
     mov rbx, [rax + 14]
     mov [rbp - 24], rbx
     cmp word [rbx], STRUCT
+    mov rbx, [rbp - 8]
+    mov byte [rbx + 26], 1
     je vvnfaL1
 
     vvnfaL2:

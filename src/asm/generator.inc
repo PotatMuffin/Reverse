@@ -104,6 +104,8 @@ visit_node_root: ; void visit_node_root(void* node, context* context)
     mov dl, 1
     call visit
 
+    fprintmany [outputfd], newline
+
     mov rbx, [rbp - 32]
     mov [memory_pointer], rbx
 
@@ -162,6 +164,8 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
     cmp word [rbx], NODE_UNOP
     je vnbL10
     cmp word [rbx], NODE_BINOP
+    je vnbL10
+    cmp word [rbx], NODE_FIELD_ACCESS
     je vnbL10
     cmp word [rbx], NODE_FUNC_CALL
     jne vnbL2
@@ -1297,7 +1301,7 @@ visit_node_struct_ini: ; void visit_node_struct_ini(void* node, context* context
     leave
     ret
 
-visit_node_field_access: ; void visit_node_field_access(void*, context* context)
+visit_node_field_access: ; void visit_node_field_access(void* node, context* context)
     push rbp
     mov rbp, rsp
     sub rsp, 24
@@ -1312,6 +1316,23 @@ visit_node_field_access: ; void visit_node_field_access(void*, context* context)
     call visit
     mov [rbp - 24], rax
 
+    mov rbx, [rbp - 8]
+    cmp byte [rbx + 26], 0
+    je vnfaL3 
+
+    reg rax_, qword_
+
+    mov rdi, rax
+    mov rsi, [rbp - 24]
+    call mov_to_reg
+
+    mov r15, [rbp - 24]
+    mempos rax_, [r15 + 6], 0
+    mov [rbp- 24], rax
+
+    vnfaL3:
+
+    mov rax, [rbp - 24]
     mov rbx, [rbp - 8]
     mov rbx, [rbx + 18]
     mov ecx, [rbx + 16]

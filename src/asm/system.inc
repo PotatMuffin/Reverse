@@ -112,6 +112,7 @@ macro linked_list_item item
     mov qword [rax], rbx ; data
     mov qword [rax + 8], 0 ; next
     mov qword [rax + 16], 0 ; previous
+    inc qword [allocations]
     add [memory_pointer], 24
 }
 
@@ -128,6 +129,7 @@ macro symbol_table table_size, parent
     mov rbx, parent
     mov qword [rax + 16], rbx
     mov dword [rax + 24], 1
+    inc qword [allocations]
     add [memory_pointer], rcx
 }
 
@@ -140,6 +142,7 @@ macro var type, pos
     mov qword [rax + 2], rbx
     mov ebx, pos
     mov dword [rax + 10], ebx
+    inc qword [allocations]
     add [memory_pointer], var_size
 }
 
@@ -153,6 +156,7 @@ macro struct fields, sizeof
     mov ebx, sizeof
     mov dword [rax + 10], ebx
     mov dword [rax + 14], 0
+    inc qword [allocations]
     add [memory_pointer], struct_size
 }
 
@@ -163,6 +167,7 @@ macro builtin_type size
     mov word [rax], BUILTIN_TYPE
     mov ebx, size
     mov dword [rax + 2], ebx
+    inc qword [allocations]
     add [memory_pointer], builtin_type_size
 }
 
@@ -176,6 +181,7 @@ macro ptr ptr_type, type
     mov qword [rax + 6], rbx
     mov rbx, type
     mov qword [rax + 14], rbx
+    inc qword [allocations]
     add [memory_pointer], ptr_size
 }
 
@@ -193,6 +199,7 @@ macro func arity, params, return, table
     mov rbx, table
     mov qword [rax + 26], rbx
     mov dword [rax + 34], 0
+    inc qword [allocations]
     add [memory_pointer], func_size
 }
 
@@ -214,6 +221,7 @@ macro context table, logop_true, logop_false, logop_token, mem_pos, loop_continu
     mov [rax + 40], rbx
     mov rbx, loop_break
     mov [rax + 48], rbx
+    inc qword [allocations]
     add [memory_pointer], context_size
 }
 
@@ -229,6 +237,7 @@ macro valcontext table, type, return_type, in_loop
     mov qword [rax + 16], rbx
     mov bl, in_loop
     mov byte [rax + 24], bl
+    inc qword [allocations]
     add [memory_pointer], valcontext_size
 }
 
@@ -239,6 +248,7 @@ macro node_root
     mov word [rax], NODE_ROOT
     mov qword [rax + 2], 0
     mov qword [rax + 10], 0
+    inc qword [allocations]
     add [memory_pointer], node_root_size
 }
 
@@ -253,6 +263,7 @@ macro node_binop left, op, right
     mov qword [rax + 10], rbx
     mov rbx, right
     mov qword [rax + 18], rbx
+    inc qword [allocations]
     add [memory_pointer], node_binop_size
 }
 
@@ -263,6 +274,7 @@ macro node_lit token
     mov word [rax], NODE_LIT
     mov rbx, token
     mov qword [rax + 2], rbx
+    inc qword [allocations]
     add [memory_pointer], node_lit_size
 }
 
@@ -275,6 +287,7 @@ macro node_unop op, node
     mov qword [rax + 2], rbx
     mov rbx, node
     mov qword [rax + 10], rbx
+    inc qword [allocations]
     add [memory_pointer], node_unop_size
 }
 
@@ -289,6 +302,7 @@ macro node_vardef value, name, type
     mov qword [rax + 10], rbx
     mov rbx, type
     mov qword [rax + 18], rbx
+    inc qword [allocations]
     add [memory_pointer], node_vardef_size
 }
 
@@ -301,6 +315,7 @@ macro node_varass value, name
     mov qword [rax + 2], rbx
     mov rbx, name
     mov qword [rax + 10], rbx
+    inc qword [allocations]
     add [memory_pointer], node_varass_size
 }
 
@@ -311,6 +326,7 @@ macro node_var name
     mov word [rax], NODE_VAR
     mov rbx, name
     mov qword [rax + 2], rbx
+    inc qword [allocations]
     add [memory_pointer], node_var_size
 }
 
@@ -324,6 +340,7 @@ macro node_if condition, scope
     mov rbx, scope
     mov qword [rax + 10], rbx
     mov qword [rax + 18], 0
+    inc qword [allocations]
     add [memory_pointer], node_if_size
 }
 
@@ -337,6 +354,7 @@ macro node_while condition, scope
     mov rbx, scope
     mov qword [rax + 10], rbx
     mov qword [rax + 18], 0
+    inc qword [allocations]
     add [memory_pointer], node_while_size
 }
 
@@ -353,6 +371,7 @@ macro node_for on_entry, condition, on_loop, scope
     mov qword [rax  + 18], rbx
     mov rbx, scope
     mov qword [rax + 26], rbx
+    inc qword [allocations]
     add [memory_pointer], node_for_size 
 }
 
@@ -363,6 +382,7 @@ macro node_asm asm
     mov word [rax], NODE_ASM
     mov rbx, asm
     mov [rax + 2], rbx
+    inc qword [allocations]
     add [memory_pointer], node_asm_size
 }
 
@@ -374,6 +394,7 @@ macro type type_name, ptr
     mov [rax], rbx
     mov rbx, ptr
     mov [rax + 8], rbx
+    inc qword [allocations]
     add [memory_pointer], type_size
 }
 
@@ -385,6 +406,7 @@ macro param name, type
     mov [rax], rbx
     mov rbx, type
     mov [rax + 8], rbx
+    inc qword [allocations]
     add [memory_pointer], param_size
 }
 
@@ -403,6 +425,7 @@ macro node_func_def scope, name, params, arity, return
     mov qword [rax + 26], rbx
     mov rbx, return
     mov qword [rax + 34], rbx
+    inc qword [allocations]
     add [memory_pointer], node_func_def_size
 }
 
@@ -415,6 +438,7 @@ macro node_control tok, value
     mov qword [rax + 2], rbx
     mov rbx, value
     mov qword [rax + 10], rbx
+    inc qword [allocations]
     add [memory_pointer], node_control_size
 }   
 
@@ -429,6 +453,7 @@ macro node_func_call func_name, params, count
     mov qword [rax + 10], rbx
     mov ebx, count
     mov dword [rax + 18], ebx
+    inc qword [allocations]
     add [memory_pointer], node_func_call_size
 }
 
@@ -441,6 +466,7 @@ macro node_ptr_ass value, loc
     mov qword [rax + 2], rbx
     mov rbx, loc
     mov qword [rax + 10], rbx
+    inc qword [allocations]
     add [memory_pointer], node_ptr_ass_size
 }
 
@@ -453,6 +479,7 @@ macro node_cast cast_type, castee
     mov qword [rax + 2], rbx
     mov rbx, castee
     mov qword [rax + 10], rbx
+    inc qword [allocations]
     add [memory_pointer], node_cast_size
 }
 
@@ -466,6 +493,7 @@ macro field name, type, pos
     mov qword [rax + 8], rbx
     mov ebx, pos
     mov dword [rax + 16], ebx
+    inc qword [allocations]
     add [memory_pointer], field_size
 }
 
@@ -480,6 +508,7 @@ macro node_struct name, fields, field_count
     mov qword [rax + 10], rbx
     mov rbx, field_count
     mov qword [rax + 18], rbx
+    inc qword [allocations]
     add [memory_pointer], node_struct_size
 }
 
@@ -493,6 +522,7 @@ macro node_struct_ini fields, tok
     mov rbx, tok
     mov qword [rax + 10], rbx
     mov qword [rax + 18], 0
+    inc qword [allocations]
     add [memory_pointer], node_struct_ini_size
 }
 
@@ -506,6 +536,8 @@ macro node_field_access field_name, struct
     mov rbx, struct
     mov qword [rax + 10], rbx
     mov qword [rax + 18], 0
+    mov byte [rax + 26], 0
+    inc qword [allocations]
     add [memory_pointer], node_field_access_size
 }
 
@@ -518,6 +550,7 @@ macro node_field_assign value, field
     mov qword [rax + 2], rbx
     mov rbx, field
     mov qword [rax + 10], rbx
+    inc qword [allocations]
     add [memory_pointer], node_field_assign_size
 }
 
@@ -528,6 +561,7 @@ macro immvalue value
     mov word [rax], IMMVALUE
     mov rbx, value
     mov qword [rax + 2], rbx
+    inc qword [allocations]
     add [memory_pointer], immvalue_size
 }
 
@@ -540,6 +574,7 @@ macro reg register, size
     mov dword [rax + 2], ebx
     mov ebx, size
     mov dword [rax + 6], ebx
+    inc qword [allocations]
     add [memory_pointer], reg_size
 }
 
@@ -554,6 +589,7 @@ macro mempos register, size, offset
     mov dword [rax + 6], ebx
     mov ebx, offset
     mov dword [rax + 10], ebx
+    inc qword [allocations]
     add [memory_pointer], mempos_size
 }
 
@@ -564,6 +600,7 @@ macro label lbl
     mov word [rax], _LABEL
     mov rbx, lbl
     mov qword [rax + 2], rbx
+    inc qword [allocations]
     add [memory_pointer], label_size
 }
 

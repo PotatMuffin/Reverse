@@ -82,6 +82,14 @@ main:
     mov rsi, [rbp - 40]
     call generate
 
+    mov rdi, LOGINFO
+    mov rsi, _allocations
+    call log
+    mov rdi, [allocations]
+    call display_number
+    mov rdi, suffix
+    call print
+
     exit_process 0
 
 segment readable writeable

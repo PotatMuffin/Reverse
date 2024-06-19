@@ -1,1 +1,213 @@
-# damn this is empty
+4 = PROT_EXEC int
+2 = PROT_WRITE int
+1 = PROT_READ int
+0 = PROT_NONE int
+2 = MAP_PRIVATE int
+32 = MAP_ANONYMOUS int
+
+0(void*) = null void*
+
+0 = LOG_INFO int
+1 = LOG_WARN int
+2 = LOG_ERROR int
+
+1 = true byte
+0 = false byte
+ 
+(()get_argc, ()get_argv)main = exit_code int
+(exit_code)exit
+
+{
+    { 1 return } ((argc, argv)parse_args != 0) if
+    [0(heapchunk_t*),0,0,null,0] = heap heapinfo_t
+
+    {   
+        (LOG_ERROR, "Could not initialize heap\n")log
+        1 return
+    } ((&heap, 16 << 20)init_heap != 0) if
+
+    (&heap, 10)heap_alloc(byte*) = buf byte*
+
+    0 return
+} (argc int, argv byte**) main int
+
+{
+    {
+        (*argv)print_usage 
+        1 return 
+    } (argc < 2) if
+
+    0 return
+} (argc int, argv byte**) parse_args int
+
+{
+    ("Usage: ")print
+    (prog)print
+    (" <source> [output]\n")print
+    return
+} (prog byte*) print_usage void
+
+{
+    0 = argc long
+    # argc is stored at [rsp + 24]
+    # this is because the variable argc takes up 8 bytes
+    # rbp gets pushed onto the stack at the start of a function taking up 8 bytes
+    # and the return adress get pushed onto the stack when calling the function also taking up 8 bytes
+    asm("mov rax, [rsp + 24]")
+    asm("mov [rbp - 8], rax")
+    argc return
+} () get_argc long
+
+{
+    0(byte**) = argv byte**
+    # the pointer to the first argument is stored at [rsp + 32]
+    # because argc is stored at [rsp + 24], and takes up 8 bytes
+    # see explanation in get_argc
+    asm("lea rax, [rsp + 32]")
+    asm("mov [rbp - 8], rax")
+    argv return
+} () get_argv byte**
+
+{
+    { ("[ERROR] ")print } (log_level == LOG_ERROR) if else
+    { ("[WARN] ")print } (log_level == LOG_WARN) if else
+    { ("[INFO] ")print } (log_level == LOG_INFO) if
+    (str)print
+    return
+} (log_level int, str byte*)log void
+
+{
+    (str)strlen = len long
+    (len, str, 1)write
+    return
+} (str byte*) print void
+
+{   
+    0 = len long
+    { len + 1 = len } (*(str + len)) while
+    len return
+} (str byte*) strlen long
+
+{
+    (src)strlen = len long
+    
+    {
+        *(src + i) = x byte
+        x = *(dest + i)
+        { break } (!x) if
+    } (i + 1 = i; true; 0 = i long) for  
+    return
+} (src byte*, dest byte*) strcpy void
+
+{
+    0 = y int 
+    64 = n int
+    x >> 32 = y; {n - 32 = n; y = x } (y != 0) if
+    x >> 16 = y; {n - 16 = n; y = x } (y != 0) if
+    x >> 8 = y; { n - 8 = n; y = x } (y != 0) if
+    x >> 4 = y; { n - 4 = n; y = x } (y != 0) if
+    x >> 2 = y; { n - 2 = n; y = x } (y != 0) if
+    x >> 1 = y; { n - 2 return } (y != 0) if
+    n - x return
+} (x long) clzl long
+
+{
+    { 0 return } (x == 0) if
+    63 - (x)clzl return
+} (x long) log2l long
+
+{
+    (x)log2l / (10)log2l return
+} (x long) log10l long
+
+# syscalls
+{
+    asm("mov rax, 1")
+    asm("syscall")
+    return
+} (count long, buf byte*, fd int) write void
+
+{   
+    null = mem void* 
+    asm("mov r10, rcx")
+    asm("mov rax, 9")
+    asm("syscall")
+    asm("mov [rbp - 44], rax")
+    mem return
+} (offset long, fd int, flags int, prot int, len long, addr void*) mmap void*
+
+{
+    asm("mov rax, 60")
+    asm("syscall")
+    return
+} (code long) exit void
+
+# malloc implementation
+
+heapchunk_t {
+    size long
+    start void*
+    inuse byte
+} struct
+
+heapinfo_t {
+    chunks heapchunk_t*
+    nchunks long
+    chunks_cap long
+    memory void*
+    avail long
+} struct
+
+{       
+    { 1 return } (size < 1024) if
+
+    (0, -1, MAP_PRIVATE | MAP_ANONYMOUS, PROT_READ | PROT_WRITE, size, null) mmap = memory_start void*
+    (0, -1, MAP_PRIVATE | MAP_ANONYMOUS, PROT_READ | PROT_WRITE, size, null) mmap(heapchunk_t*) = chunk_memory heapchunk_t*
+    { 1 return } (memory_start < null) if
+    { 1 return } (chunk_memory < null) if
+
+    [size, memory_start, false] = chunk heapchunk_t
+
+    chunk_memory = chunks::heap
+    size / @heapchunk_t = chunks_cap::heap
+    size::chunk = avail::heap
+    
+    chunk = *(chunks::heap)
+
+    0 return
+} (heap heapinfo_t*, size long) init_heap int
+
+{
+    return
+} (heap heapinfo_t*, chunk heapchunk_t*, index long) insert_chunk void
+
+{
+    (chunks::*heap + chunk_index * @heapchunk_t) = Pchunk heapchunk_t*
+    *Pchunk = chunk heapchunk_t
+
+    nchunks::*heap = new_chunk_index long
+    [bytes, start::chunk, true] = new_chunk heapchunk_t
+    (chunks::*heap + new_chunk_index * @heapchunk_t) = Pnew_chunk heapchunk_t*
+
+    start::chunk + bytes = start::chunk
+    size::chunk - bytes = size::chunk
+
+    chunk = *Pnew_chunk
+    new_chunk = *Pchunk
+
+    Pchunk return
+} (chunk_index long, heap heapinfo_t*, bytes long) split_chunk heapchunk_t*
+
+{
+    nchunks::heap - 1 = chunk_index long
+    ((chunks::heap) + chunk_index * @heapchunk_t) = chunk heapchunk_t*
+    start::chunk return
+
+    {
+        (chunk_index, heap, bytes)split_chunk = chunk
+    } (size::chunk > bytes) if  
+
+    { null return } (chunk == null) if
+
+    start::chunk return
+} (heap heapinfo_t*, bytes long) heap_alloc void*

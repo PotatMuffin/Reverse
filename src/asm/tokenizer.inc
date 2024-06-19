@@ -36,8 +36,6 @@ tokenize: ; void* tokenize(char* buf)
     mov byte [rbp - 21], bl
     cmp byte [rbp - 21], 10
     jne tokif_11
-    inc qword [rbp - 8]
-    inc dword [rbp - 12]
     jmp tokloopstart1
 
     tokif1:

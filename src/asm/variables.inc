@@ -5,6 +5,9 @@ memory_end dq ?
 memory_setting dq ? 
 data_capacity dq ?
 data_occupied dq ?
+allocations dq 0
+
+_allocations db "allocations: ",0
 
 source   rq 1
 output   rq 1
@@ -349,8 +352,9 @@ node_struct_ini_size = 26
 ;   token* field_name
 ;   void* struct
 ;   void* field
+;   bool is_ptr
 ; }
-node_field_access_size = 26
+node_field_access_size = 27
 
 ; struct node_field_assign
 ; {
