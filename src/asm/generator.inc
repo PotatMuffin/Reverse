@@ -104,8 +104,6 @@ visit_node_root: ; void visit_node_root(void* node, context* context)
     mov dl, 1
     call visit
 
-    fprintmany [outputfd], newline
-
     mov rbx, [rbp - 32]
     mov [memory_pointer], rbx
 
@@ -146,6 +144,18 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
 
     vnbL6:
 
+    cmp byte [rbp - 25], 0
+    je vnbL3
+
+    reg rdi_, qword_
+    mov qword [rbp - 41], rax
+    jmp vnbL4
+
+    vnbL3:
+    reg rcx_, qword_
+    mov qword [rbp - 41], rax
+    vnbL4:
+
     mov rbx, [rbp - 8]
     mov rdi, qword [rbx + 2]
     mov r15, [rbp - 57]
@@ -154,6 +164,19 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
     mov dl, 1
     call visit
     mov [rbp - 16], rax
+
+    mov rbx, [rbp - 41]
+    mov ebx, [rbx + 2]
+    mov rcx, [rbp - 16] 
+    cmp [rcx + 2], ebx
+    jne vnbl12 
+
+    mov rsi, [rbp - 16]
+    reg rax_, qword_
+    mov [rbp - 16], rax
+    mov rdi, rax
+    call mov_to_reg
+    vnbl12:
 
     cmp byte [rbp - 25], 0
     je vnbL2
@@ -215,18 +238,6 @@ visit_node_binop: ; void* visit_node_binop(void* node, context* context, bool lh
     mov dl, 0
     call visit
     mov [rbp - 24], rax
-
-    cmp byte [rbp - 25], 0
-    je vnbL3
-
-    reg rdi_, qword_
-    mov qword [rbp - 41], rax
-    jmp vnbL4
-
-    vnbL3:
-    reg rcx_, qword_
-    mov qword [rbp - 41], rax
-    vnbL4:
 
     ; move result of right child to rdi or rcx
     mov rdi, [rbp - 41]
@@ -1344,14 +1355,14 @@ visit_node_field_access: ; void visit_node_field_access(void* node, context* con
     cmp byte [rbx + 26], 0
     je vnfaL3 
 
-    reg rdi_, qword_
+    reg rcx_, qword_
 
     mov rdi, rax
     mov rsi, [rbp - 24]
     call mov_to_reg
 
     mov r15, [rbp - 24]
-    mempos rdi_, [r15 + 6], 0
+    mempos rcx_, [r15 + 6], 0
     mov [rbp- 24], rax
 
     vnfaL3:

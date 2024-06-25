@@ -254,6 +254,25 @@ heapinfo_t {
     memory void*
 } struct
 
+{
+    nchunks::heap = nchunks long
+
+    ("========================================================================\n")print
+    {
+        (chunks::heap + i * @heapchunk_t) = Pchunk heapchunk_t*
+        ("[")print; (i)print_num; ("] ")print
+        ("start: ")print; (start::Pchunk(long))print_num
+        (", ")print; ("size: ")print; (size::Pchunk)print_num
+        (", ")print; ("inuse: ")print
+        { ("false")print } else { ("true")print } (inuse::Pchunk) if
+        ("\n")print
+
+    } (i + 1 = i; i < nchunks; 0 = i int) for
+    ("========================================================================\n")print
+
+    return
+} (heap heapinfo_t*) display_heap void
+
 {       
     { 1 return } (size < 1024) if
 
@@ -297,11 +316,12 @@ heapinfo_t {
     } (index == nchunks::heap - 1) if
 
     {
-        (chunks::heap + i + 1 * @heapchunk_t) = Pchunk heapchunk_t*
+        (chunks::heap + (i + 1) * @heapchunk_t) = Pchunk heapchunk_t*
         *Pchunk = _chunk heapchunk_t
-        (chunks::heap + (i) * @heapchunk_t) = Pchunk
+
+        (chunks::heap + i * @heapchunk_t) = Pchunk
         _chunk = *Pchunk
-    } (i + 1 = i; i < nchunks::heap; index = i int) for
+    } (i + 1 = i; i < (nchunks::heap - 1); index = i int) for
 
     nchunks::heap - 1 = nchunks::heap
     return
@@ -358,27 +378,27 @@ heapinfo_t {
 
 {
     ((chunks::heap) + index * @heapchunk_t) = chunk heapchunk_t*
+
     {
-        ((chunks::heap) + index - 1 * @heapchunk_t) = Lchunk heapchunk_t*
+        ((chunks::heap) + (index + 1) * @heapchunk_t) = Rchunk heapchunk_t*
+
+        { 
+            size::Rchunk + size::chunk = size::chunk
+            (heap, index + 1)remove_chunk
+        } ( !inuse::Rchunk ) if
+
+    } (index < nchunks::heap - 1) if
+
+    {
+        ((chunks::heap) + (index - 1) * @heapchunk_t) = Lchunk heapchunk_t*
 
         { 
             start::Lchunk = start::chunk
             size::chunk + size::Lchunk = size::chunk
+            (heap, index - 1)remove_chunk
         } ( !inuse::Lchunk ) if
 
-        (heap, index - 1)remove_chunk
     } (index > 0) if
-
-
-    {
-        ((chunks::heap) + index + 1 * @heapchunk_t) = Rchunk heapchunk_t*
-
-        { 
-            size::Rchunk + size::chunk = size::chunk
-        } ( !inuse::Rchunk ) if
-
-        (heap, index + 1)remove_chunk
-    } (index < nchunks::heap - 1) if
 
     return
 } (heap heapinfo_t*, index long) merge_chunk void
