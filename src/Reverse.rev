@@ -1,9 +1,21 @@
+0 = _iota long
 4 = PROT_EXEC int
 2 = PROT_WRITE int
 1 = PROT_READ int
 0 = PROT_NONE int
 2 = MAP_PRIVATE int
 32 = MAP_ANONYMOUS int
+
+256  = S_IRUSR long
+128  = S_IWUSR long
+32   = S_IRGRP long
+16   = S_IWGRP long
+4    = S_IROTH long
+
+512 = O_TRUNC  int
+64  = O_CREAT  int
+1   = O_WRONLY int
+0   = O_RDONLY int
 
 0(void*) = null void*
 
@@ -13,6 +25,12 @@
 
 1 = true byte
 0 = false byte
+
+(false)iota = TT_PLUS   short
+(false)iota = TT_MIN    short
+(false)iota = TT_STAR   short
+(false)iota = TT_FSLASH short
+(false)iota = TT_INT    short
 
 settings {
     source_fn byte*
@@ -34,6 +52,14 @@ settings {
         1 return
     } ((&heap, memory::_settings)init_heap != 0) if
 
+    (0, O_RDONLY, source_fn::_settings)open = source_fd int
+
+    { 
+        (LOG_ERROR, "Source file not found\n")log 
+        1 return
+    } (source_fd < 0) if
+    (source_fd, &heap)read_file = src byte*
+    (src)print
     0 return
 } (argc int, argv byte**) main int
 
@@ -59,12 +85,12 @@ settings {
         } ( ("-m", *arg)strcmp ) if
 
         {
-            *arg == output_fn::_settings
+            *arg = output_fn::_settings
             true = found_output
             continue
         } (!found_output) if else  
         {
-            *arg == source_fn::_settings
+            *arg = source_fn::_settings
             true = found_source
             continue
         } (!found_source) if
@@ -88,6 +114,30 @@ settings {
     return
 } (prog byte*) print_usage void
 
+#####################################################################
+# Lexer
+#####################################################################
+
+position {
+    file byte*
+    line int
+    column int
+} struct
+
+token {
+    type short
+    data long
+    pos position
+} struct
+
+{
+    null(token*) return
+} () tokenize token*
+
+#####################################################################
+# other
+#####################################################################
+
 {
     0 = argc long
     # argc is stored at [rsp + 24]
@@ -108,6 +158,15 @@ settings {
     asm("mov [rbp - 8], rax")
     argv return
 } () get_argv byte**
+
+{
+    [0] = statbuf stat
+    (&statbuf, fd)fstat
+    st_size::statbuf = size long
+    (heap, size+1)heap_alloc(byte*) = buf byte*
+    (size + 1, buf, fd)read 
+    buf return
+} (fd int, heap heapinfo_t*) read_file byte*
 
 {
     { ("[ERROR] ")print } (log_level == LOG_ERROR) if else
@@ -217,12 +276,69 @@ settings {
     (x)log2l / (10)log2l return
 } (x long) log10l long
 
+{
+    _iota = n long
+    { _iota + 1 = _iota } else { 0 = _iota } (reset) if
+    n return
+} (reset byte) iota long
+
+#####################################################################
 # syscalls
+#####################################################################
+stat {
+    st_dev        long
+    st_ino        long
+    st_nlink      long
+    st_mode       int
+    st_uid        int
+    st_gid        int
+    __pad0        int
+    st_rdev       long
+    st_size       long
+    st_blksize    long
+    st_blocks     long
+    st_atime      long
+    st_atime_nsec long
+    st_mtime      long
+    st_mtime_nsec long
+    st_ctime      long
+    st_ctime_nsec long
+    __unused1     long
+    __unused2     long
+    __unused3     long
+} struct
+
+{
+    asm("mov rax, 0")
+    asm("syscall")
+    return
+} (count long, buf byte*, fd int) read void
+
 {
     asm("mov rax, 1")
     asm("syscall")
     return
 } (count long, buf byte*, fd int) write void
+
+{
+    -1 = fd int
+    asm("mov rax, 2")
+    asm("syscall")
+    asm("mov [rbp - 24], eax")
+    fd return
+} (mode long, flags int, fn byte*) open int
+
+{
+    asm("mov rax, 3")
+    asm("syscall")
+    return
+} (fd int) close void
+
+{
+    asm("mov rax, 5")
+    asm("syscall")
+    return
+} (statbuf stat*, fd int) fstat void
 
 {   
     null = mem void* 
@@ -239,7 +355,9 @@ settings {
     return
 } (code long) exit void
 
-# malloc implementation
+#####################################################################
+# malloc
+#####################################################################
 
 heapchunk_t {
     size long
@@ -413,3 +531,25 @@ heapinfo_t {
 
     return
 } (heap heapinfo_t*, ptr void*) heap_free void
+
+{
+    (heap, buf)find_chunk = index long
+    ((chunks::heap) + index * @heapchunk_t) = chunk heapchunk_t*
+    (heap, new_size)heap_alloc = new_buf void*
+
+    size::chunk = n long
+    0 = i int
+
+    {
+        *(buf(long*) + i) = *(new_buf(long*) + i)
+    } (i + 8 = i; i < n && n > 8; i) for
+
+    n-i = n
+
+    { *(buf(int*) + i) = *(new_buf(int*) + i); n - 4 = n } (n >= 4) if
+    { *(buf(short*) + i) = *(new_buf(short*) + i); n - 2 = n } (n >= 2) if
+    { *(buf(byte*) + i) = *(new_buf(byte*) + i); n - 1 = n } (n >= 1) if
+
+    (heap, buf)heap_free
+    new_buf return
+} (heap heapinfo_t*, buf void*, new_size long) heap_realloc void*
