@@ -31,12 +31,14 @@ null(heapinfo_t*) = heap heapinfo_t*
 1 = true byte
 0 = false byte
 
-(false)iota = TT_EOF    short
-(false)iota = TT_PLUS   short
-(false)iota = TT_MIN    short
-(false)iota = TT_STAR   short
-(false)iota = TT_FSLASH short
-(false)iota = TT_INT    short
+(false)iota = TT_EOF     short
+(false)iota = TT_PLUS    short
+(false)iota = TT_MIN     short
+(false)iota = TT_STAR    short
+(false)iota = TT_FSLASH  short
+(false)iota = TT_PERCENT short
+(false)iota = TT_INT     short
+(false)iota = TT_NEWLINE short
 
 settings {
     source_fn byte*
@@ -66,9 +68,13 @@ settings {
         1 return
     } (source_fd < 0) if
 
-    (source_fd, source_fn::_settings)tokenize = res result*
+    (source_fd)read_file = src byte*
+    [source_fd, src, [source_fn::_settings, 1, 1], 0] = _lexer lexer
+    (&_lexer)tokenize = res result*
 
     { (err::res)print_error; 1 return} (err::res != null) if
+    (heap, src)heap_free
+    (heap)display_heap
     0 return
 } (argc int, argv byte**) main int
 
@@ -161,7 +167,7 @@ list {
 {
     {
         capacity::_list*2 = capacity::_list
-        (heap, items::_list(void*), capacity::_list)heap_realloc(void**) = buf void**
+        (heap, items::_list(void*), capacity::_list * @void*)heap_realloc(void**) = buf void**
         buf = items::_list
     } (count::_list == capacity::_list) if
 
@@ -189,8 +195,30 @@ token {
     pos position
 } struct
 
+lexer {
+    fd int
+    src byte*
+    pos position
+    index long
+} struct
+
 {
-    (fd)read_file = src byte*
+    *(src::lexer + index::lexer) = c byte
+    index::lexer + 1 = index::lexer
+    column::pos::lexer + 1 = column::pos::lexer
+    {
+        1 = column::pos::lexer
+        line::pos::lexer + 1 = line::pos::lexer
+    } (c == 10) if
+    c return
+} (lexer lexer*) lexer_consume byte
+
+{
+    *(src::lexer + index::lexer + offset) = c byte
+    c return
+} (lexer lexer*, offset int) lexer_peek byte
+
+{
     (heap, @list)heap_alloc(list*) = tokens list*
     (tokens)init_list
 
@@ -198,33 +226,52 @@ token {
     null(error*) = err::res
     tokens(void*) = res::res
 
-    0 = index int
-    [fn, 1, 1] = pos position
-
     {
-        *(src + index) = c byte
+        (_lexer, 0)lexer_peek = c byte
+        {
+            (_lexer)lexer_consume
+            continue
+        } (c == 9 || c == 11 || c == 12 || c == 13 || c == 32) if
+
         (heap, @token)heap_alloc(token*) = tok token*
-        [file::pos, line::pos, column::pos] = pos::tok
+        [file::pos::_lexer, line::pos::_lexer, column::pos::_lexer] = pos::tok
+        0 = type::tok
+        0 = data::tok
+
+        { 
+            0 = n int
+            {
+                n * 10 = n
+                n + (c - '0') = n
+                (_lexer, 1)lexer_peek = c 
+                { break } ('9' < c || c < '0') if
+                (_lexer)lexer_consume
+            } (true) while
+
+            TT_INT = type::tok
+            n = data::tok
+        } ('9' >= c && c >= '0') if else
+        { TT_NEWLINE = type::tok } (c == 10)  if else
+        { TT_PERCENT = type::tok } (c == '%') if else
+        { TT_FSLASH = type::tok }  (c == '/') if else
+        { TT_STAR = type::tok }    (c == '*') if else
+        { TT_MIN = type::tok }     (c == '-') if else 
+        { TT_PLUS = type::tok }    (c == '+') if
 
         {
             (heap, @error)heap_alloc(error*) = err error*
             "Illegal character\n" = msg::err
-            [file::pos, line::pos, column::pos] = pos::err
+            [file::pos::_lexer, line::pos::_lexer, column::pos::_lexer] = pos::err
             err = err::res
             res return
-        } (c != 0) if else 
-        { TT_FSLASH = type::tok } (c == '/') if else
-        { TT_STAR = type::tok }   (c == '*') if else
-        { TT_MIN = type::tok }    (c == '-') if else 
-        { TT_PLUS = type::tok }   (c == '+') if
+        } (type::tok == 0) if 
 
         (tokens, tok(void*))list_append
-        column::pos + 1 = column::pos
-        index + 1 = index
-    } (*(src + index)) while 
+        (_lexer)lexer_consume
+    } ((_lexer, 0)lexer_peek) while 
 
     res return
-} (fd int, fn byte*) tokenize result*
+} (_lexer lexer*) tokenize result*
 
 #####################################################################
 # other
@@ -657,17 +704,18 @@ heapinfo_t {
     (heap, new_size)heap_alloc = new_buf void*
 
     size::chunk = n long
+    { new_size = n } (size::chunk > new_size) if
     0 = i int
 
     {
         *(buf(long*) + i) = *(new_buf(long*) + i)
     } (i + 8 = i; i < n && n > 8; i) for
 
-    n-i = n
+    n - i = n
 
-    { *(buf(int*) + i) = *(new_buf(int*) + i); n - 4 = n } (n >= 4) if
+    { *(buf(int*) + i) = *(new_buf(int*) + i);     n - 4 = n } (n >= 4) if
     { *(buf(short*) + i) = *(new_buf(short*) + i); n - 2 = n } (n >= 2) if
-    { *(buf(byte*) + i) = *(new_buf(byte*) + i); n - 1 = n } (n >= 1) if
+    { *(buf(byte*) + i) = *(new_buf(byte*) + i);   n - 1 = n } (n >= 1) if
 
     (heap, buf)heap_free
     new_buf return
