@@ -823,9 +823,12 @@ visit_node_func_def: ; void visit_node_func_def(void* node, context* context)
     mov rsi, [rbx + 10]
     mov dl, 0
     call st_get_symbol
+    mov r15, [rax]
     mov rbx, [rax + 8]
     mov rcx, [rbx + 26]
     mov [rbp - 48], rcx
+
+    ; printmany r15, newline
 
     mov edi, dword [rbx + 34]  
     call itoa

@@ -17,15 +17,21 @@
 1   = O_WRONLY int
 0   = O_RDONLY int
 
-0(void*) = null void*
-
 0 = LOG_INFO int
 1 = LOG_WARN int
 2 = LOG_ERROR int
 
+0 = STDIN  int
+1 = STDOUT int
+2 = STDERR int
+
+0(void*) = null void*
+null(heapinfo_t*) = heap heapinfo_t* 
+
 1 = true byte
 0 = false byte
 
+(false)iota = TT_EOF    short
 (false)iota = TT_PLUS   short
 (false)iota = TT_MIN    short
 (false)iota = TT_STAR   short
@@ -45,12 +51,13 @@ settings {
     [null(byte*), "out.asm", 16 << 20] = _settings settings
     { 1 return } ((argc, argv, &_settings)parse_args != 0) if
 
-    [0(heapchunk_t*),0,0,null] = heap heapinfo_t
+    [0(heapchunk_t*),0,0,null] = _heap heapinfo_t
+    &_heap = heap
 
     {   
         (LOG_ERROR, "Could not initialize heap\n")log
         1 return
-    } ((&heap, memory::_settings)init_heap != 0) if
+    } ((&_heap, memory::_settings)init_heap != 0) if
 
     (0, O_RDONLY, source_fn::_settings)open = source_fd int
 
@@ -58,8 +65,10 @@ settings {
         (LOG_ERROR, "Source file not found\n")log 
         1 return
     } (source_fd < 0) if
-    (source_fd, &heap)read_file = src byte*
-    (src)print
+
+    (source_fd, source_fn::_settings)tokenize = res result*
+
+    { (err::res)print_error; 1 return} (err::res != null) if
     0 return
 } (argc int, argv byte**) main int
 
@@ -114,15 +123,65 @@ settings {
     return
 } (prog byte*) print_usage void
 
-#####################################################################
-# Lexer
-#####################################################################
-
 position {
     file byte*
     line int
     column int
 } struct
+
+error {
+    msg byte*
+    pos position
+} struct
+
+{
+    (LOG_ERROR, "")log
+    (STDERR, file::pos::err)fprint; (STDERR, ":")fprint
+    (STDERR, line::pos::err)fprint_num; (STDERR, ":")fprint
+    (STDERR, column::pos::err)fprint_num; (STDERR, ": ")fprint
+    (STDERR, msg::err)fprint
+    return
+} (err error*) print_error void
+
+result {
+    err error*
+    res void*
+} struct
+
+#####################################################################
+# List
+#####################################################################
+
+list {
+    count int
+    capacity int
+    items void**
+} struct
+
+{
+    {
+        capacity::_list*2 = capacity::_list
+        (heap, items::_list(void*), capacity::_list)heap_realloc(void**) = buf void**
+        buf = items::_list
+    } (count::_list == capacity::_list) if
+
+    (items::_list + count::_list * @void*) = pos void**
+    item = *pos 
+    count::_list + 1 = count::_list
+    return
+} (_list list*, item void*) list_append void
+
+{
+    0 = count::_list
+    8 = capacity::_list
+    (heap, 8 * @void*)heap_alloc(void**) = buf void**
+    buf = items::_list
+    return
+} (_list list*) init_list void
+
+#####################################################################
+# Lexer
+#####################################################################
 
 token {
     type short
@@ -131,8 +190,41 @@ token {
 } struct
 
 {
-    null(token*) return
-} () tokenize token*
+    (fd)read_file = src byte*
+    (heap, @list)heap_alloc(list*) = tokens list*
+    (tokens)init_list
+
+    (heap, @result)heap_alloc(result*) = res result*
+    null(error*) = err::res
+    tokens(void*) = res::res
+
+    0 = index int
+    [fn, 1, 1] = pos position
+
+    {
+        *(src + index) = c byte
+        (heap, @token)heap_alloc(token*) = tok token*
+        [file::pos, line::pos, column::pos] = pos::tok
+
+        {
+            (heap, @error)heap_alloc(error*) = err error*
+            "Illegal character\n" = msg::err
+            [file::pos, line::pos, column::pos] = pos::err
+            err = err::res
+            res return
+        } (c != 0) if else 
+        { TT_FSLASH = type::tok } (c == '/') if else
+        { TT_STAR = type::tok }   (c == '*') if else
+        { TT_MIN = type::tok }    (c == '-') if else 
+        { TT_PLUS = type::tok }   (c == '+') if
+
+        (tokens, tok(void*))list_append
+        column::pos + 1 = column::pos
+        index + 1 = index
+    } (*(src + index)) while 
+
+    res return
+} (fd int, fn byte*) tokenize result*
 
 #####################################################################
 # other
@@ -166,12 +258,14 @@ token {
     (heap, size+1)heap_alloc(byte*) = buf byte*
     (size + 1, buf, fd)read 
     buf return
-} (fd int, heap heapinfo_t*) read_file byte*
+} (fd int) read_file byte*
 
 {
-    { ("[ERROR] ")print } (log_level == LOG_ERROR) if else
-    { ("[WARN] ")print } (log_level == LOG_WARN) if else
-    { ("[INFO] ")print } (log_level == LOG_INFO) if
+    STDOUT = fd int
+    { STDERR = fd } (log_level == LOG_ERROR) if
+    { (fd, "[ERROR] ")fprint } (log_level == LOG_ERROR) if else
+    { (fd, "[WARN] ")fprint } (log_level == LOG_WARN) if else
+    { (fd, "[INFO] ")fprint } (log_level == LOG_INFO) if
     (str)print
     return
 } (log_level int, str byte*)log void
@@ -183,15 +277,35 @@ token {
 } (str byte*) print void
 
 {
-    null(byte*) = str byte*
-    asm("sub rsp, 32")
-    asm("mov [rbp - 16], rsp")
+    (str)strlen = len long
+    (len, str, fd)write
+    return
+} (fd int, str byte*) fprint void
+
+{
+    (num)itoa = str byte*
+    (str)print
+    (heap, str(void*))heap_free
+    return
+} (num long) print_num void
+
+{
+    (num)itoa = str byte*
+    (fd, str)fprint
+    (heap, str(void*))heap_free
+    return
+} (fd int, num long) fprint_num void
+
+{
     false = is_neg byte
-
-    { ("0")print; return } (num == 0) if
     { -num = num; true = is_neg } (num < 0) if
+    (num)log10l = log10 int
+    (num >= (10, log10)pow) || num < 8 = x long
+    log10 + x + is_neg = length int
 
-    (num)log10l + is_neg + 1 = length int
+    (heap, length + 1)heap_alloc(byte*) = str byte*
+    0 = *(str + length)
+
     {
         { 0 = *(str + i); continue } (i == length) if
 
@@ -202,10 +316,9 @@ token {
         digit = *(str + i)
     } (i - 1 = i; i >= 0; length = i int) for
 
-    (str)print
-
-    return
-} (num long) print_num void
+    {'-' = *str } (is_neg) if
+    str return
+} (num long) itoa byte*
 
 {   
     0 = len long
@@ -275,6 +388,12 @@ token {
 {
     (x)log2l / (10)log2l return
 } (x long) log10l long
+
+{
+    x = n int
+    { n * x = n } (i + 1 = i; i < pow; 1 = i int) for
+    n return
+} (x long, pow long) pow long
 
 {
     _iota = n long
