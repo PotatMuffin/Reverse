@@ -68,12 +68,25 @@ settings {
         1 return
     } (source_fd < 0) if
 
+    null(result*) = res result*
+
     (source_fd)read_file = src byte*
     [source_fd, src, [source_fn::_settings, 1, 1], 0] = _lexer lexer
-    (&_lexer)tokenize = res result*
+    (&_lexer)tokenize = res
 
     { (err::res)print_error; 1 return} (err::res != null) if
+    res::res(list*) = tokens list*
     (heap, src)heap_free
+    (heap, res(void*))heap_free
+
+    [tokens, 0] = _parser parser
+    (&_parser, TT_EOF)parse = res
+
+    { (err::res)print_error; 1 return} (err::res != null) if
+    (heap, res(void*))heap_free
+
+    (tokens)deconstruct_list
+    (heap, tokens(void*))heap_free
     (heap)display_heap
     0 return
 } (argc int, argv byte**) main int
@@ -154,6 +167,30 @@ result {
     res void*
 } struct
 
+{
+    { 
+        err::that = err::this
+        (heap, that(void*))heap_free
+        null return
+    } (err::that != null) if
+
+    (heap, that(void*))heap_free
+    res::that(void*) return
+} (this result*, that result*) result_register void*
+
+{
+    (heap, @error)heap_alloc(error*) = err error*
+    [file::pos, line::pos, column::pos] = pos::err
+    msg = msg::err
+    err = err::this
+    this return
+} (this result*, pos position*, msg byte*) result_fail result*
+
+{
+    res = res::this
+    this return
+} (this result*, res void*) result_success result*
+
 #####################################################################
 # List
 #####################################################################
@@ -163,6 +200,15 @@ list {
     capacity int
     items void**
 } struct
+
+{
+    {
+        (items::_list + i * @void*) = Pitem void**
+        (heap, *Pitem)heap_free
+    } (i + 1 = i; i < count::_list; 0 = i int) for
+    (heap, items::_list(void*))heap_free
+    return
+} (_list list*) deconstruct_list void
 
 {
     {
@@ -195,6 +241,18 @@ token {
     pos position
 } struct
 
+{
+    null(byte*) = str byte*
+    { "newline" = str }   (type == TT_NEWLINE) if else
+    { "int" = str }       (type == TT_INT)     if else
+    { "'%'" = str }       (type == TT_PERCENT) if else
+    { "'/'" = str }       (type == TT_FSLASH)  if else
+    { "'*'" = str }       (type == TT_STAR)    if else
+    { "'-'" = str }       (type == TT_MIN)     if else
+    { "'+'" = str }       (type == TT_PLUS)    if
+    str return
+} (type short) tt_to_str byte*
+
 lexer {
     fd int
     src byte*
@@ -224,8 +282,7 @@ lexer {
 
     (heap, @result)heap_alloc(result*) = res result*
     null(error*) = err::res
-    tokens(void*) = res::res
-
+    null(token*) = tok token*
     {
         (_lexer, 0)lexer_peek = c byte
         {
@@ -233,7 +290,7 @@ lexer {
             continue
         } (c == 9 || c == 11 || c == 12 || c == 13 || c == 32) if
 
-        (heap, @token)heap_alloc(token*) = tok token*
+        (heap, @token)heap_alloc(token*) = tok
         [file::pos::_lexer, line::pos::_lexer, column::pos::_lexer] = pos::tok
         0 = type::tok
         0 = data::tok
@@ -251,7 +308,7 @@ lexer {
             TT_INT = type::tok
             n = data::tok
         } ('9' >= c && c >= '0') if else
-        { TT_NEWLINE = type::tok } (c == 10)  if else
+        { TT_NEWLINE = type::tok } (c == 10 ) if else
         { TT_PERCENT = type::tok } (c == '%') if else
         { TT_FSLASH = type::tok }  (c == '/') if else
         { TT_STAR = type::tok }    (c == '*') if else
@@ -270,8 +327,88 @@ lexer {
         (_lexer)lexer_consume
     } ((_lexer, 0)lexer_peek) while 
 
-    res return
+    (heap, @token)heap_alloc(token*) = tok 
+    [file::pos::_lexer, line::pos::_lexer, column::pos::_lexer] = pos::tok
+    TT_EOF = type::tok
+    (tokens, tok(void*))list_append
+
+    (res, tokens(void*))result_success return
 } (_lexer lexer*) tokenize result*
+
+#####################################################################
+# Parser
+#####################################################################
+
+parser {
+    tokens list*
+    index long
+} struct
+
+{
+    (items::tokens::parser + index::parser * @void*)(token**) = Ptok token**
+    index::parser + 1 = index::parser
+    *Ptok return
+} (parser parser*) parser_consume token*
+
+{
+    (_parser, 0)parser_peek = tok token*
+    { 
+        (_parser)parser_consume 
+        tok return
+    } (type::tok == type) if
+
+    null(token*) return
+} (_parser parser*, type short) parser_consume_token token*
+
+{
+    {
+        (_parser, type)parser_consume_token = tok token*
+        { break } (tok == null) if 
+    } (true) while
+    return
+} (_parser parser*, type short) parser_consume_all void
+
+{
+    (heap, @result)heap_alloc(result*) = res result*
+    null(error*) = err::res
+    (_parser)parser_consume = tok token*
+    pos::tok = pos position
+
+    {
+        (expected_type)tt_to_str = type byte*
+        ("Expected ", type)strconcat = msg byte*
+        (heap, msg(void*))heap_free
+        (msg, "\n")strconcat = msg
+
+        (res, &pos, msg)result_fail return
+    } (type::tok != expected_type) if
+
+    tok(void*) = res::res
+    res return
+} (_parser parser*, expected_type short) parser_expect result*
+
+{
+    (items::tokens::parser + (index::parser + offset) * @void*)(token**) = Ptok token**
+    *Ptok return
+} (parser parser*, offset int) parser_peek token*
+
+{
+    (heap, @result)heap_alloc(result*) = res result*
+    null(error*) = err::res
+
+    {
+        (_parser, TT_NEWLINE)parser_consume_all
+        (_parser, 0)parser_peek = tok token*
+        { break } ( type::tok == end ) if
+
+        (_parser)parser_consume
+
+        (_parser, 0)parser_peek = tok
+        { break } ( type::tok == end ) if
+    } (true) while
+
+    (res, null)result_success return
+} (_parser parser*, end short) parse result*
 
 #####################################################################
 # other
@@ -386,6 +523,18 @@ lexer {
 
     is_equal return
 } (str1 byte*, str2 byte*) strcmp byte
+
+{
+    (str1)strlen = str1len long
+    (str2)strlen = str2len long
+    (heap, str1len + str2len + 1)heap_alloc = str byte*
+
+    0 = i int
+    { *(str1 + i) = *(str + i) }         (i + 1 = i; i < str1len;i)         for
+    { *(str2 + i-str1len) = *(str + i) } (i + 1 = i; i < str1len+str2len;i) for
+    0 = *(str + i)
+    str return
+} (str1 byte*, str2 byte*) strconcat byte*
 
 {
     (src)strlen = len long
