@@ -40,18 +40,23 @@ null(heapinfo_t*) = heap heapinfo_t*
 (false)iota = TT_INT     short
 (false)iota = TT_NEWLINE short
 
-settings {
+(true)iota  = NODE_ROOT      short
+(false)iota = NODE_BINOP     short
+(false)iota = NODE_INT_LIT   short
+
+Settings {
     source_fn byte*
     output_fn byte*
-    memory long
+    memory    long
+    debug     byte
 } struct
 
 (()get_argc, ()get_argv)main = exit_code int
 (exit_code)exit
 
 {
-    [null(byte*), "out.asm", 16 << 20] = _settings settings
-    { 1 return } ((argc, argv, &_settings)parse_args != 0) if
+    [null(byte*), "out.asm", 16 << 20, 0] = settings Settings
+    { 1 return } ((argc, argv, &settings)parse_args != 0) if
 
     [0(heapchunk_t*),0,0,null] = _heap heapinfo_t
     &_heap = heap
@@ -59,35 +64,38 @@ settings {
     {   
         (LOG_ERROR, "Could not initialize heap\n")log
         1 return
-    } ((&_heap, memory::_settings)init_heap != 0) if
+    } ((&_heap, memory::settings)init_heap != 0) if
 
-    (0, O_RDONLY, source_fn::_settings)open = source_fd int
+    (0, O_RDONLY, source_fn::settings)open = source_fd int
 
     { 
         (LOG_ERROR, "Source file not found\n")log 
         1 return
     } (source_fd < 0) if
 
-    null(result*) = res result*
+    null(Result*) = res Result*
 
     (source_fd)read_file = src byte*
-    [source_fd, src, [source_fn::_settings, 1, 1], 0] = _lexer lexer
-    (&_lexer)tokenize = res
+    [source_fd, src, [source_fn::settings, 1, 1], 0] = lexer Lexer
+    (&lexer)tokenize = res
 
     { (err::res)print_error; 1 return} (err::res != null) if
-    res::res(list*) = tokens list*
+    res::res(List*) = tokens List*
     (heap, src)heap_free
     (heap, res(void*))heap_free
 
-    [tokens, 0] = _parser parser
-    (&_parser, TT_EOF)parse = res
+    [tokens, 0] = parser Parser
+    (&parser, TT_EOF)parse = res
 
     { (err::res)print_error; 1 return} (err::res != null) if
+    res::res(NodeRoot*) = ast NodeRoot*
+
+    { (ast(Node*))display_ast } (debug::settings) if
+
     (heap, res(void*))heap_free
 
     (tokens)deconstruct_list
     (heap, tokens(void*))heap_free
-    (heap)display_heap
     0 return
 } (argc int, argv byte**) main int
 
@@ -98,6 +106,10 @@ settings {
     {
         (argv + i * @void*) = arg byte**
 
+        {
+            true = debug::settings
+            continue
+        } (("-d", *arg)strcmp) if else
         { 
             0 = num long
             arg + @void* = arg
@@ -107,18 +119,18 @@ settings {
                 1 return
             } ((*arg, &num)try_parse_int) if
 
-            num << 10 = memory::_settings
+            num << 10 = memory::settings
             i + 1 = i
             continue
         } ( ("-m", *arg)strcmp ) if
 
         {
-            *arg = output_fn::_settings
+            *arg = output_fn::settings
             true = found_output
             continue
         } (!found_output) if else  
         {
-            *arg = source_fn::_settings
+            *arg = source_fn::settings
             true = found_source
             continue
         } (!found_source) if
@@ -131,26 +143,27 @@ settings {
     { (*argv)print_usage; 1 return } (!found_source) if
 
     0 return
-} (argc int, argv byte**, _settings settings*) parse_args int
+} (argc int, argv byte**, settings Settings*) parse_args int
 
 {
     ("Usage: ")print
     (prog)print
     (" <source> [output]\n")print
     ("optional settings:\n")print
-    ("  -m <limit>   set the available memory in kilobytes\n") print
+    ("  -m <limit>   set the available memory in kilobytes\n")print
+    ("  -d           show debug information")print
     return
 } (prog byte*) print_usage void
 
-position {
+Position {
     file byte*
     line int
     column int
 } struct
 
-error {
+Error {
     msg byte*
-    pos position
+    pos Position
 } struct
 
 {
@@ -160,10 +173,10 @@ error {
     (STDERR, column::pos::err)fprint_num; (STDERR, ": ")fprint
     (STDERR, msg::err)fprint
     return
-} (err error*) print_error void
+} (err Error*) print_error void
 
-result {
-    err error*
+Result {
+    err Error*
     res void*
 } struct
 
@@ -174,28 +187,30 @@ result {
         null return
     } (err::that != null) if
 
+    null(Error*) = err::this
     (heap, that(void*))heap_free
     res::that(void*) return
-} (this result*, that result*) result_register void*
+} (this Result*, that Result*) result_register void*
 
 {
-    (heap, @error)heap_alloc(error*) = err error*
+    (heap, @Error)heap_alloc(Error*) = err Error*
     [file::pos, line::pos, column::pos] = pos::err
     msg = msg::err
     err = err::this
     this return
-} (this result*, pos position*, msg byte*) result_fail result*
+} (this Result*, pos Position*, msg byte*) result_fail Result*
 
 {
+    null(Error*) = err::this
     res = res::this
     this return
-} (this result*, res void*) result_success result*
+} (this Result*, res void*) result_success Result*
 
 #####################################################################
 # List
 #####################################################################
 
-list {
+List {
     count int
     capacity int
     items void**
@@ -208,7 +223,7 @@ list {
     } (i + 1 = i; i < count::_list; 0 = i int) for
     (heap, items::_list(void*))heap_free
     return
-} (_list list*) deconstruct_list void
+} (_list List*) deconstruct_list void
 
 {
     {
@@ -221,7 +236,7 @@ list {
     item = *pos 
     count::_list + 1 = count::_list
     return
-} (_list list*, item void*) list_append void
+} (_list List*, item void*) list_append void
 
 {
     0 = count::_list
@@ -229,16 +244,16 @@ list {
     (heap, 8 * @void*)heap_alloc(void**) = buf void**
     buf = items::_list
     return
-} (_list list*) init_list void
+} (_list List*) init_list void
 
 #####################################################################
 # Lexer
 #####################################################################
 
-token {
+Token {
     type short
     data long
-    pos position
+    pos Position
 } struct
 
 {
@@ -253,10 +268,20 @@ token {
     str return
 } (type short) tt_to_str byte*
 
-lexer {
+{
+    -1 = prec byte
+    { 5 = prec }       (type == TT_PERCENT) if else
+    { 5 = prec }       (type == TT_FSLASH)  if else
+    { 5 = prec }       (type == TT_STAR)    if else
+    { 4 = prec }       (type == TT_MIN)     if else
+    { 4 = prec }       (type == TT_PLUS)    if
+    prec return
+} (type short) get_prec byte
+
+Lexer {
     fd int
     src byte*
-    pos position
+    pos Position
     index long
 } struct
 
@@ -269,29 +294,29 @@ lexer {
         line::pos::lexer + 1 = line::pos::lexer
     } (c == 10) if
     c return
-} (lexer lexer*) lexer_consume byte
+} (lexer Lexer*) lexer_consume byte
 
 {
     *(src::lexer + index::lexer + offset) = c byte
     c return
-} (lexer lexer*, offset int) lexer_peek byte
+} (lexer Lexer*, offset int) lexer_peek byte
 
 {
-    (heap, @list)heap_alloc(list*) = tokens list*
+    (heap, @List)heap_alloc(List*) = tokens List*
     (tokens)init_list
 
-    (heap, @result)heap_alloc(result*) = res result*
-    null(error*) = err::res
-    null(token*) = tok token*
+    (heap, @Result)heap_alloc(Result*) = res Result*
+    null(Error*) = err::res
+    null(Token*) = tok Token*
     {
-        (_lexer, 0)lexer_peek = c byte
+        (lexer, 0)lexer_peek = c byte
         {
-            (_lexer)lexer_consume
+            (lexer)lexer_consume
             continue
         } (c == 9 || c == 11 || c == 12 || c == 13 || c == 32) if
 
-        (heap, @token)heap_alloc(token*) = tok
-        [file::pos::_lexer, line::pos::_lexer, column::pos::_lexer] = pos::tok
+        (heap, @Token)heap_alloc(Token*) = tok
+        [file::pos::lexer, line::pos::lexer, column::pos::lexer] = pos::tok
         0 = type::tok
         0 = data::tok
 
@@ -300,9 +325,9 @@ lexer {
             {
                 n * 10 = n
                 n + (c - '0') = n
-                (_lexer, 1)lexer_peek = c 
+                (lexer, 1)lexer_peek = c 
                 { break } ('9' < c || c < '0') if
-                (_lexer)lexer_consume
+                (lexer)lexer_consume
             } (true) while
 
             TT_INT = type::tok
@@ -316,63 +341,117 @@ lexer {
         { TT_PLUS = type::tok }    (c == '+') if
 
         {
-            (heap, @error)heap_alloc(error*) = err error*
+            (heap, @Error)heap_alloc(Error*) = err Error*
             "Illegal character\n" = msg::err
-            [file::pos::_lexer, line::pos::_lexer, column::pos::_lexer] = pos::err
+            [file::pos::lexer, line::pos::lexer, column::pos::lexer] = pos::err
             err = err::res
             res return
         } (type::tok == 0) if 
 
         (tokens, tok(void*))list_append
-        (_lexer)lexer_consume
-    } ((_lexer, 0)lexer_peek) while 
+        (lexer)lexer_consume
+    } ((lexer, 0)lexer_peek) while 
 
-    (heap, @token)heap_alloc(token*) = tok 
-    [file::pos::_lexer, line::pos::_lexer, column::pos::_lexer] = pos::tok
+    (heap, @Token)heap_alloc(Token*) = tok 
+    [file::pos::lexer, line::pos::lexer, column::pos::lexer] = pos::tok
     TT_EOF = type::tok
     (tokens, tok(void*))list_append
 
     (res, tokens(void*))result_success return
-} (_lexer lexer*) tokenize result*
+} (lexer Lexer*) tokenize Result*
 
 #####################################################################
 # Parser
 #####################################################################
 
-parser {
-    tokens list*
+Node {
+    type short
+    pos  Position
+} struct
+
+NodeRoot {
+    type     short
+    pos      Position
+    children List*
+} struct
+
+{
+    (heap, @List)heap_alloc(List*) = children List*
+    (heap, @NodeRoot)heap_alloc(NodeRoot*) = node NodeRoot*
+    NODE_ROOT = type::node
+    [file::pos, line::pos, column::pos] = pos::node
+    (children)init_list
+    children = children::node
+    node return
+} (pos Position*) create_node_root NodeRoot*
+
+NodeBinop {
+    type  short
+    pos   Position
+    left  void*
+    op    short
+    right void*
+} struct
+
+{
+    (heap, @NodeBinop)heap_alloc(NodeBinop*) = node NodeBinop*
+    NODE_BINOP = type::node
+    [file::pos, line::pos, column::pos] = pos::node
+    left = left::node
+    op = op::node
+    right = right::node
+    node return
+} (pos Position*, left void*, op short, right void*) create_node_binop NodeBinop*
+
+NodeIntLit {
+    type short
+    pos  Position
+    val  long
+} struct
+
+{
+    (heap, @NodeIntLit)heap_alloc(NodeIntLit*) = node NodeIntLit*
+    NODE_INT_LIT = type::node
+    [file::pos, line::pos, column::pos] = pos::node
+    val = val::node
+    node return
+} (pos Position*, val long) create_node_int_lit NodeIntLit*
+
+Parser {
+    tokens List*
     index long
 } struct
 
 {
-    (items::tokens::parser + index::parser * @void*)(token**) = Ptok token**
+    (items::tokens::parser + index::parser * @void*)(Token**) = Ptok Token**
     index::parser + 1 = index::parser
     *Ptok return
-} (parser parser*) parser_consume token*
+} (parser Parser*) parser_consume Token*
 
 {
-    (_parser, 0)parser_peek = tok token*
+    (parser, 0)parser_peek = tok Token*
     { 
-        (_parser)parser_consume 
+        (parser)parser_consume 
         tok return
     } (type::tok == type) if
 
-    null(token*) return
-} (_parser parser*, type short) parser_consume_token token*
+    null(Token*) return
+} (parser Parser*, type short) parser_consume_token Token*
 
 {
-    {
-        (_parser, type)parser_consume_token = tok token*
-        { break } (tok == null) if 
-    } (true) while
+    (parser, 0)parser_peek = tok Token*
+    {  
+        (parser)parser_consume
+        (parser, 0)parser_peek = tok 
+    } (type::tok == type) while
     return
-} (_parser parser*, type short) parser_consume_all void
+} (parser Parser*, type short) parser_consume_all void
 
 {
-    (heap, @result)heap_alloc(result*) = res result*
-    null(error*) = err::res
-    (_parser)parser_consume = tok token*
-    pos::tok = pos position
+    (heap, @Result)heap_alloc(Result*) = res Result*
+    null(Error*) = err::res
+    (parser)parser_consume = tok Token*
+    pos::tok = pos Position
 
     {
         (expected_type)tt_to_str = type byte*
@@ -385,30 +464,110 @@ parser {
 
     tok(void*) = res::res
     res return
-} (_parser parser*, expected_type short) parser_expect result*
+} (parser Parser*, expected_type short) parser_expect Result*
 
 {
-    (items::tokens::parser + (index::parser + offset) * @void*)(token**) = Ptok token**
+    (items::tokens::parser + (index::parser + offset) * @void*)(Token**) = Ptok Token**
     *Ptok return
-} (parser parser*, offset int) parser_peek token*
+} (parser Parser*, offset int) parser_peek Token*
 
 {
-    (heap, @result)heap_alloc(result*) = res result*
-    null(error*) = err::res
+    (heap, @Result)heap_alloc(Result*) = res Result*
+    (parser, 0)parser_peek = tok Token*
+    pos::tok = pos Position
+    (&pos)create_node_root = root NodeRoot*
 
     {
-        (_parser, TT_NEWLINE)parser_consume_all
-        (_parser, 0)parser_peek = tok token*
+        (parser, TT_NEWLINE)parser_consume_all
+        (parser, 0)parser_peek = tok 
         { break } ( type::tok == end ) if
 
-        (_parser)parser_consume
+        (res, (parser)parse_expr)result_register = node void*
+        { res return } (err::res != null) if 
 
-        (_parser, 0)parser_peek = tok
+        (children::root, node)list_append
+
+        (parser, 0)parser_peek = tok
         { break } ( type::tok == end ) if
     } (true) while
 
+    (res, root(void*))result_success return
+} (parser Parser*, end short) parse Result*
+
+{
+    (heap, @Result)heap_alloc(Result*) = res Result*
+    (parser, 0)parse_bin_expr return
+
     (res, null)result_success return
-} (_parser parser*, end short) parse result*
+} (parser Parser*) parse_expr Result*
+
+{
+    (heap, @Result)heap_alloc(Result*) = res Result*
+
+    (res, (parser)parse_atom)result_register = left void*
+    { res return } (err::res != null) if 
+
+    {
+
+        (parser, 0)parser_peek = op Token*
+        pos::op = pos Position
+
+        (type::op)get_prec = prec byte
+        # prec will be -1 if the token type is not an operator
+        # therefore the prec of a non operator token type will always be lower than min_prec
+        { break } (prec < min_prec) if  
+        (parser)parser_consume
+
+        (res, (parser, prec + 1)parse_bin_expr)result_register = right void*
+        { res return } (err::res != null) if 
+
+        (&pos, left, type::op, right)create_node_binop(void*) = left
+    } (true) while
+
+    (res, left)result_success return
+} (parser Parser*, min_prec byte) parse_bin_expr Result*
+
+{
+    (heap, @Result)heap_alloc(Result*) = res Result*
+    (parser, 0)parser_peek = tok Token*
+    pos::tok = pos Position
+    null = node void*
+
+    { (&pos, data::tok)create_node_int_lit(void*) = node } (type::tok == TT_INT) if
+    (parser)parser_consume
+
+    { 
+        (res, &pos, "Expected int\n")result_fail return 
+    } (node == null) if
+
+    (res, node)result_success return
+} (parser Parser*) parse_atom Result*
+
+{
+    {
+        node(NodeIntLit*) = nodeIntLit NodeIntLit*
+        (val::nodeIntLit)print_num
+    } (type::node == NODE_INT_LIT) if else
+    { 
+        node(NodeBinop*) = nodeBinop NodeBinop*
+        ("(")print 
+        (left::nodeBinop(Node*))display_ast
+        (op::nodeBinop)tt_to_str = type byte*
+        (type)print
+        (right::nodeBinop(Node*))display_ast
+        (")")print 
+    } (type::node == NODE_BINOP) if else
+    { 
+        node(NodeRoot*) = nodeRoot NodeRoot*
+        {
+            (items::children::(nodeRoot) + i * @void*)(Node**) = Pnode Node**
+            *Pnode = _node Node*
+            (_node)display_ast
+            ("\n")print
+        } (i + 1 = i; i < count::children::nodeRoot; 0 = i int) for
+    } (type::node == NODE_ROOT) if
+    return
+} (node Node*) display_ast void
 
 #####################################################################
 # other
