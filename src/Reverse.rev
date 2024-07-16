@@ -44,6 +44,7 @@ null(heapinfo_t*) = heap heapinfo_t*
 (true)iota  = TT_COUNT   short # the amount of token types
 
 (false)iota = NODE_ROOT      short
+(false)iota = NODE_UNOP      short
 (false)iota = NODE_BINOP     short
 (false)iota = NODE_INT_LIT   short
 (true)iota  = NODE_COUNT     short # the amount of node types
@@ -444,6 +445,22 @@ NodeRoot {
     node return
 } (pos Position*) create_node_root NodeRoot*
 
+NodeUnop {
+    type short
+    pos  Position
+    node void*
+    op   short
+} struct
+
+{
+    (heap, @NodeUnop)heap_alloc(NodeUnop*) = node NodeUnop*
+    NODE_UNOP = type::node
+    [file::pos, line::pos, column::pos] = pos::node
+    _node = node::node
+    op = op::node
+    node return
+} (pos Position*, _node void*, op short) create_node_unop NodeUnop*
+
 NodeBinop {
     type  short
     pos   Position
@@ -594,6 +611,13 @@ Parser {
 
     {
         (parser)parser_consume
+        (res, (parser)parse_atom)result_register = node
+        { res return } (err::res != null) if
+
+        (&pos, node(void*), type::tok)create_node_unop(void*) = node
+    } (type::tok == TT_MIN) if else
+    {
+        (parser)parser_consume
         (res, (parser, 0)parse_bin_expr)result_register = node
         { res return } (err::res != null) if
         (res, (parser, TT_PARENR)parser_expect)result_register
@@ -605,13 +629,18 @@ Parser {
     } (type::tok == TT_INT) if
 
     { 
-        (res, &pos, "Expected int, or '('\n")result_fail return 
+        (res, &pos, "Expected int, '-', or '('\n")result_fail return 
     } (node == null) if
 
     (res, node)result_success return
 } (parser Parser*) parse_atom Result*
 
 {
+    {
+        node(NodeUnop*) = nodeUnop NodeUnop*
+        ((op::nodeUnop)tt_to_str)print
+        (node::nodeUnop(Node*))display_ast
+    } (type::node == NODE_UNOP) if else
     {
         node(NodeIntLit*) = nodeIntLit NodeIntLit*
         (val::nodeIntLit)print_num
@@ -720,6 +749,7 @@ ImmValue {
 
 {
     false = _uses_reg byte
+    (type::node == NODE_UNOP && reg::reg == RAX) || _uses_reg = _uses_reg
 
     {
         node(NodeBinop*) = nodeBinop NodeBinop*
@@ -751,9 +781,10 @@ ImmValue {
 } (ast NodeRoot*, fn byte*) generate int
 
 {
-    { (node(NodeIntLit*),fbuf)visit_NodeIntLit return } (type::node == NODE_INT_LIT) if else
-    { (node(NodeBinop*),lhs,fbuf)visit_NodeBinop   return } (type::node == NODE_BINOP)   if else
-    { (node(NodeRoot*),fbuf)visit_NodeRoot     return } (type::node == NODE_ROOT)    if
+    { (node(NodeUnop*), fbuf)visit_NodeUnop      return } (type::node == NODE_UNOP)    if else
+    { (node(NodeIntLit*),fbuf)visit_NodeIntLit   return } (type::node == NODE_INT_LIT) if else
+    { (node(NodeBinop*),lhs,fbuf)visit_NodeBinop return } (type::node == NODE_BINOP)   if else
+    { (node(NodeRoot*),fbuf)visit_NodeRoot       return } (type::node == NODE_ROOT)    if
     null(Value*) return
 } (node Node*, lhs byte, fbuf FileBuffer*) visit Value*
 
@@ -766,6 +797,14 @@ ImmValue {
 
     null(Value*) return
 } (node NodeRoot*, fbuf FileBuffer*) visit_NodeRoot Value*
+
+{
+    (node::node(Node*), true, fbuf)visit = value Value*
+    (RAX, QWORD)create_reg = reg Reg*
+    (op::node, value, reg, fbuf)unary_instr = res Value*
+    (value)destroy
+    res return
+} (node NodeUnop*, fbuf FileBuffer*) visit_NodeUnop Value*
 
 {
     (left::node(Node*), true, fbuf)visit = left Value*
@@ -814,9 +853,24 @@ ImmValue {
 
 {
     { 
+        (reg(Value*), arg, fbuf)move
+        reg(Value*) = arg
+    } (type::arg != REG) if
+    null(byte*) = instr byte*
+
+    { "neg " = instr} (_instr == TT_MIN) if
+
+    (fbuf, instr)write_file_buffer
+    (fbuf, str::arg)write_file_buffer
+    (fbuf, "\n")write_file_buffer
+    arg return
+} (_instr short, arg Value*, reg Reg*, fbuf FileBuffer*) unary_instr Value*
+
+{
+    { 
         (reg(Value*), arg1, fbuf)move
         reg(Value*) = arg1
-    } (type::arg1 != REG && type::arg1 != MEMPOS) if
+    } (type::arg1 != REG) if
     null(byte*) = instr byte*
 
     {
