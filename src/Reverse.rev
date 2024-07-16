@@ -38,11 +38,61 @@ null(heapinfo_t*) = heap heapinfo_t*
 (false)iota = TT_FSLASH  short
 (false)iota = TT_PERCENT short
 (false)iota = TT_INT     short
+(false)iota = TT_PARENL  short
+(false)iota = TT_PARENR  short
 (false)iota = TT_NEWLINE short
+(true)iota  = TT_COUNT   short # the amount of token types
 
-(true)iota  = NODE_ROOT      short
+(false)iota = NODE_ROOT      short
 (false)iota = NODE_BINOP     short
 (false)iota = NODE_INT_LIT   short
+(true)iota  = NODE_COUNT     short # the amount of node types
+
+(false)iota = IMMVALUE short
+(false)iota = REG      short
+(true)iota  = MEMPOS   short
+
+"rax"  = _RAX byte*; "eax"  = _EAX byte*;  "ax"   = _AX byte*;   "al"   = _AL byte*
+"rbx"  = _RBX byte*; "ebx"  = _EBX byte*;  "bx"   = _BX byte*;   "bl"   = _BL byte*
+"rcx"  = _RCX byte*; "ecx"  = _ECX byte*;  "cx"   = _CX byte*;   "cl"   = _CL byte*
+"rdx"  = _RDX byte*; "edx"  = _EDX byte*;  "dx"   = _DX byte*;   "dl"   = _DL byte*
+"rsi"  = _RSI byte*; "esi"  = _ESI byte*;  "si"   = _SI byte*;   "sil"  = _SIL byte*
+"rdi"  = _RDI byte*; "edi"  = _EDI byte*;  "di"   = _DI byte*;   "dil"  = _DIL byte*
+"rsp"  = _RSP byte*; "esp"  = _ESP byte*;  "sp"   = _SP byte*;   "spl"  = _SPL byte*
+"rbp"  = _RBP byte*; "ebp"  = _EBP byte*;  "bp"   = _BP byte*;   "bpl"  = _BPL byte*
+"r8"   = _R8 byte*;  "r8d"  = _R8D byte*;  "r8w"  = _R8W byte*;  "r8b"  = _R8B byte*
+"r9"   = _R9 byte*;  "r9d"  = _R9D byte*;  "r9w"  = _R9W byte*;  "r9b"  = _R9B byte*
+"r10"  = _R10 byte*; "r10d" = _R10D byte*; "r10w" = _R10W byte*; "r10b" = _R10B byte*
+"r11"  = _R11 byte*; "r11d" = _R11D byte*; "r11w" = _R11W byte*; "r11b" = _R11B byte*
+"r12"  = _R12 byte*; "r12d" = _R12D byte*; "r12w" = _R12W byte*; "r12b" = _R12B byte*
+"r13"  = _R13 byte*; "r13d" = _R13D byte*; "r13w" = _R13W byte*; "r13b" = _R13B byte*
+"r14"  = _R14 byte*; "r14d" = _R14D byte*; "r14w" = _R14W byte*; "r14b" = _R14B byte*
+"r15"  = _R15 byte*; "r15d" = _R15D byte*; "r15w" = _R15W byte*; "r15b" = _R15B byte*
+&_RAX = regs byte**
+
+"qword " = _QWORD byte*; "dword " = _DWORD byte*; "word " = _WORD byte*; "byte " = _BYTE byte*
+
+0 = QWORD short
+1 = DWORD short
+2 = WORD  short
+3 = BYTE  short
+
+0  = RAX short
+1  = RBX short
+2  = RCX short
+3  = RDX short
+4  = RSI short
+5  = RDI short
+6  = RSP short
+7  = RBP short
+8  = R8  short
+9  = R9  short
+10 = R10 short
+11 = R11 short
+12 = R12 short
+13 = R13 short
+14 = R14 short
+15 = R15 short
 
 Settings {
     source_fn byte*
@@ -51,11 +101,11 @@ Settings {
     debug     byte
 } struct
 
+[null(byte*), "out.asm", 16 << 20, 0] = settings Settings
 (()get_argc, ()get_argv)main = exit_code int
 (exit_code)exit
 
 {
-    [null(byte*), "out.asm", 16 << 20, 0] = settings Settings
     { 1 return } ((argc, argv, &settings)parse_args != 0) if
 
     [0(heapchunk_t*),0,0,null] = _heap heapinfo_t
@@ -74,9 +124,11 @@ Settings {
     } (source_fd < 0) if
 
     null(Result*) = res Result*
-
     (source_fd)read_file = src byte*
-    [source_fd, src, [source_fn::settings, 1, 1], 0] = lexer Lexer
+    (source_fd)close
+
+    (LOG_INFO, "Tokenizing file\n")log
+    [src, [source_fn::settings, 1, 1], 0] = lexer Lexer
     (&lexer)tokenize = res
 
     { (err::res)print_error; 1 return} (err::res != null) if
@@ -84,6 +136,7 @@ Settings {
     (heap, src)heap_free
     (heap, res(void*))heap_free
 
+    (LOG_INFO, "Parsing file\n")log
     [tokens, 0] = parser Parser
     (&parser, TT_EOF)parse = res
 
@@ -93,9 +146,12 @@ Settings {
     { (ast(Node*))display_ast } (debug::settings) if
 
     (heap, res(void*))heap_free
-
     (tokens)deconstruct_list
     (heap, tokens(void*))heap_free
+
+    (LOG_INFO, "Generating assembly\n")log
+    (ast, output_fn::settings)generate = code int
+    { 1 return } (code != 0) if
     0 return
 } (argc int, argv byte**) main int
 
@@ -279,7 +335,6 @@ Token {
 } (type short) get_prec byte
 
 Lexer {
-    fd int
     src byte*
     pos Position
     index long
@@ -302,6 +357,8 @@ Lexer {
 } (lexer Lexer*, offset int) lexer_peek byte
 
 {
+    { (LOG_ERROR, "Exhaustive handling of token types in 'tokenize'\n")log } (TT_COUNT != 10) if
+    
     (heap, @List)heap_alloc(List*) = tokens List*
     (tokens)init_list
 
@@ -334,6 +391,8 @@ Lexer {
             n = data::tok
         } ('9' >= c && c >= '0') if else
         { TT_NEWLINE = type::tok } (c == 10 ) if else
+        {TT_PARENL = type::tok}    (c == '(') if else
+        {TT_PARENR = type::tok}    (c == ')') if else
         { TT_PERCENT = type::tok } (c == '%') if else
         { TT_FSLASH = type::tok }  (c == '/') if else
         { TT_STAR = type::tok }    (c == '*') if else
@@ -533,11 +592,20 @@ Parser {
     pos::tok = pos Position
     null = node void*
 
-    { (&pos, data::tok)create_node_int_lit(void*) = node } (type::tok == TT_INT) if
-    (parser)parser_consume
+    {
+        (parser)parser_consume
+        (res, (parser, 0)parse_bin_expr)result_register = node
+        { res return } (err::res != null) if
+        (res, (parser, TT_PARENR)parser_expect)result_register
+        { res return } (err::res != null) if
+    } (type::tok == TT_PARENL) if else
+    { 
+        (&pos, data::tok)create_node_int_lit(void*) = node 
+        (parser)parser_consume
+    } (type::tok == TT_INT) if
 
     { 
-        (res, &pos, "Expected int\n")result_fail return 
+        (res, &pos, "Expected int, or '('\n")result_fail return 
     } (node == null) if
 
     (res, node)result_success return
@@ -570,8 +638,270 @@ Parser {
 } (node Node*) display_ast void
 
 #####################################################################
+# Generator
+#####################################################################
+
+Value {
+    type short
+    str  byte*
+} struct
+
+Reg {
+    type short
+    str  byte*
+    reg  short
+    size short
+} struct
+
+{
+    (heap, @Reg)heap_alloc(Reg*) = reg Reg*
+    REG = type::reg
+    _reg = reg::reg
+    size = size::reg
+
+    reg::reg*4 + size::reg = index int
+    (regs - index * @void*)(byte**) = PStr byte**
+    *PStr = str::reg
+    reg return
+} (_reg short, size short) create_reg Reg*
+
+Mempos {
+    type   short
+    str    byte*
+    reg    short
+    size   short
+    offset long
+} struct
+
+{
+    (heap, @Mempos)heap_alloc(Mempos*) = mempos Mempos*
+    MEMPOS = type::mempos
+    reg = reg::mempos
+    size = size::mempos
+    offset = offset::mempos
+
+    # TODO: create a string representation of mempos struct
+
+    mempos return
+} (reg short, size short, offset long) create_mempos Mempos*
+
+ImmValue {
+    type short
+    str  byte*
+    val  long
+} struct
+
+{
+    (heap, @ImmValue)heap_alloc(ImmValue*) = immvalue ImmValue*
+    IMMVALUE = type::immvalue
+    value = val::immvalue
+    (value)itoa = str byte*
+    str = str::immvalue
+    immvalue return
+} (value long) create_immvalue ImmValue*
+
+{
+    true = is_equal byte
+    
+    (type::val1 == type::val2) = is_equal
+    { is_equal return } (!is_equal) if
+
+    (str::val1, str::val2)strcmp = is_equal
+    is_equal return
+} (val1 Value*, val2 Value*) value_equals byte
+
+{
+    {
+        (heap, str::value)heap_free
+    } (type::value == IMMVALUE || type::value == MEMPOS) if
+    (heap, value(void*))heap_free
+    return
+} (value Value*) destroy void
+
+{
+    false = _uses_reg byte
+
+    {
+        node(NodeBinop*) = nodeBinop NodeBinop*
+        (left::nodeBinop(Node*),  true,  reg)uses_reg || _uses_reg = _uses_reg
+        (right::nodeBinop(Node*), false, reg)uses_reg || _uses_reg = _uses_reg
+
+        (!lhs && reg::reg == RDI) || _uses_reg = _uses_reg 
+        (lhs  && reg::reg == RAX) || _uses_reg = _uses_reg
+    } (type::node == NODE_BINOP) if
+    _uses_reg return
+} (node Node*, lhs byte, reg Reg*) uses_reg byte 
+
+{
+    (heap, @FileBuffer)heap_alloc(FileBuffer*) = fbuf FileBuffer*
+    (fbuf, fn, 256 << 10)open_file_buffer = code int
+
+    { (LOG_ERROR, "Could not open output file\n")log; 1 return } (code == 1) if
+    { (LOG_ERROR, "Could not allocate file buffer\n")log; 1 return } (code == 2) if
+
+    (fbuf, "format ELF64 executable\nsegment readable executable\nentry $\n")write_file_buffer
+
+    (ast, fbuf)visit_NodeRoot
+
+    (fbuf, "mov rdi,0\nmov rax,60\nsyscall")write_file_buffer
+
+    (fbuf)close_file_buffer
+    (heap, fbuf(void*))heap_free
+    0 return
+} (ast NodeRoot*, fn byte*) generate int
+
+{
+    { (node(NodeIntLit*),fbuf)visit_NodeIntLit return } (type::node == NODE_INT_LIT) if else
+    { (node(NodeBinop*),lhs,fbuf)visit_NodeBinop   return } (type::node == NODE_BINOP)   if else
+    { (node(NodeRoot*),fbuf)visit_NodeRoot     return } (type::node == NODE_ROOT)    if
+    null(Value*) return
+} (node Node*, lhs byte, fbuf FileBuffer*) visit Value*
+
+{
+    {
+        (items::children::node + i * @void*)(Node**) = Pnode Node**
+        (*Pnode, true, fbuf)visit = value Value*
+        (value)destroy
+    } (i + 1 = i; i < count::children::node; 0 = i int) for
+
+    null(Value*) return
+} (node NodeRoot*, fbuf FileBuffer*) visit_NodeRoot Value*
+
+{
+    (left::node(Node*), true, fbuf)visit = left Value*
+
+    null(Reg*) = reg Reg*
+    { (RDI, QWORD)create_reg = reg } else
+    { (RAX, QWORD)create_reg = reg } (lhs) if
+
+    { 
+        (R10, QWORD)create_reg = new_reg Reg*
+        (new_reg(Value*), reg(Value*), fbuf)move(Reg*)
+        (reg(Value*))destroy
+        new_reg = reg
+        {
+            (left)destroy
+            reg(Value*) = left
+        } (type::left == REG) if
+    } ((right::node(Node*), false, reg)uses_reg) if
+
+    (right::node(Node*), false, fbuf)visit = right Value*
+    (op::node, left, right, reg, fbuf)bin_instr(Reg*) = reg
+
+    (left)destroy
+    (right)destroy
+    reg(Value*) return
+} (node NodeBinop*, lhs byte, fbuf FileBuffer*) visit_NodeBinop Value*
+
+{
+    (val::node)create_immvalue(Value*) return
+} (node NodeIntLit*, fbuf FileBuffer*) visit_NodeIntLit Value*
+
+{
+    { 
+        dest(Reg*) = destReg Reg*
+        src(Reg*) = srcReg Reg*
+        { dest return } (reg::destReg == reg::srcReg && size::destReg == size::srcReg) if
+    }  ((type::dest == REG && type::src == REG)) if
+
+    (fbuf, "mov ")write_file_buffer
+    (fbuf, str::dest)write_file_buffer
+    (fbuf, ",")write_file_buffer
+    (fbuf, str::src)write_file_buffer
+    (fbuf, "\n")write_file_buffer
+    dest return
+} (dest Value*, src Value*, fbuf FileBuffer*) move Value*
+
+{
+    { 
+        (reg(Value*), arg1, fbuf)move
+        reg(Value*) = arg1
+    } (type::arg1 != REG && type::arg1 != MEMPOS) if
+    null(byte*) = instr byte*
+
+    {
+        (RDI, size::(arg1(Reg*)))create_reg = divisor Reg*
+        (divisor(Value*), arg2, fbuf)move
+        
+        (RAX, size::(arg1(Reg*)))create_reg = dividend Reg*
+        (dividend(Value*), arg1, fbuf)move(Value*) = arg1
+
+        (fbuf, "cqo\n")write_file_buffer
+        (fbuf, "idiv ")write_file_buffer
+        (fbuf, str::divisor)write_file_buffer
+        (fbuf, "\n")write_file_buffer
+
+        (divisor(Value*))destroy
+
+        { 
+            (RDX, size::dividend)create_reg = r Reg*
+            (dividend(Value*))destroy
+            r(Value*) return
+        } (_instr == TT_PERCENT) if
+        arg1 return
+    } (_instr == TT_FSLASH || _instr == TT_PERCENT) if
+
+    { "sub "  = instr } (_instr == TT_MIN)  if else
+    { "imul " = instr } (_instr == TT_STAR) if else
+    { "add "  = instr } (_instr == TT_PLUS) if
+
+    (fbuf, instr)write_file_buffer
+    (fbuf, str::arg1)write_file_buffer
+    (fbuf, ",")write_file_buffer
+    (fbuf, str::arg2)write_file_buffer
+    (fbuf, "\n")write_file_buffer
+    arg1 return
+} (_instr short, arg1 Value*, arg2 Value*, reg Reg*, fbuf FileBuffer*) bin_instr Value*
+
+#####################################################################
 # other
 #####################################################################
+
+FileBuffer {
+    fd    int
+    buf   byte*
+    cap   long
+    count long
+} struct
+
+# returns 1 when file cannot be opened
+# returns 2 when the buffer cant be allocated
+{
+    (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH, O_WRONLY | O_CREAT | O_TRUNC, filename)open = fd int
+    { 1 return } (fd < 0) if
+
+    fd = fd::fb
+    0 = count::fb
+    (heap, bufsize)heap_alloc = buf byte*
+
+    { 2 return } (buf == null) if
+
+    bufsize = cap::fb
+    buf = buf::fb
+    0 return
+} (fb FileBuffer*, filename byte*, bufsize long) open_file_buffer int
+
+{
+    (fb)flush_file_buffer
+    (fd::fb)close
+    (heap, buf::fb(void*))heap_free
+    0 = cap::fb
+    return
+} (fb FileBuffer*) close_file_buffer void
+
+{
+    (count::fb, buf::fb, fd::fb)write
+    0 = count::fb
+    return
+} (fb FileBuffer*) flush_file_buffer void
+
+{
+    (buf)strlen = buflen long
+    { (fb)flush_file_buffer } (buflen + count::fb > cap::fb) if
+    (buf(void*), buf::fb + count::fb, buflen)memcpy
+    count::fb + buflen = count::fb
+    return
+} (fb FileBuffer*, buf byte*) write_file_buffer void
 
 {
     0 = argc long
@@ -705,6 +1035,21 @@ Parser {
     } (i + 1 = i; true; 0 = i long) for  
     return
 } (src byte*, dest byte*) strcpy void
+
+{
+    0 = i long
+    count % 8 = n long
+
+    {
+        *(src(long*) + i) = *(dest(long*) + i)
+    } (i + 8 = i; i < count-n && count > 8; i) for
+
+    { *(src(int*)   + i) = *(dest(int*)   + i); n - 4 = n; i + 4 = i } (n >= 4) if
+    { *(src(short*) + i) = *(dest(short*) + i); n - 2 = n; i + 2 = i } (n >= 2) if
+    { *(src(byte*)  + i) = *(dest(byte*)  + i); n - 1 = n; i + 1 = i } (n >= 1) if
+
+    return
+} (src void*, dest void*, count long) memcpy void
 
 {
     (str)strlen = len long
@@ -1011,19 +1356,20 @@ heapinfo_t {
     ((chunks::heap) + index * @heapchunk_t) = chunk heapchunk_t*
     (heap, new_size)heap_alloc = new_buf void*
 
-    size::chunk = n long
-    { new_size = n } (size::chunk > new_size) if
+    size::chunk = size long
+    { new_size = size } (size::chunk > new_size) if
+    size % 8 = n long
     0 = i int
 
     {
         *(buf(long*) + i) = *(new_buf(long*) + i)
-    } (i + 8 = i; i < n && n > 8; i) for
+    } (i + 8 = i; i < size-n && size > 8; i) for
 
     n - i = n
 
-    { *(buf(int*) + i) = *(new_buf(int*) + i);     n - 4 = n } (n >= 4) if
-    { *(buf(short*) + i) = *(new_buf(short*) + i); n - 2 = n } (n >= 2) if
-    { *(buf(byte*) + i) = *(new_buf(byte*) + i);   n - 1 = n } (n >= 1) if
+    { *(buf(int*)   + i) = *(new_buf(int*)   + i); n - 4 = n; i + 4 = i } (n >= 4) if
+    { *(buf(short*) + i) = *(new_buf(short*) + i); n - 2 = n; i + 2 = i } (n >= 2) if
+    { *(buf(byte*)  + i) = *(new_buf(byte*)  + i); n - 1 = n; i + 1 = i } (n >= 1) if
 
     (heap, buf)heap_free
     new_buf return
