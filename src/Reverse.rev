@@ -166,7 +166,7 @@ Settings {
     { (err::res)print_error; 1 return } (err::res != null) if
 
     (LOG_INFO, "Generating assembly\n")log
-    (ast, output_fn::settings)generate = code int
+    (ast, &table, output_fn::settings)generate = code int
     { 1 return } (code != 0) if
     0 return
 } (argc int, argv byte**) main int
@@ -985,6 +985,13 @@ Mempos {
     mempos return
 } (reg short, size short, offset long) create_mempos Mempos*
 
+{
+    (table, name)get_symbol(Var*) = symbol Var*
+    { null(Mempos*) return } (type::super::symbol != VAR) if
+
+    (RBP, QWORD, pos::symbol)create_mempos return
+} (table SymbolTable*, name byte*) get_var_pos Mempos*
+
 ImmValue {
     super Value
     val   long
@@ -1017,6 +1024,10 @@ ImmValue {
     return
 } (value Value*) destroy void
 
+GenContext {
+    table SymbolTable*
+} struct
+
 {
     false = _uses_reg byte
     {
@@ -1044,41 +1055,44 @@ ImmValue {
     (fbuf, "format ELF64 executable\nsegment readable executable\nentry $\n")write_file_buffer
     (fbuf, "mov rbp, rsp\n")write_file_buffer
 
-    (ast(Node*), true, fbuf)visit
+    [table] = ctx GenContext
+    (ast(Node*), true, &ctx, fbuf)visit
 
     (fbuf, "mov rdi,0\nmov rax,60\nsyscall")write_file_buffer
 
     (fbuf)close_file_buffer
     (heap, fbuf(void*))heap_free
     0 return
-} (ast NodeRoot*, fn byte*) generate int
+} (ast NodeRoot*, table SymbolTable*, fn byte*) generate int
 
 {
-    { (node(NodeVarDef*),fbuf)visit_nodeVarDef   return } (type::node == NODE_VAR_DEF) if else
-    { (node(NodeUnop*),lhs,fbuf)visit_NodeUnop   return } (type::node == NODE_UNOP)    if else
-    { (node(NodeIntLit*),fbuf)visit_NodeIntLit   return } (type::node == NODE_INT_LIT) if else
-    { (node(NodeBinop*),lhs,fbuf)visit_NodeBinop return } (type::node == NODE_BINOP)   if else
-    { (node(NodeRoot*),fbuf)visit_NodeRoot       return } (type::node == NODE_ROOT)    if
+    { (node(NodeVarDef*),ctx,fbuf)visit_nodeVarDef   return } (type::node == NODE_VAR_DEF) if else
+    { (node(NodeUnop*),lhs,ctx,fbuf)visit_NodeUnop   return } (type::node == NODE_UNOP)    if else
+    { (node(NodeIntLit*),ctx,fbuf)visit_NodeIntLit   return } (type::node == NODE_INT_LIT) if else
+    { (node(NodeBinop*),lhs,ctx,fbuf)visit_NodeBinop return } (type::node == NODE_BINOP)   if else
+    { (node(NodeRoot*),ctx,fbuf)visit_NodeRoot       return } (type::node == NODE_ROOT)    if
     null(Value*) return
-} (node Node*, lhs byte, fbuf FileBuffer*) visit Value*
+} (node Node*, lhs byte, ctx GenContext*, fbuf FileBuffer*) visit Value*
 
 {
     {
         (items::children::node + i * @void*)(Node**) = Pnode Node**
-        (*Pnode, true, fbuf)visit = value Value*
+        (*Pnode, true, ctx, fbuf)visit = value Value*
         (value)destroy
     } (i + 1 = i; i < count::children::node; 0 = i int) for
 
     null(Value*) return
-} (node NodeRoot*, fbuf FileBuffer*) visit_NodeRoot Value*
+} (node NodeRoot*, ctx GenContext*, fbuf FileBuffer*) visit_NodeRoot Value*
 
 {
-    (val::node, true, fbuf)visit = val Value*
+    (val::node, true, ctx, fbuf)visit = val Value*
+    (table::ctx, name::node)get_var_pos = pos Mempos*
+    (pos(Value*), val, fbuf)move
     val return
-} (node NodeVarDef*, fbuf FileBuffer*) visit_nodeVarDef Value*
+} (node NodeVarDef*, ctx GenContext*, fbuf FileBuffer*) visit_nodeVarDef Value*
 
 {
-    (node::node, true, fbuf)visit = value Value*
+    (node::node, true, ctx, fbuf)visit = value Value*
     RAX = _reg short
     { RDI = _reg } (!lhs) if
 
@@ -1086,10 +1100,10 @@ ImmValue {
     (op::node, value, reg, fbuf)unary_instr = res Value*
     (value)destroy
     res return
-} (node NodeUnop*, lhs byte, fbuf FileBuffer*) visit_NodeUnop Value*
+} (node NodeUnop*, lhs byte, ctx GenContext*, fbuf FileBuffer*) visit_NodeUnop Value*
 
 {
-    (left::node, true, fbuf)visit = left Value*
+    (left::node, true, ctx, fbuf)visit = left Value*
 
     null(Reg*) = reg Reg*
     { (RDI, QWORD)create_reg = reg } else
@@ -1106,17 +1120,17 @@ ImmValue {
         } (type::left == REG) if
     } ((right::node, false, reg)uses_reg) if
 
-    (right::node, false, fbuf)visit = right Value*
+    (right::node, false, ctx, fbuf)visit = right Value*
     (op::node, left, right, reg, fbuf)bin_instr(Reg*) = reg
 
     (left)destroy
     (right)destroy
     reg(Value*) return
-} (node NodeBinop*, lhs byte, fbuf FileBuffer*) visit_NodeBinop Value*
+} (node NodeBinop*, lhs byte, ctx GenContext*, fbuf FileBuffer*) visit_NodeBinop Value*
 
 {
     (val::node)create_immvalue(Value*) return
-} (node NodeIntLit*, fbuf FileBuffer*) visit_NodeIntLit Value*
+} (node NodeIntLit*, ctx GenContext*, fbuf FileBuffer*) visit_NodeIntLit Value*
 
 {
     { 
