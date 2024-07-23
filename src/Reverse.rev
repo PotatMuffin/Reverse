@@ -446,7 +446,11 @@ Lexer {
         { TT_FSLASH  = type::tok } (c == '/') if else
         { TT_STAR    = type::tok } (c == '*') if else
         { TT_MIN     = type::tok } (c == '-') if else 
-        { TT_PLUS    = type::tok } (c == '+') if
+        { TT_PLUS    = type::tok } (c == '+') if else
+        {
+            { (lexer)lexer_consume } ((lexer,0)lexer_peek != 10) while
+            continue
+        } (c == '#') if
 
         {
             (heap, @Error)heap_alloc(Error*) = err Error*
