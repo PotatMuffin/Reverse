@@ -48,8 +48,8 @@
                 : [bin_expr] &  [bin_expr] | prec = 3
                 : [bin_expr] |  [bin_expr] | prec = 3
                 : [bin_expr] ^  [bin_expr] | prec = 3
-                : [bin_expr] >> [bin_expr] | prec = 2
-                : [bin_expr] << [bin_expr] | prec = 2
+                : [bin_expr] >> [bin_expr] | prec = 3
+                : [bin_expr] << [bin_expr] | prec = 3
                 : [bin_expr] >  [bin_expr] | prec = 2
                 : [bin_expr] <  [bin_expr] | prec = 2
                 : [bin_expr] >= [bin_expr] | prec = 2
