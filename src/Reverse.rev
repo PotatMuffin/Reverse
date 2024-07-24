@@ -52,6 +52,7 @@ null(heapinfo_t*) = heap heapinfo_t*
 (false)iota = NODE_INT_LIT    short
 (false)iota = NODE_VAR_DEF    short
 (false)iota = NODE_VAR_ASSIGN short
+(false)iota = NODE_VAR        short
 (true)iota  = NODE_COUNT      short
 
 (false)iota = IMMVALUE short
@@ -571,6 +572,19 @@ NodeVarAssign {
     node return
 } (pos Position*, name byte*, val Node*) create_node_var_assign NodeVarAssign*
 
+NodeVar {
+    super Node
+    name byte*
+} struct
+
+{
+    (heap, @NodeVar)heap_alloc(NodeVar*) = node NodeVar*
+    NODE_VAR = type::super::node
+    [file::pos, line::pos, column::pos] = pos::super::node
+    name = name::node
+    node return
+} (pos Position*, name byte*) create_node_var NodeVar*
+
 Parser {
     tokens List*
     index long
@@ -717,32 +731,36 @@ Parser {
     (heap, @Result)heap_alloc(Result*) = res Result*
     (parser, 0)parser_peek = tok Token*
     pos::tok = pos Position
-    null = node void*
+    null(Node*) = node Node*
 
     {
         (parser)parser_consume
-        (res, (parser)parse_atom)result_register = node
+        (&pos, data::tok(byte*))create_node_var(Node*) = node
+    } (type::tok == TT_IDENT) if else
+    {
+        (parser)parser_consume
+        (res, (parser)parse_atom)result_register(Node*) = node
         { res return } (err::res != null) if
 
-        (&pos, node(Node*), type::tok)create_node_unop(void*) = node
+        (&pos, node(Node*), type::tok)create_node_unop(Node*) = node
     } (type::tok == TT_MIN) if else
     {
         (parser)parser_consume
-        (res, (parser, 0)parse_bin_expr)result_register = node
+        (res, (parser, 0)parse_bin_expr)result_register(Node*) = node
         { res return } (err::res != null) if
         (res, (parser, TT_PARENR)parser_expect)result_register
         { res return } (err::res != null) if
     } (type::tok == TT_PARENL) if else
     { 
-        (&pos, data::tok)create_node_int_lit(void*) = node 
+        (&pos, data::tok)create_node_int_lit(Node*) = node 
         (parser)parser_consume
     } (type::tok == TT_INT) if
 
     { 
-        (res, &pos, "Expected int, '-', or '('\n")result_fail return 
+        (res, &pos, "Expected int, identifier, '-', or '('\n")result_fail return 
     } (node == null) if
 
-    (res, node)result_success return
+    (res, node(void*))result_success return
 } (parser Parser*) parse_atom Result*
 
 {
@@ -892,6 +910,7 @@ ValContext {
 } (node NodeRoot*, table SymbolTable*) validate Result*
 
 {
+    { (node(NodeVar*), ctx)valvisit_NodeVar            return } (type::node == NODE_VAR)        if else
     { (node(NodeVarAssign*),ctx)valvisit_NodeVarAssign return } (type::node == NODE_VAR_ASSIGN) if else
     { (node(NodeVarDef*),ctx)valvisit_NodeVarDef       return } (type::node == NODE_VAR_DEF)    if else
     { (node(NodeUnop*),ctx)valvisit_NodeUnop           return } (type::node == NODE_UNOP)       if else
@@ -914,6 +933,13 @@ ValContext {
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
+
+    (res, (left::node, ctx)valvisit)result_register
+    {res return } (err::res != null) if
+
+    (res, (right::node, ctx)valvisit)result_register
+    {res return } (err::res != null) if
+
     (res, null)result_success return
 } (node NodeBinop*, ctx ValContext*) valvisit_NodeBinop Result*
 
@@ -924,12 +950,20 @@ ValContext {
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
+    
+    (res, (node::node, ctx)valvisit)result_register
+    {res return } (err::res != null) if
+
     (res, null)result_success return
 } (node NodeUnop*, ctx ValContext*) valvisit_NodeUnop Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
     (table::ctx, name::node)get_symbol = symbol Symbol*
+    
+    (res, (val::node, ctx)valvisit)result_register
+    {res return } (err::res != null) if
+
     { 
         pos::super::node = pos Position
         name::node = name byte*
@@ -944,6 +978,10 @@ ValContext {
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
     (table::ctx, name::node)get_symbol = symbol Symbol*
+
+    (res, (val::node, ctx)valvisit)result_register
+    {res return } (err::res != null) if
+
     { 
         pos::super::node = pos Position
         name::node = name byte*
@@ -951,6 +989,18 @@ ValContext {
     } (symbol == null) if
     (res, null)result_success return
 } (node NodeVarAssign*, ctx ValContext*) valvisit_NodeVarAssign Result*
+
+{
+    (heap, @Result)heap_alloc(Result*) = res Result* 
+    (table::ctx, name::node)get_symbol = symbol Symbol*
+
+    { 
+        pos::super::node = pos Position
+        name::node = name byte*
+        (res, &pos, ("'%' is not defined\n", &name, 1)strformat)result_fail return
+    } (symbol == null) if
+    (res, null)result_success return
+} (node NodeVar*, ctx ValContext*) valvisit_NodeVar Result*
 
 #####################################################################
 # Generator
@@ -1100,12 +1150,13 @@ GenContext {
 } (ast NodeRoot*, table SymbolTable*, fn byte*) generate int
 
 {
-    { (node(NodeVarAssign*),ctx,fbuf)visit_nodeVar   return } (type::node == NODE_VAR_ASSIGN) if else
-    { (node(NodeVarAssign*),ctx,fbuf)visit_nodeVar   return } (type::node == NODE_VAR_DEF)    if else
-    { (node(NodeUnop*),lhs,ctx,fbuf)visit_NodeUnop   return } (type::node == NODE_UNOP)       if else
-    { (node(NodeIntLit*),ctx,fbuf)visit_NodeIntLit   return } (type::node == NODE_INT_LIT)    if else
-    { (node(NodeBinop*),lhs,ctx,fbuf)visit_NodeBinop return } (type::node == NODE_BINOP)      if else
-    { (node(NodeRoot*),ctx,fbuf)visit_NodeRoot       return } (type::node == NODE_ROOT)       if
+    { (node(NodeVar*),ctx,fbuf)visit_NodeVar             return } (type::node == NODE_VAR)        if else
+    { (node(NodeVarAssign*),ctx,fbuf)visit_NodeVarAssign return } (type::node == NODE_VAR_ASSIGN) if else
+    { (node(NodeVarAssign*),ctx,fbuf)visit_NodeVarAssign return } (type::node == NODE_VAR_DEF)    if else
+    { (node(NodeUnop*),lhs,ctx,fbuf)visit_NodeUnop       return } (type::node == NODE_UNOP)       if else
+    { (node(NodeIntLit*),ctx,fbuf)visit_NodeIntLit       return } (type::node == NODE_INT_LIT)    if else
+    { (node(NodeBinop*),lhs,ctx,fbuf)visit_NodeBinop     return } (type::node == NODE_BINOP)      if else
+    { (node(NodeRoot*),ctx,fbuf)visit_NodeRoot           return } (type::node == NODE_ROOT)       if
     null(Value*) return
 } (node Node*, lhs byte, ctx GenContext*, fbuf FileBuffer*) visit Value*
 
@@ -1120,11 +1171,16 @@ GenContext {
 } (node NodeRoot*, ctx GenContext*, fbuf FileBuffer*) visit_NodeRoot Value*
 
 {
+    (table::ctx, name::node)get_var_pos = pos Mempos*
+    pos(Value*) return
+} (node NodeVar*, ctx GenContext*, fbuf FileBuffer*)visit_NodeVar Value*
+
+{
     (val::node, true, ctx, fbuf)visit = val Value*
     (table::ctx, name::node)get_var_pos = pos Mempos*
     (pos(Value*), val, fbuf)move
     val return
-} (node NodeVarDef*, ctx GenContext*, fbuf FileBuffer*) visit_nodeVar Value*
+} (node NodeVarAssign*, ctx GenContext*, fbuf FileBuffer*) visit_NodeVarAssign Value*
 
 {
     (node::node, true, ctx, fbuf)visit = value Value*

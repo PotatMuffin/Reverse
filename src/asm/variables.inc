@@ -71,6 +71,7 @@ newline db 10,0
 space db ' ',0
 comma db ', ',0
 colon db ':',0
+semi  db ';',0
 quote db "'",0
 suffix db ".",10,0
 _min db '-',0

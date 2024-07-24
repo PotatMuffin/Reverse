@@ -835,7 +835,7 @@ visit_node_func_def: ; void visit_node_func_def(void* node, context* context)
     mov [rbp - 24], rax
 
     fprintmany [outputfd], _jmp, _func, [rbp - 24], _end, newline
-    fprintmany [outputfd], _func, [rbp - 24], colon, newline
+    fprintmany [outputfd], _func, [rbp - 24], colon, space, semi, space, r15, newline
     fprintmany [outputfd], _prologue
     mov rbx, [rbp - 48]
     cmp dword [rbx + 8], 0
