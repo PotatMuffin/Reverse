@@ -546,6 +546,7 @@ NodeVarDef {
     super Node
     name  byte*
     val   Node*
+    type  byte*
 } struct
 
 {
@@ -554,8 +555,9 @@ NodeVarDef {
     [file::pos, line::pos, column::pos] = pos::super::node
     name = name::node
     val = val::node
+    varType = type::node
     node return
-} (pos Position*, name byte*, val Node*) create_node_var_def NodeVarDef*
+} (pos Position*, name byte*, val Node*, varType byte*) create_node_var_def NodeVarDef*
 
 NodeVarAssign {
     super Node
@@ -686,17 +688,17 @@ Parser {
     (res, (parser, TT_IDENT)parser_expect)result_register(Token*) = tok Token*
     { res return } (err::res != null ) if 
 
-    (parser, 0)parser_peek = keyword Token*
+    (parser, 0)parser_peek = varType Token*
 
     null(Node*) = node Node*
 
     {
         (&pos, data::tok(byte*), value)create_node_var_assign(Node*) = node
         (res, node(void*))result_success return
-    } (type::keyword != TT_KEYWORD) if
+    } (type::varType != TT_IDENT) if
 
     (parser)parser_consume
-    (&pos, data::tok(byte*), value)create_node_var_def(Node*) = node
+    (&pos, data::tok(byte*), value, data::varType(byte*))create_node_var_def(Node*) = node
 
     (res, node(void*))result_success return
 } (parser Parser*, value Node*) parse_var_expr Result*
@@ -804,14 +806,16 @@ Symbol {
     next void* # Symbol*
 } struct
 
+Type {
+    super     Symbol
+    sizeBytes int
+    size      int
+} struct
+
 Var {
     super Symbol
     pos   long
-} struct
-
-Builtin {
-    super Symbol
-    size  short
+    type  Type*
 } struct
 
 SymbolTable {
@@ -864,23 +868,25 @@ SymbolTable {
     VAR = type::super::var
     name = name::super::var
     null = next::super::var
+    varType = type::var
 
-    stack::table + 8 = stack::table
+    stack::table + sizeBytes::varType = stack::table
     -stack::table = pos::var
     (table, var(Symbol*))add_symbol
     return
-} (table SymbolTable*, name byte*) add_var void
+} (table SymbolTable*, name byte*, varType Type*) add_var void
 
 {
-    (heap, @Builtin)heap_alloc(Builtin*) = builtin Builtin*
+    (heap, @Type)heap_alloc(Type*) = builtin Type*
     BUILTIN = type::super::builtin
     name = name::super::builtin
     null = next::super::builtin
     size = size::builtin
+    sizeBytes = sizeBytes::builtin
 
     (table, builtin(Symbol*))add_symbol
     return
-} (table SymbolTable*, name byte*, size short) add_builtin void
+} (table SymbolTable*, name byte*, size int, sizeBytes int) add_builtin void
 
 {
     (name)hash = _hash long
@@ -899,15 +905,25 @@ ValContext {
 } struct
 
 {
-    (table, "long", QWORD)add_builtin
-    (table, "int",  DWORD)add_builtin
-    (table, "short", WORD)add_builtin
-    (table, "byte",  BYTE)add_builtin
+    (table, "long", QWORD, 8)add_builtin
+    (table, "int",  DWORD, 4)add_builtin
+    (table, "short", WORD, 2)add_builtin
+    (table, "byte",  BYTE, 1)add_builtin
 
     [table] = ctx ValContext
     (node(Node*),&ctx)valvisit = res Result*
     res return
 } (node NodeRoot*, table SymbolTable*) validate Result*
+
+{
+    (table, name)get_symbol = symbol Symbol*
+
+    {
+        null(Symbol*) return
+    } (type::symbol != BUILTIN) if
+
+    symbol return
+} (table SymbolTable*, name byte*) get_type Symbol*
 
 {
     { (node(NodeVar*), ctx)valvisit_NodeVar            return } (type::node == NODE_VAR)        if else
@@ -934,50 +950,58 @@ ValContext {
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
 
-    (res, (left::node, ctx)valvisit)result_register
+    (res, (left::node, ctx)valvisit)result_register(Type*) = leftType Type*
     {res return } (err::res != null) if
 
-    (res, (right::node, ctx)valvisit)result_register
+    (res, (right::node, ctx)valvisit)result_register(Type*) = rightType Type*
     {res return } (err::res != null) if
 
-    (res, null)result_success return
+    (res, leftType(void*))result_success return
 } (node NodeBinop*, ctx ValContext*) valvisit_NodeBinop Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
-    (res, null)result_success return
+    (res, (table::ctx, "long")get_symbol(void*))result_success return
 } (node NodeIntLit*, ctx ValContext*) valvisit_NodeIntLit Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
     
-    (res, (node::node, ctx)valvisit)result_register
+    (res, (node::node, ctx)valvisit)result_register(Type*) = type Type*
     {res return } (err::res != null) if
 
-    (res, null)result_success return
+    (res, type(void*))result_success return
 } (node NodeUnop*, ctx ValContext*) valvisit_NodeUnop Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
+    pos::super::node = pos Position
+
     (table::ctx, name::node)get_symbol = symbol Symbol*
     
     (res, (val::node, ctx)valvisit)result_register
     {res return } (err::res != null) if
 
     { 
-        pos::super::node = pos Position
         name::node = name byte*
         (res, &pos, ("'%' is already defined\n", &name, 1)strformat)result_fail return
     } (symbol != null) if
 
-    (table::ctx, name::node)add_var
+    (table::ctx, type::node)get_type(Type*) = varType Type*
 
-    (res, null)result_success return
+    {
+        type::node = type byte*
+        (res, &pos, ("'%' is not a type\n", &type, 1)strformat)result_fail return
+    } (varType == null) if
+
+    (table::ctx, name::node, varType)add_var
+
+    (res, varType(void*))result_success return
 } (node NodeVarDef*, ctx ValContext*) valvisit_NodeVarDef Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
-    (table::ctx, name::node)get_symbol = symbol Symbol*
+    (table::ctx, name::node)get_symbol(Var*) = var Var*
 
     (res, (val::node, ctx)valvisit)result_register
     {res return } (err::res != null) if
@@ -986,20 +1010,20 @@ ValContext {
         pos::super::node = pos Position
         name::node = name byte*
         (res, &pos, ("'%' is not defined\n", &name, 1)strformat)result_fail return
-    } (symbol == null) if
-    (res, null)result_success return
+    } (var == null) if
+    (res, type::var(void*))result_success return
 } (node NodeVarAssign*, ctx ValContext*) valvisit_NodeVarAssign Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
-    (table::ctx, name::node)get_symbol = symbol Symbol*
+    (table::ctx, name::node)get_symbol(Var*) = var Var*
 
     { 
         pos::super::node = pos Position
         name::node = name byte*
         (res, &pos, ("'%' is not defined\n", &name, 1)strformat)result_fail return
-    } (symbol == null) if
-    (res, null)result_success return
+    } (var == null) if
+    (res, type::var(void*))result_success return
 } (node NodeVar*, ctx ValContext*) valvisit_NodeVar Result*
 
 #####################################################################
@@ -1073,7 +1097,7 @@ Mempos {
     (table, name)get_symbol(Var*) = symbol Var*
     { null(Mempos*) return } (type::super::symbol != VAR) if
 
-    (RBP, QWORD, pos::symbol)create_mempos return
+    (RBP, size::type::symbol, pos::symbol)create_mempos return
 } (table SymbolTable*, name byte*) get_var_pos Mempos*
 
 ImmValue {
@@ -1120,11 +1144,12 @@ GenContext {
     } (type::node == NODE_UNOP) if else
     {
         node(NodeBinop*) = nodeBinop NodeBinop*
-        _uses_reg || (left::nodeBinop(Node*),  true,  reg)uses_reg = _uses_reg
-        _uses_reg || (right::nodeBinop(Node*), false, reg)uses_reg = _uses_reg
+        _uses_reg || (left::nodeBinop,  true,  reg)uses_reg = _uses_reg
+        _uses_reg || (right::nodeBinop, false, reg)uses_reg = _uses_reg
 
         _uses_reg || (!lhs && reg::reg == RDI) = _uses_reg 
         _uses_reg || (lhs  && reg::reg == RAX) = _uses_reg
+        _uses_reg || reg::reg == RCX = _uses_reg
     } (type::node == NODE_BINOP) if
     _uses_reg return
 } (node Node*, lhs byte, reg Reg*) uses_reg byte 
@@ -1179,6 +1204,7 @@ GenContext {
     (val::node, true, ctx, fbuf)visit = val Value*
     (table::ctx, name::node)get_var_pos = pos Mempos*
     (pos(Value*), val, fbuf)move
+    (pos(Value*))destroy
     val return
 } (node NodeVarAssign*, ctx GenContext*, fbuf FileBuffer*) visit_NodeVarAssign Value*
 
@@ -1196,9 +1222,16 @@ GenContext {
 {
     (left::node, true, ctx, fbuf)visit = left Value*
 
+    QWORD = regSize short
+    {
+        left(Mempos*) = mempos Mempos*
+        size::mempos = regSize
+    } (type::left == MEMPOS) if
+
+
     null(Reg*) = reg Reg*
-    { (RDI, QWORD)create_reg = reg } else
-    { (RAX, QWORD)create_reg = reg } (lhs) if
+    { (RDI, regSize)create_reg = reg } else
+    { (RAX, regSize)create_reg = reg } (lhs) if
 
     { 
         (R10, QWORD)create_reg = new_reg Reg*
@@ -1224,18 +1257,69 @@ GenContext {
 } (node NodeIntLit*, ctx GenContext*, fbuf FileBuffer*) visit_NodeIntLit Value*
 
 {
+    "mov " = instr byte*
+
+    dest = _dest Value*
+    src = _src Value*
+    null(Mempos*) = destMempos Mempos* 
+    null(Mempos*) = srcMempos Mempos* 
+    null(Reg*) = destReg Reg*
+    null(Reg*) = srcReg Reg*
+
     { 
-        dest(Reg*) = destReg Reg*
-        src(Reg*) = srcReg Reg*
-        { dest return } (reg::destReg == reg::srcReg && size::destReg == size::srcReg) if
+        dest(Reg*) = destReg
+        src(Reg*) = srcReg
+        { dest return } (reg::destReg == reg::srcReg && size::destReg >= size::srcReg) if
+        {
+            (reg::srcReg, size::destReg)create_reg(Value*) = src
+        } (size::destReg > size::srcReg) if
     }  ((type::dest == REG && type::src == REG)) if
 
-    (fbuf, "mov ")write_file_buffer
+    {
+        dest(Mempos*) = destMempos
+        src(Mempos*) = srcMempos
+        (RAX, size::srcMempos)create_reg(Value*) = r Value*
+        (r, src, fbuf)move = src
+        (r)destroy
+    } (type::dest == MEMPOS && type::src == MEMPOS) if
+    
+    {
+        dest(Mempos*) = destMempos
+        src(Reg*) = srcReg
+        {
+            (reg::srcReg, size::destMempos)create_reg(Value*) = src
+        } (size::destMempos > size::srcReg) if
+    } (type::dest == MEMPOS && type::src == REG) if
+
+    {
+        dest(Reg*) = destReg
+        src(Mempos*) = srcMempos
+
+        {
+            (reg::destReg, size::srcMempos)create_reg(Value*) = dest
+        } (size::destReg > size::srcMempos) if
+    } (type::dest == REG && type::src == MEMPOS) if
+
+    {
+        dest(Reg*) = destReg
+        src(Reg*) = srcReg
+        {
+            "movsx " = instr
+        } (size::destReg < size::srcReg) if
+
+        {
+            "movsxd " = instr
+        } (size::destReg == QWORD && size::srcReg == DWORD) if
+    } ((type::dest == REG || type::dest == MEMPOS) && (type::src == REG || type::src == MEMPOS)) if
+
+    (fbuf, instr)write_file_buffer
     (fbuf, str::dest)write_file_buffer
     (fbuf, ",")write_file_buffer
     (fbuf, str::src)write_file_buffer
     (fbuf, "\n")write_file_buffer
-    dest return
+    { (heap, dest(void*))heap_free } (_dest != dest) if
+    { (heap,  src(void*))heap_free } (_src  != src)  if
+    _dest return
 } (dest Value*, src Value*, fbuf FileBuffer*) move Value*
 
 {
@@ -1254,11 +1338,20 @@ GenContext {
 } (_instr short, arg Value*, reg Reg*, fbuf FileBuffer*) unary_instr Value*
 
 {
+    arg2 = _arg2 Value*
     { 
         (reg(Value*), arg1, fbuf)move
         reg(Value*) = arg1
     } (type::arg1 != REG) if
     null(byte*) = instr byte*
+
+    {
+        arg2(Mempos*) = mempos Mempos*
+        {
+            (RCX, size::(arg1(Reg*)))create_reg(Value*) = arg2
+            (arg2, mempos(Value*), fbuf)move
+        } (size::mempos != size::(arg1(Reg*))) if
+    } (type::arg2 == MEMPOS) if
 
     {
         (RDI, size::(arg1(Reg*)))create_reg = divisor Reg*
@@ -1291,6 +1384,8 @@ GenContext {
     (fbuf, ",")write_file_buffer
     (fbuf, str::arg2)write_file_buffer
     (fbuf, "\n")write_file_buffer
+
+    { (heap, arg2(void*))heap_free } (arg2 != _arg2) if
     arg1 return
 } (_instr short, arg1 Value*, arg2 Value*, reg Reg*, fbuf FileBuffer*) bin_instr Value*
 
@@ -1766,7 +1861,8 @@ heapinfo_t {
 } (chunk_index long, heap heapinfo_t*, bytes long) split_chunk heapchunk_t*
 
 { 
-    nchunks::heap - 1 = chunk_index long
+    # nchunks::heap - 1 = chunk_index long
+    0 = chunk_index long
 
     {
         ((chunks::heap) + i * @heapchunk_t) = chunk heapchunk_t*
@@ -1780,7 +1876,8 @@ heapinfo_t {
 
         true = inuse::chunk
         start::chunk return
-    } (i - 1 = i; i >= 0; chunk_index = i int) for
+    } (i + 1 = i; i < nchunks::heap; 0 = i int) for
+    # } (i - 1 = i; i >= 0; chunk_index = i int) for
 
     null return
 } (heap heapinfo_t*, bytes long) heap_alloc void*
