@@ -1503,7 +1503,7 @@ GenContext {
     (right::node, false, ctx, fbuf)visit = right Value*
     (op::node, left, right, reg, fbuf)bin_instr(Reg*) = reg
 
-    (left)destroy
+    { (left)destroy } (left != reg) if
     (right)destroy
     reg(Value*) return
 } (node NodeBinop*, lhs byte, ctx GenContext*, fbuf FileBuffer*) visit_NodeBinop Value*
@@ -2192,9 +2192,20 @@ heapinfo_t {
 
 {
     (heap, ptr)find_chunk = index long
-    { return } ( index == -1 ) if
+    { 
+        (ptr(long))itoa = str byte*
+        (LOG_ERROR, ("attempted to free invalid pointer: %\n", &str, 1)strformat)log 
+        (1)exit
+    } ( index == -1 ) if
     
     ((chunks::heap) + index * @heapchunk_t) = chunk heapchunk_t*
+
+    {
+        (ptr(long))itoa = str
+        (LOG_ERROR, ("attempted to free an already freed chunk: %\n", &str, 1)strformat)log 
+        (1)exit
+    } (!inuse::chunk) if
+
     false = inuse::chunk
     (heap, index)merge_chunk
 
