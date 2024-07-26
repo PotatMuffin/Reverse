@@ -163,6 +163,8 @@ valvisit_node_unop: ; void* valvisit_node_unop(void* node, valcontext* context)
     jne vvnuL1
     cmp word [rcx], NODE_VAR
     je vvnuL1
+    cmp word [rcx], NODE_FIELD_ACCESS
+    je vvnuL1
 
     mov rdi, rbx
     call expected_var
@@ -233,14 +235,7 @@ valvisit_node_unop: ; void* valvisit_node_unop(void* node, valcontext* context)
     cmp word [rbx], TT_AND
     jne vvnuL2
 
-    mov rbx, [rbp - 16]
-    mov rdi, [rbx]
-    mov rsi, [rcx + 2]
-    mov dl, 1
-    call st_get_symbol
-
-    mov rbx, [rax + 8]
-    mov rcx, [rbx + 2]
+    mov rcx, [rbp - 24]
     cmp word [rcx], _PTR
     jne vvnuL3
     mov r15, [rcx + 6]

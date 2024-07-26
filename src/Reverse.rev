@@ -464,11 +464,7 @@ Lexer {
         } (c == '#') if
 
         {
-            (heap, @Error)heap_alloc(Error*) = err Error*
-            "Illegal character\n" = msg::err
-            [file::pos::lexer, line::pos::lexer, column::pos::lexer] = pos::err
-            err = err::res
-            res return
+            (res, &pos::lexer, "Illegal character\n")result_fail return
         } (type::tok == 0) if 
 
         (tokens, tok(void*))list_append
@@ -680,7 +676,6 @@ Parser {
     (heap, @Result)heap_alloc(Result*) = res Result*
     null(Error*) = err::res
     (parser)parser_consume = tok Token*
-    pos::tok = pos Position
 
     {
         (expected_type)tt_to_str = type byte*
@@ -688,7 +683,7 @@ Parser {
         (heap, msg(void*))heap_free
         (msg, "\n")strconcat = msg
 
-        (res, &pos, msg)result_fail return
+        (res, &pos::tok, msg)result_fail return
     } (type::tok != expected_type) if
 
     tok(void*) = res::res
@@ -703,8 +698,7 @@ Parser {
 {
     (heap, @Result)heap_alloc(Result*) = res Result*
     (parser, 0)parser_peek = tok Token*
-    pos::tok = pos Position
-    (&pos)create_node_root = root NodeRoot*
+    (&pos::tok)create_node_root = root NodeRoot*
 
     {
         (parser, TT_NEWLINE)parser_consume_all
@@ -717,9 +711,8 @@ Parser {
         (children::root, node)list_append
 
         (parser, 0)parser_peek = tok
-        pos::tok = pos 
         {
-            (res, &pos, "Token cannot appear after previous token\n")result_fail return
+            (res, &pos::tok, "Token cannot appear after previous token\n")result_fail return
         } (type::tok != TT_NEWLINE && type::tok != end) if
 
         { break } ( type::tok == end ) if
@@ -759,8 +752,7 @@ Parser {
         (parser, i)parser_peek = tok
         
         {
-            pos::tok = pos Position
-            (res, &pos, "Expected if, for, or while\n")result_fail return
+            (res, &pos::tok, "Expected if, for, or while\n")result_fail return
         } (type::tok != TT_KEYWORD) if
     } (type::tok == TT_PARENL) if
 
@@ -790,8 +782,7 @@ Parser {
     { res return } (err::res != null) if
     (parser)parser_consume = tok Token*
 
-    pos::tok = pos Position
-    (&pos, scope, condition)create_node_if(Node*) = node Node*
+    (&pos::tok, scope, condition)create_node_if(Node*) = node Node*
 
     (res, node(void*))result_success return
 } (parser Parser*, scope Node*) parse_if_expr Result*
@@ -807,8 +798,7 @@ Parser {
     { res return } (err::res != null) if
     (parser)parser_consume = tok Token*
 
-    pos::tok = pos Position
-    (&pos, scope, condition)create_node_while(Node*) = node Node*
+    (&pos::tok, scope, condition)create_node_while(Node*) = node Node*
 
     (res, node(void*))result_success return
 } (parser Parser*, scope Node*) parse_while_expr Result*
@@ -832,8 +822,7 @@ Parser {
     { res return } (err::res != null) if
     (parser)parser_consume = tok Token*
 
-    pos::tok = pos Position
-    (&pos, scope, on_loop, condition, on_entry)create_node_for(Node*) = node Node*
+    (&pos::tok, scope, on_loop, condition, on_entry)create_node_for(Node*) = node Node*
     (res, node(void*))result_success return
 } (parser Parser*, scope Node*) parse_for_expr Result*
 
@@ -849,8 +838,7 @@ Parser {
 } (parser Parser*) parse_expr Result*
 
 {
-    (parser)parser_consume = _ Token*
-    pos::_ = pos Position
+    (parser)parser_consume = _tok Token*
 
     (heap, @Result)heap_alloc(Result*) = res Result*
     (res, (parser, TT_IDENT)parser_expect)result_register(Token*) = tok Token*
@@ -861,12 +849,12 @@ Parser {
     null(Node*) = node Node*
 
     {
-        (&pos, data::tok(byte*), value)create_node_var_assign(Node*) = node
+        (&pos::_tok, data::tok(byte*), value)create_node_var_assign(Node*) = node
         (res, node(void*))result_success return
     } (type::varType != TT_IDENT) if
 
     (parser)parser_consume
-    (&pos, data::tok(byte*), value, data::varType(byte*))create_node_var_def(Node*) = node
+    (&pos::_tok, data::tok(byte*), value, data::varType(byte*))create_node_var_def(Node*) = node
 
     (res, node(void*))result_success return
 } (parser Parser*, value Node*) parse_var_expr Result*
@@ -880,7 +868,6 @@ Parser {
     {
 
         (parser, 0)parser_peek = op Token*
-        pos::op = pos Position
 
         (type::op)get_prec = prec byte
         # prec will be -1 if the token type is not an operator
@@ -891,7 +878,7 @@ Parser {
         (res, (parser, prec + 1)parse_bin_expr)result_register = right void*
         { res return } (err::res != null) if 
 
-        (&pos, left(Node*), type::op, right(Node*))create_node_binop(void*) = left
+        (&pos::op, left(Node*), type::op, right(Node*))create_node_binop(void*) = left
     } (true) while
 
     (res, left)result_success return
@@ -900,19 +887,18 @@ Parser {
 {
     (heap, @Result)heap_alloc(Result*) = res Result*
     (parser, 0)parser_peek = tok Token*
-    pos::tok = pos Position
     null(Node*) = node Node*
 
     {
         (parser)parser_consume
-        (&pos, data::tok(byte*))create_node_var(Node*) = node
+        (&pos::tok, data::tok(byte*))create_node_var(Node*) = node
     } (type::tok == TT_IDENT) if else
     {
         (parser)parser_consume
         (res, (parser)parse_atom)result_register(Node*) = node
         { res return } (err::res != null) if
 
-        (&pos, node(Node*), type::tok)create_node_unop(Node*) = node
+        (&pos::tok, node(Node*), type::tok)create_node_unop(Node*) = node
     } (type::tok == TT_MIN) if else
     {
         (parser)parser_consume
@@ -922,12 +908,12 @@ Parser {
         { res return } (err::res != null) if
     } (type::tok == TT_PARENL) if else
     { 
-        (&pos, data::tok)create_node_int_lit(Node*) = node 
+        (&pos::tok, data::tok)create_node_int_lit(Node*) = node 
         (parser)parser_consume
     } (type::tok == TT_INT) if
 
     { 
-        (res, &pos, "Expected int, identifier, '-', or '('\n")result_fail return 
+        (res, &pos::tok, "Expected int, identifier, '-', or '('\n")result_fail return 
     } (node == null) if
 
     (res, node(void*))result_success return
@@ -1146,7 +1132,6 @@ ValContext {
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
-    pos::super::node = pos Position
 
     (table::ctx, name::node)get_symbol = symbol Symbol*
     
@@ -1155,14 +1140,14 @@ ValContext {
 
     { 
         name::node = name byte*
-        (res, &pos, ("'%' is already defined\n", &name, 1)strformat)result_fail return
+        (res, &pos::super::node, ("'%' is already defined\n", &name, 1)strformat)result_fail return
     } (symbol != null) if
 
     (table::ctx, type::node)get_type(Type*) = varType Type*
 
     {
         type::node = type byte*
-        (res, &pos, ("'%' is not a type\n", &type, 1)strformat)result_fail return
+        (res, &pos::super::node, ("'%' is not a type\n", &type, 1)strformat)result_fail return
     } (varType == null) if
 
     (table::ctx, name::node, varType)add_var
@@ -1178,9 +1163,8 @@ ValContext {
     {res return } (err::res != null) if
 
     { 
-        pos::super::node = pos Position
         name::node = name byte*
-        (res, &pos, ("'%' is not defined\n", &name, 1)strformat)result_fail return
+        (res, &pos::super::node, ("'%' is not defined\n", &name, 1)strformat)result_fail return
     } (var == null) if
     (res, type::var(void*))result_success return
 } (node NodeVarAssign*, ctx ValContext*) valvisit_NodeVarAssign Result*
@@ -1190,9 +1174,8 @@ ValContext {
     (table::ctx, name::node)get_symbol(Var*) = var Var*
 
     { 
-        pos::super::node = pos Position
         name::node = name byte*
-        (res, &pos, ("'%' is not defined\n", &name, 1)strformat)result_fail return
+        (res, &pos::super::node, ("'%' is not defined\n", &name, 1)strformat)result_fail return
     } (var == null) if
     (res, type::var(void*))result_success return
 } (node NodeVar*, ctx ValContext*) valvisit_NodeVar Result*
@@ -1562,6 +1545,11 @@ GenContext {
         {
             (reg::srcReg, size::destMempos)create_reg(Value*) = src
         } (size::destMempos > size::srcReg) if
+
+        {
+            (reg::srcReg, size::destMempos)create_reg(Value*) = src
+            (src, _src, fbuf)move
+        } (size::destMempos < size::srcReg) if
     } (type::dest == MEMPOS && type::src == REG) if
 
     {
@@ -1583,7 +1571,7 @@ GenContext {
         {
             "movsxd " = instr
         } (size::destReg == QWORD && size::srcReg == DWORD) if
-    } ((type::dest == REG || type::dest == MEMPOS) && (type::src == REG || type::src == MEMPOS)) if
+    } ((type::dest == REG) && (type::src == REG || type::src == MEMPOS)) if
 
     (fbuf, instr)write_file_buffer
     (fbuf, str::dest)write_file_buffer
