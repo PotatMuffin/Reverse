@@ -42,6 +42,12 @@ null(heapinfo_t*) = heap heapinfo_t*
 (false)iota = TT_XOR     short
 (false)iota = TT_SHL     short
 (false)iota = TT_SHR     short
+(false)iota = TT_GTH     short
+(false)iota = TT_LTH     short
+(false)iota = TT_GTE     short
+(false)iota = TT_LTE     short
+(false)iota = TT_IS      short
+(false)iota = TT_ISNT    short
 (false)iota = TT_EQ      short
 (false)iota = TT_INT     short
 (false)iota = TT_PARENL  short
@@ -181,7 +187,6 @@ Settings {
     (LOG_INFO, "Generating assembly\n")log
     (ast, &table, output_fn::settings)generate = code int
     { 1 return } (code != 0) if
-    (heap)display_heap
     0 return
 } (argc int, argv byte**) main int
 
@@ -372,7 +377,13 @@ Token {
     { 3 = prec } (type == TT_OR)      if else
     { 3 = prec } (type == TT_XOR)     if else
     { 3 = prec } (type == TT_SHL)     if else
-    { 3 = prec } (type == TT_SHR)     if
+    { 3 = prec } (type == TT_SHR)     if else
+    { 2 = prec } (type == TT_IS)      if else
+    { 2 = prec } (type == TT_ISNT)    if else
+    { 2 = prec } (type == TT_GTH)     if else
+    { 2 = prec } (type == TT_GTE)     if else
+    { 2 = prec } (type == TT_LTH)     if else
+    { 2 = prec } (type == TT_LTE)     if
     prec return
 } (type short) get_prec byte
 
@@ -409,7 +420,7 @@ Lexer {
 } (str byte*) is_keyword byte
 
 {
-    { (LOG_WARN, "Exhaustive handling of token types in 'tokenize'\n")log } (TT_COUNT != 20) if
+    { (LOG_WARN, "Exhaustive handling of token types in 'tokenize'\n")log } (TT_COUNT != 26) if
     
     (heap, @List)heap_alloc(List*) = tokens List*
     (tokens)init_list
@@ -430,7 +441,7 @@ Lexer {
         0 = data::tok
 
         { 
-            0 = n int
+            0 = n long
             {
                 n * 10 = n
                 n + (c - '0') = n
@@ -466,14 +477,26 @@ Lexer {
         { TT_BRACKR  = type::tok } (c == '}') if else
         { TT_PARENL  = type::tok } (c == '(') if else
         { TT_PARENR  = type::tok } (c == ')') if else
-        { TT_EQ      = type::tok } (c == '=') if else
         {
-            {  } else
-            { TT_SHL = type::tok } ((lexer, 1)lexer_peek == '>') if
+            (lexer, 1)lexer_peek = c
+            { TT_ISNT = type::tok; (lexer)lexer_consume } (c == '=') if
+        } (c == '!') if else
+        {
+            (lexer, 1)lexer_peek = c
+            { TT_IS  = type::tok; (lexer)lexer_consume } (c == '=') if else
+            { TT_LTE = type::tok; (lexer)lexer_consume } (c == '<') if
+            { TT_EQ  = type::tok } (type::tok == 0) if
+        } (c == '=') if else
+        {
+            (lexer, 1)lexer_peek = c
+            { TT_GTE = type::tok; (lexer)lexer_consume } (c == '=') if else
+            { TT_SHL = type::tok; (lexer)lexer_consume } (c == '>') if
+            { TT_GTH = type::tok } (type::tok == 0) if
         } (c == '>') if else
         {
-            {  } else
-            { TT_SHR = type::tok } ((lexer, 1)lexer_peek == '<') if
+            (lexer, 1)lexer_peek = c
+            { TT_SHR = type::tok } (c == '<') if
+            { TT_LTH = type::tok } (type::tok == 0) if
         } (c == '<') if else
         { TT_AND     = type::tok } (c == '&') if else
         { TT_OR      = type::tok } (c == '|') if else
@@ -779,34 +802,38 @@ Parser {
     (parser)parser_consume
 
     (parser, 0)parser_peek = tok Token*
+    { (res, scope(void*))result_success return } (type::tok != TT_PARENL) if
+
+    1 = parencount int
+    1 = i int
     {
-        1 = parencount int
-        1 = i int
-        {
-            (parser, i)parser_peek = tok
-            { parencount + 1 = parencount } (type::tok == TT_PARENL) if
-            { parencount - 1 = parencount } (type::tok == TT_PARENR) if
-        } (i + 1 = i; parencount > 0; i) for
         (parser, i)parser_peek = tok
-        
-        {
-            (res, &pos::tok, "Expected if, for, or while\n")result_fail return
-        } (type::tok != TT_KEYWORD) if
-    } (type::tok == TT_PARENL) if
+        { parencount + 1 = parencount } (type::tok == TT_PARENL) if
+        { parencount - 1 = parencount } (type::tok == TT_PARENR) if
+    } (i + 1 = i; parencount > 0; i) for
+    (parser, i)parser_peek = tok
+    
+    {
+        (res, &pos::tok, "Expected if, for, or while\n")result_fail return
+    } (type::tok != TT_KEYWORD) if
 
     {
-        (parser, scope)parse_if_expr return
+        (res, (parser, scope)parse_if_expr)result_register(Node*) = scope
+        { res return } (err::res != null) if
     } ((data::tok(byte*), "if")strcmp) if
 
     {
-        (parser, scope)parse_while_expr return
+        (res, (parser, scope)parse_while_expr)result_register(Node*) = scope
+        { res return } (err::res != null) if
     } ((data::tok(byte*), "while")strcmp) if
 
     {
-        (parser, scope)parse_for_expr return
+        (res, (parser, scope)parse_for_expr)result_register(Node*) = scope
+        { res return } (err::res != null) if
     } ((data::tok(byte*), "for")strcmp) if
 
-    (res, "Expected if, for, or while\n")result_success return
+    (heap, data::tok(void*))heap_free
+    (res, scope(void*))result_success return
 } (parser Parser*) parse_scope_expr Result*
 
 {
@@ -1201,6 +1228,7 @@ ValContext {
 
     (table::ctx, name::node, varType)add_var
 
+    (heap, type::node(void*))heap_free
     (res, varType(void*))result_success return
 } (node NodeVarDef*, ctx ValContext*) valvisit_NodeVarDef Result*
 
@@ -1383,6 +1411,8 @@ GenContext {
         _uses_reg || (left::nodeBinop,  true,  reg)uses_reg = _uses_reg
         _uses_reg || (right::nodeBinop, false, reg)uses_reg = _uses_reg
 
+        _uses_reg || reg::reg == RCX = _uses_reg 
+        _uses_reg || ((op::nodeBinop == TT_FSLASH || op::nodeBinop == TT_PERCENT) && reg::reg == RDX) = _uses_reg 
         _uses_reg || (!lhs && reg::reg == RDI) = _uses_reg 
         _uses_reg || (lhs  && reg::reg == RAX) = _uses_reg
         _uses_reg || reg::reg == RCX = _uses_reg
@@ -1442,6 +1472,7 @@ GenContext {
     {
         (fbuf, "jmp L%\n", &continuelbl::ctx, 1)write_file_bufferf
     } ((keyword::node, "continue")strcmp) if
+    (heap, keyword::node(void*))heap_free
     null(Value*) return
 } (node NodeControl*, ctx GenContext*, fbuf FileBuffer*) visit_NodeControl Value*
 
@@ -1529,6 +1560,7 @@ GenContext {
 
 {
     (table::ctx, name::node)get_var_pos = pos Mempos*
+    (heap, name::node(void*))heap_free
     pos(Value*) return
 } (node NodeVar*, ctx GenContext*, fbuf FileBuffer*) visit_NodeVar Value*
 
@@ -1536,6 +1568,7 @@ GenContext {
     (val::node, true, ctx, fbuf)visit = val Value*
     (table::ctx, name::node)get_var_pos = pos Mempos*
     (pos(Value*), val, fbuf)move
+    (heap, name::node(void*))heap_free
     (pos(Value*))destroy
     val return
 } (node NodeVarAssign*, ctx GenContext*, fbuf FileBuffer*) visit_NodeVarAssign Value*
@@ -1579,6 +1612,7 @@ GenContext {
         } (type::left == REG) if
     } ((right::node, false, reg)uses_reg) if
 
+    reg = _reg Reg*
     (right::node, false, ctx, fbuf)visit = right Value*
     (op::node, left, right, reg, fbuf)bin_instr(Reg*) = reg
 
@@ -1682,6 +1716,11 @@ GenContext {
     null(byte*) = instr byte*
 
     {
+        (RCX, QWORD)create_reg = rcx Reg*
+        (rcx(Value*), arg2, fbuf)move = arg2
+    } (type::arg2 == IMMVALUE && val::(arg2(ImmValue*)) > 2147483647) if
+
+    {
         arg2(Mempos*) = mempos Mempos*
         {
             (RCX, size::(arg1(Reg*)))create_reg(Value*) = arg2
@@ -1708,6 +1747,25 @@ GenContext {
         arg1 return
     } (_instr == TT_FSLASH || _instr == TT_PERCENT) if
 
+    null(byte*) = str3 byte*; null(byte*) = str2 byte*; null(byte*) = str1 byte*
+    
+    {
+        { "setge" = instr } (_instr == TT_GTE)  if else
+        { "setg"  = instr } (_instr == TT_GTH)  if else
+        { "setl"  = instr } (_instr == TT_LTE)  if else
+        { "setle" = instr } (_instr == TT_LTH)  if else
+        { "sete"  = instr } (_instr == TT_IS)   if else
+        { "setne" = instr } (_instr == TT_ISNT) if 
+
+        str::arg2 = str2; str::arg1 = str1
+        (fbuf, "cmp %,%\n", &str1, 2)write_file_bufferf
+        (reg::reg, BYTE)create_reg(Value*) = arg1
+        (reg(Value*))destroy
+        str::arg1 = str2; instr = str1
+        (fbuf, "% %\n", &str1, 2)write_file_bufferf
+        arg1 return
+    } (_instr == TT_GTE || _instr == TT_GTH || _instr == TT_LTE || _instr == TT_LTH || _instr == TT_IS || _instr == TT_ISNT) if
+
     { "and"  = instr } (_instr == TT_AND)  if else
     { "or"   = instr } (_instr == TT_OR)   if else
     { "xor"  = instr } (_instr == TT_XOR)  if else
@@ -1717,7 +1775,7 @@ GenContext {
     { "imul" = instr } (_instr == TT_STAR) if else
     { "add"  = instr } (_instr == TT_PLUS) if
 
-    str::arg2 = str3 byte*; str::arg1 = str2 byte*; instr = str1 byte*
+    str::arg2 = str3; str::arg1 = str2; instr = str1
     (fbuf, "% %,%\n", &str1, 3)write_file_bufferf
     { (heap, arg2(void*))heap_free } (arg2 != _arg2) if
     arg1 return
@@ -1850,22 +1908,20 @@ FileBuffer {
 {
     false = is_neg byte
     { -num = num; true = is_neg } (num < 0) if
-    (num)log10l = log10 int
+    (num)log10l = log10 long
     (num >= (10, log10)pow) || num < 8 = x long
-    log10 + x + is_neg = length int
+    log10 + x + is_neg = length long
 
     (heap, length + 1)heap_alloc(byte*) = str byte*
     0 = *(str + length)
 
     {
-        { 0 = *(str + i); continue } (i == length) if
-
         num % 10 = digit byte
         num / 10 = num
 
         digit + '0' = digit
         digit = *(str + i)
-    } (i - 1 = i; i >= 0; length = i int) for
+    } (i - 1 = i; i >= 0; length-1 = i long) for
 
     {'-' = *str } (is_neg) if
     str return
