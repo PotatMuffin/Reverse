@@ -37,6 +37,11 @@ null(heapinfo_t*) = heap heapinfo_t*
 (false)iota = TT_STAR    short
 (false)iota = TT_FSLASH  short
 (false)iota = TT_PERCENT short
+(false)iota = TT_AND     short
+(false)iota = TT_OR      short
+(false)iota = TT_XOR     short
+(false)iota = TT_SHL     short
+(false)iota = TT_SHR     short
 (false)iota = TT_EQ      short
 (false)iota = TT_INT     short
 (false)iota = TT_PARENL  short
@@ -176,6 +181,7 @@ Settings {
     (LOG_INFO, "Generating assembly\n")log
     (ast, &table, output_fn::settings)generate = code int
     { 1 return } (code != 0) if
+    (heap)display_heap
     0 return
 } (argc int, argv byte**) main int
 
@@ -361,7 +367,12 @@ Token {
     { 5 = prec } (type == TT_FSLASH)  if else
     { 5 = prec } (type == TT_STAR)    if else
     { 4 = prec } (type == TT_MIN)     if else
-    { 4 = prec } (type == TT_PLUS)    if
+    { 4 = prec } (type == TT_PLUS)    if else
+    { 3 = prec } (type == TT_AND)     if else
+    { 3 = prec } (type == TT_OR)      if else
+    { 3 = prec } (type == TT_XOR)     if else
+    { 3 = prec } (type == TT_SHL)     if else
+    { 3 = prec } (type == TT_SHR)     if
     prec return
 } (type short) get_prec byte
 
@@ -398,7 +409,7 @@ Lexer {
 } (str byte*) is_keyword byte
 
 {
-    { (LOG_WARN, "Exhaustive handling of token types in 'tokenize'\n")log } (TT_COUNT != 15) if
+    { (LOG_WARN, "Exhaustive handling of token types in 'tokenize'\n")log } (TT_COUNT != 20) if
     
     (heap, @List)heap_alloc(List*) = tokens List*
     (tokens)init_list
@@ -456,6 +467,17 @@ Lexer {
         { TT_PARENL  = type::tok } (c == '(') if else
         { TT_PARENR  = type::tok } (c == ')') if else
         { TT_EQ      = type::tok } (c == '=') if else
+        {
+            {  } else
+            { TT_SHL = type::tok } ((lexer, 1)lexer_peek == '>') if
+        } (c == '>') if else
+        {
+            {  } else
+            { TT_SHR = type::tok } ((lexer, 1)lexer_peek == '<') if
+        } (c == '<') if else
+        { TT_AND     = type::tok } (c == '&') if else
+        { TT_OR      = type::tok } (c == '|') if else
+        { TT_XOR     = type::tok } (c == '^') if else
         { TT_PERCENT = type::tok } (c == '%') if else
         { TT_FSLASH  = type::tok } (c == '/') if else
         { TT_STAR    = type::tok } (c == '*') if else
@@ -1686,6 +1708,11 @@ GenContext {
         arg1 return
     } (_instr == TT_FSLASH || _instr == TT_PERCENT) if
 
+    { "and"  = instr } (_instr == TT_AND)  if else
+    { "or"   = instr } (_instr == TT_OR)   if else
+    { "xor"  = instr } (_instr == TT_XOR)  if else
+    { "shl"  = instr } (_instr == TT_SHL)  if else
+    { "sar"  = instr } (_instr == TT_SHR)  if else
     { "sub"  = instr } (_instr == TT_MIN)  if else
     { "imul" = instr } (_instr == TT_STAR) if else
     { "add"  = instr } (_instr == TT_PLUS) if
