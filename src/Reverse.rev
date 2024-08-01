@@ -108,6 +108,7 @@ null(heapinfo_t*) = heap heapinfo_t*
 1 = DWORD short
 2 = WORD  short
 3 = BYTE  short
+4 = VOID  short
 
 0  = RAX short
 1  = RBX short
@@ -1220,6 +1221,7 @@ ValContext {
     (table, "int",  DWORD, 4)add_builtin
     (table, "short", WORD, 2)add_builtin
     (table, "byte",  BYTE, 1)add_builtin
+    (table, "void",  VOID, 0)add_builtin
 
     [table, false] = ctx ValContext
     (node(Node*),&ctx)valvisit = res Result*
@@ -1330,6 +1332,10 @@ ValContext {
         name::type::node = type byte*
         (res, &pos::super::node, ("'%' is not a type", &type, 1)strformat)result_fail return
     } (varType == null) if
+
+    {
+        (res, &pos::super::node, "Cannot define a variable with type void")result_fail return
+    } (size::varType == VOID) if
 
     {
         (res, &pos::super::node, "Type mismatch")result_fail return
@@ -1588,8 +1594,11 @@ GenContext {
         {
             (*(str + j))itoa = str1
             (fbuf, str1)write_file_buffer
+            {
+                (fbuf, "\n")write_file_buffer
+            } else
             { 
-                (fbuf, ", ")write_file_buffer
+                (fbuf, ",")write_file_buffer
             } (*(str + j)) if
             (heap, str1(void*))heap_free
         } (j + 1 = j; j < len; 0 = j int) for
@@ -1629,8 +1638,9 @@ GenContext {
 } (node NodeRoot*, ctx GenContext*, fbuf FileBuffer*) visit_NodeRoot Value*
 
 {
+    (str::node, count::strbuf::ctx)create_str = str Str*
     (strbuf::ctx, str::node(void*))list_append
-    (str::node, count::strbuf::ctx)create_str(Value*) return
+    str(Value*) return
 } (node NodeStrLit*, ctx GenContext*, fbuf FileBuffer*) visit_NodeStrLit Value*
 
 {
