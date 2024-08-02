@@ -1612,19 +1612,21 @@ GenContext {
 } (ast NodeRoot*, table SymbolTable*, fn byte*) generate int
 
 {
-    { (node(NodeStrLit*),ctx, fbuf)visit_NodeStrLit      return } (type::node == NODE_STR_LIT)    if else
-    { (node(NodeControl*),ctx,fbuf)visit_NodeControl     return } (type::node == NODE_CONTROL)    if else
-    { (node(NodeFor*),ctx,fbuf)visit_NodeFor             return } (type::node == NODE_FOR)        if else
-    { (node(NodeWhile*),ctx,fbuf)visit_NodeWhile         return } (type::node == NODE_WHILE)      if else
-    { (node(NodeIf*),ctx,fbuf)visit_NodeIf               return } (type::node == NODE_IF)         if else
-    { (node(NodeVar*),ctx,fbuf)visit_NodeVar             return } (type::node == NODE_VAR)        if else
-    { (node(NodeVarAssign*),ctx,fbuf)visit_NodeVarAssign return } (type::node == NODE_VAR_ASSIGN) if else
-    { (node(NodeVarAssign*),ctx,fbuf)visit_NodeVarAssign return } (type::node == NODE_VAR_DEF)    if else
-    { (node(NodeUnop*),lhs,ctx,fbuf)visit_NodeUnop       return } (type::node == NODE_UNOP)       if else
-    { (node(NodeIntLit*),ctx,fbuf)visit_NodeIntLit       return } (type::node == NODE_INT_LIT)    if else
-    { (node(NodeBinop*),lhs,ctx,fbuf)visit_NodeBinop     return } (type::node == NODE_BINOP)      if else
-    { (node(NodeRoot*),ctx,fbuf)visit_NodeRoot           return } (type::node == NODE_ROOT)       if
-    null(Value*) return
+    null(Value*) = value Value*
+    { (node(NodeStrLit*),ctx, fbuf)visit_NodeStrLit      = value } (type::node == NODE_STR_LIT)    if else
+    { (node(NodeControl*),ctx,fbuf)visit_NodeControl     = value } (type::node == NODE_CONTROL)    if else
+    { (node(NodeFor*),ctx,fbuf)visit_NodeFor             = value } (type::node == NODE_FOR)        if else
+    { (node(NodeWhile*),ctx,fbuf)visit_NodeWhile         = value } (type::node == NODE_WHILE)      if else
+    { (node(NodeIf*),ctx,fbuf)visit_NodeIf               = value } (type::node == NODE_IF)         if else
+    { (node(NodeVar*),ctx,fbuf)visit_NodeVar             = value } (type::node == NODE_VAR)        if else
+    { (node(NodeVarAssign*),ctx,fbuf)visit_NodeVarAssign = value } (type::node == NODE_VAR_ASSIGN) if else
+    { (node(NodeVarAssign*),ctx,fbuf)visit_NodeVarAssign = value } (type::node == NODE_VAR_DEF)    if else
+    { (node(NodeUnop*),lhs,ctx,fbuf)visit_NodeUnop       = value } (type::node == NODE_UNOP)       if else
+    { (node(NodeIntLit*),ctx,fbuf)visit_NodeIntLit       = value } (type::node == NODE_INT_LIT)    if else
+    { (node(NodeBinop*),lhs,ctx,fbuf)visit_NodeBinop     = value } (type::node == NODE_BINOP)      if else
+    { (node(NodeRoot*),ctx,fbuf)visit_NodeRoot           = value } (type::node == NODE_ROOT)       if
+    (heap, node(void*))heap_free
+    value return
 } (node Node*, lhs byte, ctx GenContext*, fbuf FileBuffer*) visit Value*
 
 {
