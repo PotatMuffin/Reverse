@@ -183,8 +183,8 @@ Settings {
     (heap, tokens(void*))heap_free
 
     (LOG_INFO, "Validating program\n")log
-    [0,0,null(Symbol**)] = table SymbolTable
-    (&table, 65536)init_symboltable
+    [0,0,null(Symbol**), null] = table SymbolTable
+    (&table, 65536, null(SymbolTable*))init_symboltable
 
     (ast, &table)validate = res
     { (err::res)print_error; 1 return } (err::res != null) if
@@ -554,6 +554,20 @@ Lexer {
 # Parser
 #####################################################################
 
+Symbol {
+    type short
+    name byte*
+    next void* # Symbol*
+} struct
+
+
+SymbolTable {
+    size   long
+    stack  long
+    items  Symbol**
+    parent void* # SymbolTable*
+} struct
+
 _Type {
     name byte*
     ptr  int
@@ -568,6 +582,7 @@ Node {
 NodeRoot {
     super    Node
     children List*
+    table    SymbolTable*
 } struct
 
 {
@@ -576,6 +591,7 @@ NodeRoot {
     NODE_ROOT = type::super::node
     [file::pos, line::pos, column::pos] = pos::super::node
     (children)init_list
+    null(SymbolTable*) = table::node
     children = children::node
     node return
 } (pos Position*) create_node_root NodeRoot*
@@ -944,6 +960,7 @@ Parser {
     } (type::tok == TT_KEYWORD && ((data::tok(byte*), "continue")strcmp || (data::tok(byte*), "break")strcmp)) if
 
     (res, (parser, 0)parse_bin_expr)result_register(Node*) = expr Node*
+    { res return } (err::res != null) if
 
     (parser,0)parser_peek = tok
     {
@@ -1089,12 +1106,6 @@ Parser {
 # Symboltable
 #####################################################################
 
-Symbol {
-    type short
-    name byte*
-    next void* # Symbol*
-} struct
-
 Type {
     super     Symbol
     sizeBytes int
@@ -1124,15 +1135,10 @@ Ptr {
 } (ptr Ptr*) deref_ptr Type*
 
 Var {
-    super Symbol
-    pos   long
-    type  Type*
-} struct
-
-SymbolTable {
-    size  long
-    stack long
-    items Symbol**
+    super    Symbol
+    pos      long
+    type     Type*
+    assigned byte
 } struct
 
 {
@@ -1151,10 +1157,19 @@ SymbolTable {
 {
     size = size::table
     (heap, size * @void*)heap_alloc(Symbol**) = items Symbol**
+
+    {
+        0 = stack::table
+    } else
+    {
+        stack::parent = stack::table
+    } (parent) if
+
     items = items::table 
     (items::table(void*), 0, size::table * @void*)memset
+    parent(void*) = parent::table
     return
-} (table SymbolTable*, size long) init_symboltable void
+} (table SymbolTable*, size long, parent SymbolTable*) init_symboltable void
 
 {
     (name::symbol)hash = _hash long
@@ -1180,8 +1195,14 @@ SymbolTable {
     name = name::super::var
     null = next::super::var
     varType = type::var
+    false = assigned::var
 
-    stack::table + sizeBytes::varType = stack::table
+    table = _table SymbolTable*
+    {
+        stack::_table + sizeBytes::varType = stack::_table
+        parent::_table(SymbolTable*) = _table
+    } (_table != null) while
+
     -stack::table = pos::var
     (table, var(Symbol*))add_symbol
     return
@@ -1204,8 +1225,14 @@ SymbolTable {
     (_hash, size::table)umod = index long
 
     (items::table + index * @void*) = Psymbol Symbol**
-    *Psymbol return
-} (table SymbolTable*, name byte*) get_symbol Symbol*
+    *Psymbol = symbol Symbol*
+
+    {
+        (parent::table(SymbolTable*), name, true)get_symbol return
+    } (check_parent && parent::table != null && symbol == null) if
+
+    symbol return
+} (table SymbolTable*, name byte*, check_parent byte) get_symbol Symbol*
 
 #####################################################################
 # Validator
@@ -1223,13 +1250,14 @@ ValContext {
     (table, "byte",  BYTE, 1)add_builtin
     (table, "void",  VOID, 0)add_builtin
 
+    table = table::node
     [table, false] = ctx ValContext
     (node(Node*),&ctx)valvisit = res Result*
     res return
 } (node NodeRoot*, table SymbolTable*) validate Result*
 
 {
-    (table, name::type)get_symbol = symbol Symbol*
+    (table, name::type, true)get_symbol = symbol Symbol*
 
     {
         null(Symbol*) return
@@ -1267,7 +1295,15 @@ ValContext {
     (heap, @Result)heap_alloc(Result*) = res Result* 
     {
         (items::children::node + i * @void*)(Node**) = Pnode Node**
-        (res, (*Pnode, ctx)valvisit)result_register
+
+        {
+            (heap, @SymbolTable)heap_alloc(SymbolTable*) = table SymbolTable*
+            (table, 128, table::ctx)init_symboltable
+            table = table::node
+        } (table::node == null) if
+
+        [table::node, in_loop::ctx] = _ctx ValContext
+        (res, (*Pnode, &_ctx)valvisit)result_register
         { res return } (err::res != null) if
     } (i + 1 = i; i < count::children::node; 0 = i int) for
 
@@ -1288,7 +1324,7 @@ ValContext {
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
-    (res, (table::ctx, "long")get_symbol(void*))result_success return
+    (res, (table::ctx, "long", true)get_symbol(void*))result_success return
 } (node NodeIntLit*, ctx ValContext*) valvisit_NodeIntLit Result*
 
 {
@@ -1316,7 +1352,7 @@ ValContext {
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
 
-    (table::ctx, name::node)get_symbol = symbol Symbol*
+    (table::ctx, name::node, false)get_symbol = symbol Symbol*
     
     (res, (val::node, ctx)valvisit)result_register(Type*) = valType Type*
     {res return } (err::res != null) if
@@ -1348,14 +1384,17 @@ ValContext {
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
-    (table::ctx, name::node)get_symbol(Var*) = var Var*
+    (table::ctx, name::node, true)get_symbol(Var*) = var Var*
+
+    {
+        (res, &pos::super::node, ("'%' is not a variable", &name::node, 1)strformat)result_fail return
+    } (type::super::var != VAR) if
 
     (res, (val::node, ctx)valvisit)result_register(Type*) = valType Type*
     {res return } (err::res != null) if
 
     { 
-        name::node = name byte*
-        (res, &pos::super::node, ("'%' is not defined", &name, 1)strformat)result_fail return
+        (res, &pos::super::node, ("'%' is not defined", &name::node, 1)strformat)result_fail return
     } (var == null) if
 
     type::var = varType Type*
@@ -1369,7 +1408,7 @@ ValContext {
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
-    (table::ctx, name::node)get_symbol(Var*) = var Var*
+    (table::ctx, name::node, true)get_symbol(Var*) = var Var*
 
     { 
         name::node = name byte*
@@ -1380,41 +1419,64 @@ ValContext {
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
-    (res, (scope::node, ctx)valvisit)result_register
-    { res return } (err::res != null) if
+
+    (heap, @SymbolTable)heap_alloc(SymbolTable*) = table SymbolTable*
+    (table, 128, table::ctx)init_symboltable
+    table = table::(scope::node(NodeRoot*))
+    [table, true] = _ctx ValContext
+
     (res, (condition::node, ctx)valvisit)result_register
     { res return } (err::res != null) if
+
+    (res, (scope::node, &_ctx)valvisit)result_register
+    { res return } (err::res != null) if
+
     (res, null)result_success return
 } (node NodeIf*, ctx ValContext*) valvisit_NodeIf Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
 
-    [table::ctx, true] = _ctx ValContext
+    (heap, @SymbolTable)heap_alloc(SymbolTable*) = table SymbolTable*
+    (table, 128, table::ctx)init_symboltable
+    table = table::(scope::node(NodeRoot*))
+    [table, true] = _ctx ValContext
+
+    (res, (condition::node, &_ctx)valvisit)result_register
+    { res return } (err::res != null) if
+
     (res, (scope::node, &_ctx)valvisit)result_register
     { res return } (err::res != null) if
-    (res, (condition::node, ctx)valvisit)result_register
-    { res return } (err::res != null) if
+    
     (res, null)result_success return
 } (node NodeWhile*, ctx ValContext*) valvisit_NodeWhile Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
-    [table::ctx, true] = _ctx ValContext
-    (res, (on_entry::node, ctx)valvisit)result_register
+
+    (heap, @SymbolTable)heap_alloc(SymbolTable*) = table SymbolTable*
+    (table, 128, table::ctx)init_symboltable
+    table = table::(scope::node(NodeRoot*))
+    [table, true] = _ctx ValContext
+
+    (res, (on_entry::node, &_ctx)valvisit)result_register
     { res return } (err::res != null) if
+
     (res, (scope::node, &_ctx)valvisit)result_register
     { res return } (err::res != null) if
-    (res, (condition::node, ctx)valvisit)result_register
+
+    (res, (condition::node, &_ctx)valvisit)result_register
     { res return } (err::res != null) if
-    (res, (on_loop::node, ctx)valvisit)result_register
+
+    (res, (on_loop::node, &_ctx)valvisit)result_register
     { res return } (err::res != null) if
+
     (res, null)result_success return
 } (node NodeFor*, ctx ValContext*) valvisit_NodeFor Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
-    ((table::ctx, "byte")get_symbol(Type*), 1)create_ptr(Type*) = type Type*
+    ((table::ctx, "byte", true)get_symbol(Type*), 1)create_ptr(Type*) = type Type*
     (res, type(void*))result_success return
 } (node NodeStrLit*, ctx ValContext*) valvisit_NodeStrLit Result*
 
@@ -1483,8 +1545,13 @@ Mempos {
 } (reg short, size short, offset long) create_mempos Mempos*
 
 {
-    (table, name)get_symbol(Var*) = symbol Var*
+    (table, name, true)get_symbol(Var*) = symbol Var*
     { null(Mempos*) return } (type::super::symbol != VAR) if
+
+    { 
+        parent::table(SymbolTable*) = table
+        (table, name, false)get_symbol(Var*) = symbol
+    } (symbol == null || !assigned::symbol) while
 
     (RBP, size::type::symbol, pos::symbol)create_mempos return
 } (table SymbolTable*, name byte*) get_var_pos Mempos*
@@ -1620,7 +1687,7 @@ GenContext {
     { (node(NodeIf*),ctx,fbuf)visit_NodeIf               = value } (type::node == NODE_IF)         if else
     { (node(NodeVar*),ctx,fbuf)visit_NodeVar             = value } (type::node == NODE_VAR)        if else
     { (node(NodeVarAssign*),ctx,fbuf)visit_NodeVarAssign = value } (type::node == NODE_VAR_ASSIGN) if else
-    { (node(NodeVarAssign*),ctx,fbuf)visit_NodeVarAssign = value } (type::node == NODE_VAR_DEF)    if else
+    { (node(NodeVarDef*),ctx,fbuf)visit_NodeVarDef       = value } (type::node == NODE_VAR_DEF)    if else
     { (node(NodeUnop*),lhs,ctx,fbuf)visit_NodeUnop       = value } (type::node == NODE_UNOP)       if else
     { (node(NodeIntLit*),ctx,fbuf)visit_NodeIntLit       = value } (type::node == NODE_INT_LIT)    if else
     { (node(NodeBinop*),lhs,ctx,fbuf)visit_NodeBinop     = value } (type::node == NODE_BINOP)      if else
@@ -1632,7 +1699,8 @@ GenContext {
 {
     {
         (items::children::node + i * @void*)(Node**) = Pnode Node**
-        (*Pnode, true, ctx, fbuf)visit = value Value*
+        [table::node, breaklbl::ctx, continuelbl::ctx, strbuf::ctx] = _ctx GenContext
+        (*Pnode, true, &_ctx, fbuf)visit = value Value*
         { (value)destroy } (value != null) if
     } (i + 1 = i; i < count::children::node; 0 = i int) for
 
@@ -1663,25 +1731,33 @@ GenContext {
     ((false)iota)itoa = forEnd   byte*
 
     null = _ void*
-    (on_entry::node, true, ctx, fbuf)visit(void*) = _
+    [table::(scope::node(NodeRoot*)), forEnd, forLoop, strbuf::ctx] = _ctx GenContext
+    (on_entry::node, true, &_ctx, fbuf)visit(void*) = _
     (_(Value*))destroy
 
     null(byte*) = str3 byte*; forStart = str2 byte*; forCond = str1 byte*
     (fbuf, "jmp L%\nL%:\n", &str1, 2)write_file_bufferf
 
-    [table::ctx, forEnd, forLoop, strbuf::ctx] = _ctx GenContext
     (scope::node, true, &_ctx, fbuf)visit(void*)
 
     (fbuf, "L%:\n", &forLoop, 1)write_file_bufferf
 
-    (on_loop::node, true, ctx, fbuf)visit(void*) = _
+    (on_loop::node, true, &_ctx, fbuf)visit(void*) = _
     (_(Value*))destroy
 
     (fbuf, "L%:\n", &forCond, 1)write_file_bufferf
 
-    (condition::node, true, ctx, fbuf)visit = condition Value*
+    (condition::node, true, &_ctx, fbuf)visit = condition Value*
 
     forEnd = str3; forStart = str2; str::condition = str1
+
+    { 
+        (RAX, QWORD)create_reg(Value*) = reg Value*
+        (reg, condition, fbuf)move
+        str::reg = str1
+        (reg)destroy 
+    } (type::condition == IMMVALUE) if
+
     (fbuf, "cmp %,0\njne L%\nL%:\n", &str1, 3)write_file_bufferf
 
     (condition)destroy
@@ -1699,11 +1775,11 @@ GenContext {
 
     (fbuf, "jmp L%\nL%:\n", &whileCond, 2)write_file_bufferf
 
-    [table::ctx, whileEnd, whileCond, strbuf::ctx] = _ctx GenContext
+    [table::(scope::node(NodeRoot*)), whileEnd, whileCond, strbuf::ctx] = _ctx GenContext
     (scope::node, true, &_ctx, fbuf)visit
     (fbuf, "L%:\n", &whileCond, 1)write_file_bufferf
 
-    (condition::node, true, ctx, fbuf)visit = condition Value*
+    (condition::node, true, &_ctx, fbuf)visit = condition Value*
     whileEnd = str3 byte*; whileStart = str2 byte*; str::condition = str1 byte*
 
     { 
@@ -1723,14 +1799,22 @@ GenContext {
 } (node NodeWhile*, ctx GenContext*, fbuf FileBuffer*)visit_NodeWhile Value*
 
 {
+    [table::(scope::node(NodeRoot*)), breaklbl::ctx, continuelbl::ctx, strbuf::ctx] = _ctx GenContext
     (condition::node, true, ctx, fbuf)visit = condition Value*
 
     ((false)iota)itoa = ifEnd byte*
     str::condition = conditionStr byte*
 
+    { 
+        (RAX, QWORD)create_reg(Value*) = reg Value*
+        (reg, condition, fbuf)move
+        str::reg = conditionStr
+        (reg)destroy 
+    } (type::condition == IMMVALUE) if
+
     (fbuf, "cmp %,0\nje L%\n", &conditionStr, 2)write_file_bufferf
 
-    (scope::node, true, ctx, fbuf)visit
+    (scope::node, true, &_ctx, fbuf)visit
 
     (fbuf, "L%:\n", &ifEnd, 1)write_file_bufferf
     (heap, ifEnd(void*))heap_free
@@ -1749,9 +1833,23 @@ GenContext {
     (table::ctx, name::node)get_var_pos = pos Mempos*
     (pos(Value*), val, fbuf)move
     (heap, name::node(void*))heap_free
-    (pos(Value*))destroy
-    val return
+    (val)destroy
+    pos(Value*) return
 } (node NodeVarAssign*, ctx GenContext*, fbuf FileBuffer*) visit_NodeVarAssign Value*
+
+{
+    (val::node, true, ctx, fbuf)visit = val Value*
+
+    (table::ctx, name::node, false)get_symbol(Var*) = var Var*
+    true = assigned::var
+
+    (table::ctx, name::node)get_var_pos = pos Mempos*
+    (pos(Value*), val, fbuf)move
+
+    (heap, name::node(void*))heap_free
+    (val)destroy
+    pos(Value*) return
+} (node NodeVarDef*, ctx GenContext*, fbuf FileBuffer*) visit_NodeVarDef Value*
 
 {
     (node::node, true, ctx, fbuf)visit = value Value*
