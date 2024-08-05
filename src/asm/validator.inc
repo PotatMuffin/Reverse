@@ -877,6 +877,16 @@ valvisit_node_cast: ; void* valvisit_node_cast(void* node, valcontext* context)
     call get_real_type
     mov [rbp - 32], rax
 
+    cmp rax, -1
+    jne vvncL2
+
+    mov rbx, [rbp - 8]
+    mov rbx, [rbx + 2]
+    mov rdi, [rbx]
+    call is_not_a_type
+    
+    vvncL2:
+
     mov rdi, [rbp - 24]
     mov rsi, [rbp - 32]
     call can_convert_expl
