@@ -78,6 +78,28 @@ null(heapinfo_t*) = heap heapinfo_t*
 (false)iota = NODE_RETURN     short
 (true)iota  = NODE_COUNT      short
 
+(false)iota = MOVQ       short
+(false)iota = MOVD       short
+(false)iota = MOVW       short
+(false)iota = MOVB       short
+(false)iota = LOADQ      short
+(false)iota = LOADD      short
+(false)iota = LOADW      short
+(false)iota = LOADB      short
+(false)iota = LOADIQ     short
+(false)iota = LOADID     short
+(false)iota = LOADIW     short
+(false)iota = LOADIB     short
+(false)iota = STOREQ     short
+(false)iota = STORED     short
+(false)iota = STOREW     short
+(false)iota = STOREB     short
+(false)iota = STOREIQ    short
+(false)iota = STOREID    short
+(false)iota = STOREIW    short
+(false)iota = STOREIB    short
+(true)iota = INSTR_COUNT short
+
 (false)iota = IMMVALUE short
 (false)iota = REG      short
 (false)iota = STR      short
@@ -573,7 +595,6 @@ Lexer {
 Symbol {
     type short
     name byte*
-    next void* # Symbol*
 } struct
 
 
@@ -1330,7 +1351,7 @@ Ptr {
         ptrType::(type(Ptr*)) = type
         ptr::(type(Ptr*)) + _ptr = _ptr 
     } (type::super::type == PTR) if
-    [[[PTR, null(byte*), null], 8, QWORD], type, _ptr] = *ptr
+    [[[PTR, null(byte*)], 8, QWORD], type, _ptr] = *ptr
     ptr return
 } (type Type*, _ptr int) create_ptr Ptr*
 
@@ -1389,14 +1410,14 @@ Func {
     (_hash, size::table)umod = index long
     (items::table + index * @void*) = Psymbol Symbol**
     *Psymbol = _symbol Symbol*
-
+    
     {
-        { return } ((name::_symbol, name::symbol)strcmp) if
-        { next::_symbol = next::symbol } (next::_symbol != null) if
-        symbol(void*) = next::_symbol
-        return
-    } (_symbol) if
+        (index + 1)%size::table = index
+        (items::table + index * @void*) = Psymbol
+        *Psymbol = _symbol
+    } (_symbol != null && !(name::_symbol, name::symbol)strcmp) while
 
+    (heap, str2(void*))heap_free
     symbol = *Psymbol
     return
 } (table SymbolTable*, symbol Symbol*) add_symbol void
@@ -1405,7 +1426,6 @@ Func {
     (heap, @Var)heap_alloc(Var*) = var Var*
     VAR = type::super::var
     name = name::super::var
-    null = next::super::var
     varType = type::var
     assigned = assigned::var
 
@@ -1426,7 +1446,6 @@ Func {
     (heap, @Func)heap_alloc(Func*) = func Func*
     FUNC = type::super::func
     name = name::super::func
-    null = next::super::func
     retType = retType::func
     params = params::func
     (table, func(Symbol*))add_symbol
@@ -1437,7 +1456,6 @@ Func {
     (heap, @Type)heap_alloc(Type*) = builtin Type*
     BUILTIN = type::super::builtin
     name = name::super::builtin
-    null = next::super::builtin
     size = size::builtin
     sizeBytes = sizeBytes::builtin
 
@@ -1453,7 +1471,9 @@ Func {
     *Psymbol = symbol Symbol*
 
     {
-        next::symbol(Symbol*) = symbol
+        (index + 1)%size::table = index
+        (items::table + index * @void*) = Psymbol
+        *Psymbol = symbol
     } (symbol != null && !(name, name::symbol)strcmp) while
 
     {
@@ -1843,7 +1863,6 @@ ValContext {
 
 Value {
     type short
-    str  byte*
 } struct
 
 Reg {
@@ -1857,10 +1876,6 @@ Reg {
     REG = type::super::reg
     _reg = reg::reg
     size = size::reg
-
-    reg::reg*4 + size::reg = index int
-    (regs - index * @void*)(byte**) = PStr byte**
-    *PStr = str::super::reg
     reg return
 } (_reg short, size short) create_reg Reg*
 
@@ -1868,7 +1883,7 @@ Mempos {
     super  Value
     reg    short
     size   short
-    offset long
+    offset int
 } struct
 
 {
@@ -1877,19 +1892,6 @@ Mempos {
     reg = reg::mempos
     size = size::mempos
     offset = offset::mempos
-
-    (sizes - size * @void*) = PSize byte**
-    *PSize = sizeStr byte*
-    (regs - reg*4 * @void*) = PReg byte**
-    *PReg = regStr byte*
-    "+" = sign byte*
-    { "-" = sign; -offset = offset } (offset < 0) if
-    (offset)itoa = offsetStr byte*
-
-    offsetStr = str4 byte*; sign = str3 byte*; *PReg = str2 byte*; *PSize = str1 byte*
-    ("%[%%%]", &str1, 4)strformat = str byte*
-    str = str::super::mempos
-    (heap, offsetStr(void*))heap_free
     mempos return
 } (reg short, size short, offset long) create_mempos Mempos*
 
@@ -1914,26 +1916,56 @@ ImmValue {
     (heap, @ImmValue)heap_alloc(ImmValue*) = immvalue ImmValue*
     IMMVALUE = type::super::immvalue
     value = val::immvalue
-    (value)itoa = str byte*
-    str = str::super::immvalue
     immvalue return
 } (value long) create_immvalue ImmValue*
 
 Str {
     super Value
-    val   byte*
+    val   long
 } struct
 
 {
     (heap, @Str)heap_alloc(Str*) = str Str*
     STR = type::super::str
-    (n)itoa = nStr byte*
-    ("string%", &nStr, 1)strformat = _str byte*
-    (heap, nStr(void*))heap_free
-    _str = str::super::str
-    val = val::str
+    n = val::str
     str return
-} (val byte*, n long) create_str Str*
+} (n long) create_str Str*
+
+{   
+    null(byte*) = str byte*
+    {
+        value(Str*) = _str Str*
+        (val::_str)itoa = nStr byte*
+        ("string%", &nStr, 1)strformat = str
+        (heap, nStr(void*))heap_free
+    } (type::value == STR) if else
+    {
+        value(ImmValue*) = immvalue ImmValue*
+        (val::immvalue)itoa = str
+    } (type::value == IMMVALUE) if else
+    {
+        value(Mempos*) = mempos Mempos*
+        (sizes - size::mempos * @void*) = PSize byte**
+        *PSize = sizeStr byte*
+        (regs - reg::mempos*4 * @void*) = PReg byte**
+        *PReg = regStr byte*
+        "+" = sign byte*
+        { "-" = sign; -offset::mempos = offset::mempos } (offset::mempos < 0) if
+        (offset::mempos)itoa = offsetStr byte*
+
+        offsetStr = str4 byte*; sign = str3 byte*; *PReg = str2 byte*; *PSize = str1 byte*
+        ("%[%%%]", &str1, 4)strformat = str
+        (heap, offsetStr(void*))heap_free
+    } (type::value == MEMPOS) if else
+    {
+        value(Reg*) = reg Reg*
+        reg::reg*4 + size::reg = index int
+        (regs - index * @void*)(byte**) = PStr byte**
+        *PStr = str
+    } (type::value == REG) if
+
+    str return
+} (value Value*) value_to_str byte*
 
 {
     true = is_equal byte
@@ -1941,14 +1973,17 @@ Str {
     (type::val1 == type::val2) = is_equal
     { is_equal return } (!is_equal) if
 
-    (str::val1, str::val2)strcmp = is_equal
+    (val1)value_to_str = val1Str byte*
+    (val2)value_to_str = val2Str byte*
+
+    (val1Str, val2Str)strcmp = is_equal
+
+    (heap, val1Str(void*))heap_free
+    (heap, val2Str(void*))heap_free
     is_equal return
 } (val1 Value*, val2 Value*) value_equals byte
 
 {
-    {
-        (heap, str::value)heap_free
-    } (type::value == IMMVALUE || type::value == MEMPOS) if
     (heap, value(void*))heap_free
     return
 } (value Value*) destroy void
@@ -2172,7 +2207,7 @@ GenContext {
 } (node NodeFuncDef*, ctx GenContext*, fbuf FileBuffer*)visit_NodeFuncDef Value*
 
 {
-    (str::node, count::strbuf::ctx)create_str = str Str*
+    (count::strbuf::ctx)create_str = str Str*
     (strbuf::ctx, str::node(void*))list_append
     str(Value*) return
 } (node NodeStrLit*, ctx GenContext*, fbuf FileBuffer*) visit_NodeStrLit Value*
@@ -2213,18 +2248,20 @@ GenContext {
 
     (condition::node, true, &_ctx, fbuf)visit = condition Value*
 
-    forEnd = str3; forStart = str2; str::condition = str1
+    forEnd = str3; forStart = str2; (condition)value_to_str = str1
 
     { 
         (RAX, QWORD)create_reg(Value*) = reg Value*
         (reg, condition, fbuf)move
-        str::reg = str1
+        (heap, str1(void*))heap_free
+        (reg)value_to_str = str1
         (reg)destroy 
     } (type::condition == IMMVALUE) if
 
     (fbuf, "cmp %,0\njne L%\nL%:\n", &str1, 3)write_file_bufferf
 
     (condition)destroy
+    (heap, str1(void*))heap_free
     (heap, forStart(void*))heap_free
     (heap, forLoop(void*))heap_free
     (heap, forCond(void*))heap_free
@@ -2244,18 +2281,20 @@ GenContext {
     (fbuf, "L%:\n", &whileCond, 1)write_file_bufferf
 
     (condition::node, true, &_ctx, fbuf)visit = condition Value*
-    whileEnd = str3 byte*; whileStart = str2 byte*; str::condition = str1 byte*
+    whileEnd = str3 byte*; whileStart = str2 byte*; (condition)value_to_str = str1 byte*
 
     { 
         (RAX, QWORD)create_reg(Value*) = reg Value*
         (reg, condition, fbuf)move
-        str::reg = str1
+        (heap, str1(void*))heap_free
+        (reg)value_to_str = str1
         (reg)destroy 
     } (type::condition == IMMVALUE) if
 
     (fbuf, "cmp %,0\njne L%\nL%:\n", &str1, 3)write_file_bufferf
 
     (condition)destroy
+    (heap, str1(void*))heap_free
     (heap, whileStart(void*))heap_free
     (heap, whileCond(void*))heap_free
     (heap, whileEnd(void*))heap_free
@@ -2267,12 +2306,13 @@ GenContext {
     (condition::node, true, ctx, fbuf)visit = condition Value*
 
     ((false)iota)itoa = ifEnd byte*
-    str::condition = conditionStr byte*
+    (condition)value_to_str = conditionStr byte*
 
     { 
         (RAX, QWORD)create_reg(Value*) = reg Value*
         (reg, condition, fbuf)move
-        str::reg = conditionStr
+        (heap, conditionStr(void*))heap_free
+        (reg)value_to_str = conditionStr
         (reg)destroy 
     } (type::condition == IMMVALUE) if
 
@@ -2281,6 +2321,7 @@ GenContext {
     (scope::node, true, &_ctx, fbuf)visit
 
     (fbuf, "L%:\n", &ifEnd, 1)write_file_bufferf
+    (heap, conditionStr(void*))heap_free
     (heap, ifEnd(void*))heap_free
     (condition)destroy
     null(Value*) return
@@ -2428,10 +2469,12 @@ GenContext {
         } (size::destReg == QWORD && size::srcReg == DWORD) if
     } ((type::dest == REG) && (type::src == REG || type::src == MEMPOS)) if
 
-    str::src = str3 byte*; str::dest = str2 byte*; instr = str1 byte*
+    (src)value_to_str = str3 byte*; (dest)value_to_str = str2 byte*; instr = str1 byte*
     (fbuf, "% %,%\n", &str1, 3)write_file_bufferf
     { (heap, dest(void*))heap_free } (_dest != dest) if
     { (heap,  src(void*))heap_free } (_src  != src)  if
+    (heap, str2(void*))heap_free
+    (heap, str3(void*))heap_free
     _dest return
 } (dest Value*, src Value*, fbuf FileBuffer*) move Value*
 
@@ -2448,7 +2491,9 @@ GenContext {
         (reg::(arg(Mempos*)), QWORD, offset::(arg(Mempos*)))create_mempos(Value*) = operand
     } (type::arg == MEMPOS && size::(arg(Mempos*)) != QWORD) if
 
-    (fbuf, "push %\n", &str::operand, 1)write_file_bufferf
+    (operand)value_to_str = operandStr byte*
+    (fbuf, "push %\n", &operandStr, 1)write_file_bufferf
+    (heap, operandStr(void*))heap_free
     { (heap, operand(void*))heap_free } (operand != arg) if
     return
 } (arg Value*, fbuf FileBuffer*)push void
@@ -2456,8 +2501,10 @@ GenContext {
 {
     null(byte*) = str2 byte*; null(byte*) = str1 byte*
     {
-        str::arg = str2; str::super::reg = str1
+        (arg)value_to_str = str2; (reg(Value*))value_to_str = str1
         (fbuf, "lea %, %\n", &str1, 2)write_file_bufferf
+        (heap, str2(void*))heap_free
+        (heap, str1(void*))heap_free
         reg(Value*) return
     } (_instr == TT_AND) if
 
@@ -2473,8 +2520,9 @@ GenContext {
 
     { "neg" = instr} (_instr == TT_MIN) if
 
-    str::arg = str2; instr = str1
+    (arg)value_to_str = str2; instr = str1
     (fbuf, "% %\n", &str1, 2)write_file_bufferf
+    (heap, str2(void*))heap_free
     arg return
 } (_instr short, arg Value*, reg Reg*, fbuf FileBuffer*) unary_instr Value*
 
@@ -2507,7 +2555,9 @@ GenContext {
         (dividend(Value*), arg1, fbuf)move(Value*) = arg1
 
         (fbuf, "cqo\n")write_file_buffer
-        (fbuf, "idiv %\n", &str::super::divisor, 1)write_file_bufferf
+        (divisor(Value*))value_to_str = divisorStr byte*
+        (fbuf, "idiv %\n", &divisorStr, 1)write_file_bufferf
+        (heap, divisorStr(void*))heap_free
         (divisor(Value*))destroy
 
         { 
@@ -2528,12 +2578,14 @@ GenContext {
         { "sete"  = instr } (_instr == TT_IS)   if else
         { "setne" = instr } (_instr == TT_ISNT) if 
 
-        str::arg2 = str2; str::arg1 = str1
+        (arg2)value_to_str = str2; (arg1)value_to_str = str1
         (fbuf, "cmp %,%\n", &str1, 2)write_file_bufferf
         (reg::reg, BYTE)create_reg(Value*) = arg1
         (reg(Value*))destroy
-        str::arg1 = str2; instr = str1
+
+        (arg1)value_to_str = str2; instr = str1
         (fbuf, "% %\n", &str1, 2)write_file_bufferf
+        (heap, str2(void*))heap_free
         arg1 return
     } (_instr == TT_GTE || _instr == TT_GTH || _instr == TT_LTE || _instr == TT_LTH || _instr == TT_IS || _instr == TT_ISNT) if
 
@@ -2546,9 +2598,12 @@ GenContext {
     { "imul" = instr } (_instr == TT_STAR) if else
     { "add"  = instr } (_instr == TT_PLUS) if
 
-    str::arg2 = str3; str::arg1 = str2; instr = str1
+    (arg2)value_to_str = str3; (arg1)value_to_str = str2; instr = str1
     (fbuf, "% %,%\n", &str1, 3)write_file_bufferf
     { (heap, arg2(void*))heap_free } (arg2 != _arg2) if
+    { (heap, reg(void*))heap_free } (arg1 != reg) if
+    (heap, str2(void*))heap_free    
+    (heap, str3(void*))heap_free
     arg1 return
 } (_instr short, arg1 Value*, arg2 Value*, reg Reg*, fbuf FileBuffer*) bin_instr Value*
 
@@ -2646,9 +2701,17 @@ FileBuffer {
     { (fd, "[ERROR] ")fprint } (log_level == LOG_ERROR) if else
     { (fd, "[WARN] ")fprint  } (log_level == LOG_WARN)  if else
     { (fd, "[INFO] ")fprint  } (log_level == LOG_INFO)  if
-    (str)print
+    (fd, str)fprint
     return
 } (log_level int, str byte*)log void
+
+{
+    (format, argv, argc)strformat = str byte*
+    (str)print
+    (heap, str(void*))heap_free
+    return
+} (format byte*, argv byte**, argc int) printf void
+
 
 {
     (str)strlen = len long
@@ -3092,19 +3155,11 @@ heapinfo_t {
 
 {
     (heap, ptr)find_chunk = index long
-    { 
-        (ptr(long))itoa = str byte*
-        (LOG_ERROR, ("attempted to free invalid pointer: %\n", &str, 1)strformat)log 
-        (1)exit
-    } ( index == -1 ) if
+    { return } ( index == -1 ) if
     
     ((chunks::heap) + index * @heapchunk_t) = chunk heapchunk_t*
 
-    {
-        (ptr(long))itoa = str
-        (LOG_ERROR, ("attempted to free an already freed chunk: %\n", &str, 1)strformat)log 
-        (1)exit
-    } (!inuse::chunk) if
+    { return } (!inuse::chunk) if
 
     false = inuse::chunk
     (heap, index)merge_chunk
