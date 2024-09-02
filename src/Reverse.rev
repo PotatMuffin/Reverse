@@ -78,28 +78,6 @@ null(heapinfo_t*) = heap heapinfo_t*
 (false)iota = NODE_RETURN     short
 (true)iota  = NODE_COUNT      short
 
-(false)iota = MOVQ       short
-(false)iota = MOVD       short
-(false)iota = MOVW       short
-(false)iota = MOVB       short
-(false)iota = LOADQ      short
-(false)iota = LOADD      short
-(false)iota = LOADW      short
-(false)iota = LOADB      short
-(false)iota = LOADIQ     short
-(false)iota = LOADID     short
-(false)iota = LOADIW     short
-(false)iota = LOADIB     short
-(false)iota = STOREQ     short
-(false)iota = STORED     short
-(false)iota = STOREW     short
-(false)iota = STOREB     short
-(false)iota = STOREIQ    short
-(false)iota = STOREID    short
-(false)iota = STOREIW    short
-(false)iota = STOREIB    short
-(true)iota = INSTR_COUNT short
-
 (false)iota = IMMVALUE short
 (false)iota = REG      short
 (false)iota = STR      short
@@ -543,19 +521,19 @@ Lexer {
         } (c == '!') if else
         {
             (lexer, 1)lexer_peek = c
-            { TT_IS  = type::tok; (lexer)lexer_consume } (c == '=') if else
-            { TT_LTE = type::tok; (lexer)lexer_consume } (c == '<') if
+            { TT_IS  = type::tok; (lexer)lexer_consume } (c == '=') if
             { TT_EQ  = type::tok } (type::tok == 0) if
         } (c == '=') if else
         {
             (lexer, 1)lexer_peek = c
             { TT_GTE = type::tok; (lexer)lexer_consume } (c == '=') if else
-            { TT_SHL = type::tok; (lexer)lexer_consume } (c == '>') if
+            { TT_SHR = type::tok; (lexer)lexer_consume } (c == '>') if
             { TT_GTH = type::tok } (type::tok == 0) if
         } (c == '>') if else
         {
             (lexer, 1)lexer_peek = c
-            { TT_SHR = type::tok } (c == '<') if
+            { TT_SHL = type::tok; (lexer)lexer_consume } (c == '<') if else
+            { TT_LTE = type::tok; (lexer)lexer_consume } (c == '=') if
             { TT_LTH = type::tok } (type::tok == 0) if
         } (c == '<') if else
         { TT_AND     = type::tok } (c == '&') if else
@@ -1417,7 +1395,6 @@ Func {
         *Psymbol = _symbol
     } (_symbol != null && !(name::_symbol, name::symbol)strcmp) while
 
-    (heap, str2(void*))heap_free
     symbol = *Psymbol
     return
 } (table SymbolTable*, symbol Symbol*) add_symbol void
@@ -2016,6 +1993,46 @@ GenContext {
 } (node Node*, lhs byte, reg Reg*) uses_reg byte 
 
 {
+    {
+        true return
+    } (type::node == NODE_INT_LIT) if
+
+    {
+        (left::(node(NodeBinop*)))returns_immValue = left byte
+        (right::(node(NodeBinop*)))returns_immValue = right byte
+        left && right return
+    } (type::node == NODE_BINOP) if
+
+    {
+        (node::(node(NodeUnop*)))returns_immValue = n byte
+        n return
+    } (type::node == NODE_UNOP) if
+    false return
+} (node Node*) returns_immValue byte
+
+{
+    0 = value long
+    { val::arg1 >= val::arg2 = value } (op == TT_GTE)     if else
+    { val::arg1 > val::arg2 = value  } (op == TT_GTH)     if else
+    { val::arg1 <= val::arg2 = value } (op == TT_LTE)     if else
+    { val::arg1 < val::arg2 = value  } (op == TT_LTH)     if else
+    { val::arg1 == val::arg2 = value } (op == TT_IS)      if else
+    { val::arg1 != val::arg2 = value } (op == TT_ISNT)    if else
+    { val::arg1 + val::arg2 = value  } (op == TT_AND)     if else
+    { val::arg1 - val::arg2 = value  } (op == TT_MIN)     if else
+    { val::arg1 * val::arg2 = value  } (op == TT_STAR)    if else
+    { val::arg1 + val::arg2 = value  } (op == TT_PLUS)    if else
+    { val::arg1 / val::arg2 = value  } (op == TT_FSLASH)  if else
+    { val::arg1 % val::arg2 = value  } (op == TT_PERCENT) if else
+    { val::arg1 | val::arg2 = value  } (op == TT_OR)      if else
+    { val::arg1 ^ val::arg2 = value  } (op == TT_XOR)     if else
+    { val::arg1 << val::arg2 = value } (op == TT_SHL)     if else
+    { val::arg1 >> val::arg2 = value } (op == TT_SHR)     if
+    value = val::arg1
+    return
+} (arg1 ImmValue*, arg2 ImmValue*, op short)calculate_binexpr void
+
+{
     (heap, @FileBuffer)heap_alloc(FileBuffer*) = fbuf FileBuffer*
     (fbuf, fn, 256 << 10)open_file_buffer = code int
 
@@ -2358,6 +2375,12 @@ GenContext {
 {
     (node::node, true, ctx, fbuf)visit = value Value*
 
+    {
+        value(ImmValue*) = immvalue ImmValue*
+        -val::immvalue = val::immvalue
+        value return
+    } (type::value == IMMVALUE && op::node == TT_MIN) if
+
     RAX = _reg short
     { RDI = _reg } (!lhs) if
 
@@ -2372,14 +2395,26 @@ GenContext {
 } (node NodeUnop*, lhs byte, ctx GenContext*, fbuf FileBuffer*) visit_NodeUnop Value*
 
 {
-    (left::node, true, ctx, fbuf)visit = left Value*
+    null(Value*) = left Value*
+    null(Value*) = right Value*
+    {
+        (left::node, true, ctx, fbuf)visit  = left
+        (right::node, false, ctx, fbuf)visit = right
+        val::(left(ImmValue*)) = leftValue long
+        val::(right(ImmValue*)) = rightValue long
+        (left(ImmValue*), right(ImmValue*), op::node)calculate_binexpr
+        (heap, right(void*))heap_free
+        IMMVALUE = type::left
+        left return
+    } ((node(Node*))returns_immValue) if
+
+    (left::node, true, ctx, fbuf)visit = left
 
     QWORD = regSize short
     {
         left(Mempos*) = mempos Mempos*
         size::mempos = regSize
     } (type::left == MEMPOS) if
-
 
     null(Reg*) = reg Reg*
     { (RDI, regSize)create_reg = reg } else
@@ -2397,7 +2432,7 @@ GenContext {
     } ((right::node, false, reg)uses_reg) if
 
     reg = _reg Reg*
-    (right::node, false, ctx, fbuf)visit = right Value*
+    (right::node, false, ctx, fbuf)visit = right
     (op::node, left, right, reg, fbuf)bin_instr(Reg*) = reg
 
     { (left)destroy } (left != reg) if
@@ -2435,6 +2470,11 @@ GenContext {
         (r, src, fbuf)move = src
     } (type::dest == MEMPOS && type::src == MEMPOS) if
     
+    {
+        (RCX, QWORD)create_reg = rcx Reg*
+        (rcx(Value*), src, fbuf)move = src
+    } (type::dest == MEMPOS && type::src == IMMVALUE && (val::(src(ImmValue*)) & -4294967296) != 0) if
+
     {
         dest(Mempos*) = destMempos
         src(Reg*) = srcReg
@@ -2537,7 +2577,7 @@ GenContext {
     {
         (RCX, QWORD)create_reg = rcx Reg*
         (rcx(Value*), arg2, fbuf)move = arg2
-    } (type::arg2 == IMMVALUE && val::(arg2(ImmValue*)) > 2147483647) if
+    } (type::arg2 == IMMVALUE && (val::(arg2(ImmValue*)) & -4294967296) != 0) if
 
     {
         arg2(Mempos*) = mempos Mempos*

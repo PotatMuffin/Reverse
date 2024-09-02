@@ -85,6 +85,15 @@ tokenize: ; void* tokenize(char* buf)
     jne tokif8
 
     mov rbx, [rbp - 8]
+    cmp [rbx + 1], byte '='
+    jne tokif_2
+
+    mov [r13], word TT_LTE
+    inc qword [rbp - 8]
+    jmp tokloopcontinue
+    tokif_2:
+
+    mov rbx, [rbp - 8]
     cmp [rbx + 1], byte '<'
     jne tokif_7
 
@@ -167,14 +176,6 @@ tokenize: ; void* tokenize(char* buf)
     jne tokif16
 
     mov rbx, [rbp - 8]
-    cmp [rbx + 1], byte '<'
-    jne tokif_2
-
-    mov [r13], word TT_LTE
-    inc qword [rbp - 8]
-    jmp tokloopcontinue
-    tokif_2:
-
     cmp [rbx + 1], byte '='
     jne tokif_3
 
