@@ -76,6 +76,8 @@ null(heapinfo_t*) = heap heapinfo_t*
 (false)iota = NODE_FUNC_DEF   short
 (false)iota = NODE_FUNC_CALL  short
 (false)iota = NODE_RETURN     short
+(false)iota = NODE_CAST       short
+(false)iota = NODE_PTR_ASSIGN short
 (true)iota  = NODE_COUNT      short
 
 (false)iota = IMMVALUE short
@@ -622,6 +624,7 @@ NodeUnop {
     super Node
     node  Node*
     op    short
+    type  void* # Type*
 } struct
 
 {
@@ -630,6 +633,7 @@ NodeUnop {
     [file::pos, line::pos, column::pos] = pos::super::node
     _node = node::node
     op = op::node
+    null = type::node
     node return
 } (pos Position*, _node Node*, op short) create_node_unop NodeUnop*
 
@@ -829,6 +833,36 @@ NodeReturn {
     val = val::node
     node return
 } (pos Position*, val Node*) create_node_return NodeReturn*
+
+NodeCast {
+    super Node
+    castee Node*
+    cast_type _Type*
+} struct
+
+{
+    (heap, @NodeCast)heap_alloc(NodeCast*) = node NodeCast*
+    NODE_CAST = type::super::node
+    [file::pos, line::pos, column::pos] = pos::super::node
+    castee = castee::node
+    cast_type = cast_type::node
+    node return
+} (pos Position*, castee Node*, cast_type _Type*) create_node_cast NodeCast*
+
+NodePtrAssign {
+    super Node
+    value Node*
+    ptr   Node*
+} struct
+
+{
+    (heap, @NodePtrAssign)heap_alloc(NodePtrAssign*) = node NodePtrAssign*
+    NODE_PTR_ASSIGN = type::super::node
+    [file::pos, line::pos, column::pos] = pos::super::node
+    value = value::node
+    ptr = ptr::node
+    node return
+} (pos Position*, value Node*, ptr Node*) create_node_ptr_assign NodePtrAssign*
 
 Parser {
     tokens List*
@@ -1128,14 +1162,24 @@ Parser {
 } (parser Parser*) parse_expr Result*
 
 {
-    (parser)parser_consume = _tok Token*
-
     (heap, @Result)heap_alloc(Result*) = res Result*
-    (res, (parser, TT_IDENT)parser_expect)result_register(Token*) = tok Token*
-    { res return } (err::res != null ) if 
+    null(Node*) = node Node*
+
+    (parser)parser_consume = _tok Token*
+    (parser,0)parser_peek = tok Token*
+
+    {
+        (res, (parser, false)parse_atom)result_register(Node*) = ptr Node*
+        (&pos::_tok, value, ptr)create_node_ptr_assign(Node*) = node
+        (res, node(void*))result_success return
+    } (type::tok == TT_STAR) if
+    (parser)parser_consume
+
+    {
+        (res, &pos::tok, "Expected identifier")result_fail return
+    } (type::tok != TT_IDENT) if
 
     (parser, 0)parser_peek = varType Token*
-    null(Node*) = node Node*
 
     {
         (&pos::_tok, data::tok(byte*), value)create_node_var_assign(Node*) = node
@@ -1170,7 +1214,7 @@ Parser {
 {
     (heap, @Result)heap_alloc(Result*) = res Result*
 
-    (res, (parser)parse_atom)result_register = left void*
+    (res, (parser, true)parse_atom)result_register = left void*
     { res return } (err::res != null) if 
 
     {
@@ -1203,7 +1247,7 @@ Parser {
     } (type::tok == TT_IDENT) if else
     {
         (parser)parser_consume
-        (res, (parser)parse_atom)result_register(Node*) = node
+        (res, (parser, false)parse_atom)result_register(Node*) = node
         { res return } (err::res != null) if
 
         (&pos::tok, node(Node*), type::tok)create_node_unop(Node*) = node
@@ -1211,7 +1255,12 @@ Parser {
     {
         (parser)parser_consume
         0 = i int
-        {} (i + 1 = i; type::(parser, i)parser_peek != TT_PARENR; i) for
+        1 = parens int
+        { 
+            (parser, i)parser_peek = _tok Token*
+            { parens + 1 = parens }  (type::_tok == TT_PARENL) if
+            { parens - 1 = parens }  (type::_tok == TT_PARENR) if
+        } (i + 1 = i; parens > 0; i) for
 
         {
             (res, (parser, 0)parse_bin_expr)result_register(Node*) = node
@@ -1222,13 +1271,13 @@ Parser {
         {
             (res, (parser)parse_func_call)result_register(Node*) = node
             { res return } (err::res != null) if
-        } (type::(parser, i+1)parser_peek == TT_IDENT) if
+        } (type::(parser, i)parser_peek == TT_IDENT) if
 
     } (type::tok == TT_PARENL) if else
     {
         (&pos::tok, data::tok(byte*))create_node_str_lit(Node*) = node
         (parser)parser_consume
-    } (type::tok == TT_STR) if
+    } (type::tok == TT_STR) if else
     { 
         (&pos::tok, data::tok)create_node_int_lit(Node*) = node 
         (parser)parser_consume
@@ -1238,8 +1287,19 @@ Parser {
         (res, &pos::tok, "Expected int, identifier, '-', or '('")result_fail return 
     } (node == null) if
 
+    {
+        (parser)parser_consume
+        (res, (parser)parse_type)result_register(_Type*) = cast_type _Type*
+        { res return } (err::res != null) if
+
+        (parser)parser_consume = tok
+        { (res, &pos::tok, "Expected ')'")result_fail } (type::tok != TT_PARENR) if
+
+        (&pos::cast_type, node, cast_type)create_node_cast(Node*) = node
+    } (cast == true && type::((parser, 0)parser_peek) == TT_PARENL) if
+
     (res, node(void*))result_success return
-} (parser Parser*) parse_atom Result*
+} (parser Parser*, cast byte) parse_atom Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result*
@@ -1500,10 +1560,17 @@ ValContext {
 
 {
     { false return } (type::super::this != type::super::that) if
+
+    {
+        ptr::(this(Ptr*)) == ptr::(that(Ptr*)) && (ptrType::(this(Ptr*)), ptrType::(that(Ptr*)))type_equals return
+    } (type::super::this == PTR) if
+
     true return
 } (this Type*, that Type*) type_equals byte 
 
 {
+    { (node(NodePtrAssign*),ctx)valvisit_NodePtrAssign return } (type::node == NODE_PTR_ASSIGN) if else
+    { (node(NodeCast*),ctx)valvisit_NodeCast           return } (type::node == NODE_CAST)       if else
     { (node(NodeReturn*),ctx)valvisit_NodeReturn       return } (type::node == NODE_RETURN)     if else
     { (node(NodeFuncCall*),ctx)valvisit_NodeFuncCall   return } (type::node == NODE_FUNC_CALL)  if else
     { (node(NodeFuncDef*),ctx)valvisit_NodeFuncDef     return } (type::node == NODE_FUNC_DEF)   if else
@@ -1580,7 +1647,9 @@ ValContext {
         {
             (res, &pos::super::node, "Can only derefence a pointer")result_fail return
         } (type::super::type != PTR) if
-        (res, (type(Ptr*))deref_ptr(void*))result_success return
+        (type(Ptr*))deref_ptr = type
+        type(void*) = type::node
+        (res, type(void*))result_success return
     } (op::node == TT_STAR) if else
     {
         {
@@ -1724,7 +1793,8 @@ ValContext {
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
-    ((table::ctx, "byte", true)get_symbol(Type*), 1)create_ptr(Type*) = type Type*
+    (table::ctx, "byte", true)get_symbol(Type*) = type Type*
+    (type, 1)create_ptr(Type*) = type
     (res, type(void*))result_success return
 } (node NodeStrLit*, ctx ValContext*) valvisit_NodeStrLit Result*
 
@@ -1833,6 +1903,26 @@ ValContext {
 
     (res, null)result_success return
 } (node NodeReturn*, ctx ValContext*) valvisit_NodeReturn Result*
+
+{
+    (heap, @Result)heap_alloc(Result*) = res Result*
+    (table::ctx, cast_type::node)get_type = cast_type Type*
+    
+    { (res, &pos::cast_type::node, ("'%' is not a type", &name::cast_type::node, 1)strformat)result_fail return } (cast_type == null) if
+
+    (res, cast_type(void*))result_success return
+} (node NodeCast*, ctx ValContext*) valvisit_NodeCast Result*
+
+{
+    (heap, @Result)heap_alloc(Result*) = res Result*
+    (res, (ptr::node, ctx)valvisit)result_register(Type*) = ptrType Type*
+    (res, (value::node, ctx)valvisit)result_register(Type*) = valueType Type*
+
+    {
+        (res, &pos::super::node, "Type mismatch")result_fail
+    } (!(ptrType, valueType)type_equals) if
+    (res, ptrType(void*))result_success return
+} (node NodePtrAssign*, ctx ValContext*) valvisit_NodePtrAssign Result*
 
 #####################################################################
 # Generator
@@ -2080,10 +2170,12 @@ GenContext {
 
 {
     null(Value*) = value Value*
-    { (node(NodeReturn*),ctx, fbuf)visit_NodeReturn      = value } (type::node == NODE_RETURN)     if else
-    { (node(NodeFuncCall*),ctx, fbuf)visit_NodeFuncCall  = value } (type::node == NODE_FUNC_CALL)  if else
-    { (node(NodeFuncDef*),ctx, fbuf)visit_NodeFuncDef    = value } (type::node == NODE_FUNC_DEF)   if else
-    { (node(NodeStrLit*),ctx, fbuf)visit_NodeStrLit      = value } (type::node == NODE_STR_LIT)    if else
+    { (node(NodePtrAssign*),ctx,fbuf)visit_NodePtrAssign = value } (type::node == NODE_PTR_ASSIGN) if else
+    { (node(NodeCast*),ctx,fbuf)visit_NodeCast           = value } (type::node == NODE_CAST)       if else
+    { (node(NodeReturn*),ctx,fbuf)visit_NodeReturn       = value } (type::node == NODE_RETURN)     if else
+    { (node(NodeFuncCall*),ctx,fbuf)visit_NodeFuncCall   = value } (type::node == NODE_FUNC_CALL)  if else
+    { (node(NodeFuncDef*),ctx,fbuf)visit_NodeFuncDef     = value } (type::node == NODE_FUNC_DEF)   if else
+    { (node(NodeStrLit*),ctx,fbuf)visit_NodeStrLit       = value } (type::node == NODE_STR_LIT)    if else
     { (node(NodeControl*),ctx,fbuf)visit_NodeControl     = value } (type::node == NODE_CONTROL)    if else
     { (node(NodeFor*),ctx,fbuf)visit_NodeFor             = value } (type::node == NODE_FOR)        if else
     { (node(NodeWhile*),ctx,fbuf)visit_NodeWhile         = value } (type::node == NODE_WHILE)      if else
@@ -2121,6 +2213,19 @@ GenContext {
 
     null(Value*) return
 } (node NodeRoot*, ctx GenContext*, fbuf FileBuffer*) visit_NodeRoot Value*
+
+{
+    (value::node, true, ctx, fbuf)visit = value Value*
+    (ptr::node, false, ctx, fbuf)visit = ptr Value*
+    (ptr, value, fbuf)move
+    (heap, ptr(void*))heap_free
+    value return
+} (node NodePtrAssign*, ctx GenContext*, fbuf FileBuffer*)visit_NodePtrAssign Value*
+
+{
+    (castee::node, true, ctx, fbuf)visit = value Value*
+    value return
+} (node NodeCast*, ctx GenContext*, fbuf FileBuffer*)visit_NodeCast Value*
 
 {
     {
@@ -2170,14 +2275,16 @@ GenContext {
         (count::params::node-i-1)*@short = argOffset int
         (*(argRegs - argOffset), size::paramType)create_reg = dest Reg*
         (dest(Value*), src, fbuf)move
-
         (heap, src(void*))heap_free
         (heap, dest(void*))heap_free
-    } (i - 1 = i; i >= stackParams; count::params::node-1 = i) for
-    (fbuf, "call %\n", &name::node, 1)write_file_bufferf
+    } (i - 1 = i; i >= stackParams && i >= 0; count::params::node-1 = i) for
+    (fbuf, "call func_%\n", &name::node, 1)write_file_bufferf
     
-    (stackParams*8)itoa = str byte*
-    (fbuf, "add rsp,%\n", &str, 1)write_file_bufferf
+    
+    {
+        (stackParams*8)itoa = str byte*
+        (fbuf, "add rsp,%\n", &str, 1)write_file_bufferf
+    } (stackParams > 0) if
 
     (heap, str(void*))heap_free
     (heap, name::node(void*))heap_free
@@ -2188,7 +2295,7 @@ GenContext {
 
 {
     (table::ctx, name::node, true)get_symbol(Func*) = func Func*
-    (fbuf, "%:\n", &name::node, 1)write_file_bufferf
+    (fbuf, "func_%:\n", &name::node, 1)write_file_bufferf
     
     table::(scope::node(NodeRoot*)) = table SymbolTable*
     stack::table = stackSize long
@@ -2374,6 +2481,7 @@ GenContext {
 
 {
     (node::node, true, ctx, fbuf)visit = value Value*
+    null(Reg*) = reg Reg*
 
     {
         value(ImmValue*) = immvalue ImmValue*
@@ -2381,13 +2489,22 @@ GenContext {
         value return
     } (type::value == IMMVALUE && op::node == TT_MIN) if
 
+    {
+        (RDI, QWORD)create_reg = reg
+        (reg(Value*), value, fbuf)move
+        (value)destroy
+        (reg::reg, size::(type::node(Type*)), 0)create_mempos(Value*) = value
+        (reg(Value*))destroy
+        value return
+    } (op::node == TT_STAR) if
+
     RAX = _reg short
     { RDI = _reg } (!lhs) if
 
     QWORD = reg_size short
     {size::(value(Mempos*)) = reg_size} (type::value == MEMPOS && op::node != TT_AND) if
 
-    (_reg, reg_size)create_reg = reg Reg*
+    (_reg, reg_size)create_reg = reg
     (op::node, value, reg, fbuf)unary_instr = res Value*
     { (reg(Value*))destroy } (reg != res) if
     { (value)destroy } (value != res) if
@@ -2553,10 +2670,6 @@ GenContext {
         reg(Value*) = arg
     } (type::arg != REG) if
     null(byte*) = instr byte*
-
-    {
-        (reg::(arg(Reg*)), QWORD, 0)create_mempos(Value*) return
-    } (_instr == TT_STAR) if
 
     { "neg" = instr} (_instr == TT_MIN) if
 
