@@ -91,6 +91,7 @@ null(heapinfo_t*) = heap heapinfo_t*
 (true)iota  = VAR     short
 
 "if"       = IF       byte*
+"else"     = ELSE     byte*
 "while"    = WHILE    byte*
 "for"      = FOR      byte*
 "continue" = CONTINUE byte*
@@ -434,6 +435,7 @@ Lexer {
 {
     false = is_keyword byte
     is_keyword || (str, IF)strcmp       = is_keyword
+    is_keyword || (str, ELSE)strcmp     = is_keyword
     is_keyword || (str, WHILE)strcmp    = is_keyword
     is_keyword || (str, FOR)strcmp      = is_keyword
     is_keyword || (str, CONTINUE)strcmp = is_keyword
@@ -716,6 +718,7 @@ NodeIf {
     super     Node
     scope     Node*
     condition Node*
+    _else     Node*
 } struct
 
 {
@@ -724,6 +727,7 @@ NodeIf {
     [file::pos, line::pos, column::pos] = pos::super::node
     scope = scope::node
     condition = condition::node
+    null(Node*) = _else::node
     node return
 } (pos Position*, scope Node*, condition Node*) create_node_if NodeIf*
 
@@ -949,7 +953,7 @@ Parser {
 
     {
         (parser)parser_consume
-        (parser)parse_scope_expr return
+        (parser, null(Node*))parse_scope_expr return
     } (type::tok == TT_BRACKL) if 
 
     (parser)parse_expr return
@@ -957,49 +961,73 @@ Parser {
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result*
+    null(Result*) = result Result*
 
     (res, (parser, TT_BRACKR)parse)result_register(Node*) = scope Node*
     { res return } (err::res != null) if 
     (parser)parser_consume
 
     (parser, 0)parser_peek = tok Token*
-    { (res, scope(void*))result_success return } (type::tok != TT_PARENL) if
+    {    
+        { (res, scope(void*))result_success return } (type::tok != TT_PARENL) if
 
-    1 = parencount int
-    1 = i int
-    {
+        1 = parencount int
+        1 = i int
+        {
+            (parser, i)parser_peek = tok
+            { parencount + 1 = parencount } (type::tok == TT_PARENL) if
+            { parencount - 1 = parencount } (type::tok == TT_PARENR) if
+        } (i + 1 = i; parencount > 0; i) for
         (parser, i)parser_peek = tok
-        { parencount + 1 = parencount } (type::tok == TT_PARENL) if
-        { parencount - 1 = parencount } (type::tok == TT_PARENR) if
-    } (i + 1 = i; parencount > 0; i) for
-    (parser, i)parser_peek = tok
-    
+        
+        {
+            (res, &pos::tok, "Expected 'if', 'else', 'for', 'while', or identifier")result_fail return
+        } (type::tok != TT_KEYWORD && type::tok != TT_IDENT) if
+        {
+            (parser, scope, _else)parse_if_expr = result
+        } ((data::tok(byte*), IF)strcmp) if else
+        {
+            (parser, scope)parse_while_expr = result
+        } ((data::tok(byte*), WHILE)strcmp) if else
+        {
+            (parser, scope)parse_for_expr = result
+        } ((data::tok(byte*), FOR)strcmp) if else
+        {
+            (parser, scope)parse_func_expr = result
+        } (type::tok == TT_IDENT) if
+    } else
     {
-        (res, &pos::tok, "Expected 'if', 'for', 'while', or identifier")result_fail return
-    } (type::tok != TT_KEYWORD && type::tok != TT_IDENT) if
+        (parser, scope)parse_else_expr = result
+    } ( type::tok == TT_KEYWORD && (data::tok(byte*), ELSE)strcmp) if
 
-    {
-        (res, (parser, scope)parse_if_expr)result_register(Node*) = scope
-    } ((data::tok(byte*), IF)strcmp) if else
-    {
-        (res, (parser, scope)parse_while_expr)result_register(Node*) = scope
-    } ((data::tok(byte*), WHILE)strcmp) if else
-    {
-        (res, (parser, scope)parse_for_expr)result_register(Node*) = scope
-    } ((data::tok(byte*), FOR)strcmp) if else
-    {
-        (res, (parser, scope)parse_func_expr)result_register(Node*) = scope
-    } (type::tok == TT_IDENT) if
-
+    (res, result)result_register(Node*) = scope
     { res return } (err::res != null) if
 
     {
-        (res, &pos::tok, "Expected 'if', 'for', 'while', or identifier")result_fail return
+        (res, &pos::tok, "Expected 'if', 'else', 'for', 'while', or identifier")result_fail return
     } (type::scope != NODE_IF && type::scope != NODE_FOR && type::scope != NODE_WHILE && type::scope != NODE_FUNC_DEF) if
 
     { (heap, data::tok(void*))heap_free } (type::tok != TT_IDENT) if
     (res, scope(void*))result_success return
-} (parser Parser*) parse_scope_expr Result*
+} (parser Parser*, _else Node*) parse_scope_expr Result*
+
+{
+    (heap, @Result)heap_alloc(Result*) = res Result*
+    (parser)parser_consume
+    (parser, TT_NEWLINE)parser_consume_all
+    (parser)parser_consume = tok Token*
+
+    { (res, &pos::tok, "Expected '{'")result_fail return } (type::tok != TT_BRACKL) if
+
+    (res, (parser, scope)parse_scope_expr)result_register(NodeIf*) = node NodeIf*
+    { res return } (err::res != null) if
+
+    {
+        (res, &pos::super::node, "Expected if statement")result_fail return
+    } (type::super::node != NODE_IF) if
+
+    (res, node(void*))result_success return
+} (parser Parser*, scope Node*)parse_else_expr Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result*
@@ -1012,10 +1040,31 @@ Parser {
     { res return } (err::res != null) if
     (parser)parser_consume = tok Token*
 
-    (&pos::tok, scope, condition)create_node_if(Node*) = node Node*
+    (&pos::tok, scope, condition)create_node_if(NodeIf*) = node NodeIf*
+
+    {
+        _else = _else::node
+    } (_else != null) if
+
+    (parser, 0)parser_peek = tok
+    {
+        (parser)parser_consume = tok
+        (parser, TT_NEWLINE)parser_consume_all
+        (parser)parser_consume = tok
+
+        { (res, &pos::tok, "Expected '{'")result_fail return } (type::tok != TT_BRACKL) if
+        (res, (parser, node(Node*))parse_scope_expr)result_register(NodeIf*) = node
+        { res return } (err::res != null) if
+
+        {
+            (res, &pos::super::node, "Expected if statement")result_fail return
+        } (type::super::node != NODE_IF) if
+
+        (parser, 0)parser_peek = tok
+    } (type::tok == TT_KEYWORD && (data::tok(byte*), ELSE)strcmp) if
 
     (res, node(void*))result_success return
-} (parser Parser*, scope Node*) parse_if_expr Result*
+} (parser Parser*, scope Node*, _else Node*) parse_if_expr Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result*
@@ -1591,6 +1640,13 @@ ValContext {
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result* 
+
+    {
+        (heap, @SymbolTable)heap_alloc(SymbolTable*) = table SymbolTable*
+        (table, 128, table::ctx, true)init_symboltable
+        table = table::node
+    } (table::node == null) if
+
     [table::node, retType::ctx, in_loop::ctx, 0] = _ctx ValContext
     0 = i int
     null(Node**) = Pnode Node**
@@ -1606,12 +1662,6 @@ ValContext {
 
     {
         (items::children::node + i * @void*)(Node**) = Pnode
-
-        {
-            (heap, @SymbolTable)heap_alloc(SymbolTable*) = table SymbolTable*
-            (table, 128, table::ctx, true)init_symboltable
-            table = table::node
-        } (table::node == null) if
 
         (res, (*Pnode, &_ctx)valvisit)result_register
         { res return } (err::res != null) if
@@ -1747,6 +1797,11 @@ ValContext {
 
     (res, (scope::node, &_ctx)valvisit)result_register
     { res return } (err::res != null) if
+
+    {
+        (res, (_else::node, ctx)valvisit)result_register
+        { res return } (err::res != null) if
+    } (_else::node != null) if
 
     (res, null)result_success return
 } (node NodeIf*, ctx ValContext*) valvisit_NodeIf Result*
@@ -2059,6 +2114,7 @@ GenContext {
     table       SymbolTable*
     breaklbl    byte*
     continuelbl byte*
+    ifEndlbl    byte*
     strbuf      List*
 } struct
 
@@ -2135,7 +2191,7 @@ GenContext {
     (fbuf, "format ELF64 executable\nsegment readable executable\nentry $\n")write_file_buffer
     (fbuf, "mov rbp,rsp\n")write_file_buffer
 
-    [table, null(byte*), null(byte*), strbuf] = ctx GenContext
+    [table, null(byte*), null(byte*), null(byte*), strbuf] = ctx GenContext
     (ast(Node*), true, &ctx, fbuf)visit
 
     (fbuf, "segment readable writable\n")write_file_buffer
@@ -2194,7 +2250,13 @@ GenContext {
 {
     0 = i int
     null(Node**) = Pnode Node**
-    [table::node, breaklbl::ctx, continuelbl::ctx, strbuf::ctx] = _ctx GenContext
+
+    [table::node, breaklbl::ctx, continuelbl::ctx, null(byte*), strbuf::ctx] = _ctx GenContext
+
+    {
+        (LOG_WARN, "Scope does not contain a symboltable\n")log
+        table::ctx = table::_ctx
+    } (table::node == null) if
 
     {
         (items::children::node + i * @void*)(Node**) = Pnode
@@ -2354,7 +2416,7 @@ GenContext {
     ((false)iota)itoa = forEnd   byte*
 
     null = _ void*
-    [table::(scope::node(NodeRoot*)), forEnd, forLoop, strbuf::ctx] = _ctx GenContext
+    [table::(scope::node(NodeRoot*)), forEnd, forLoop, null(byte*), strbuf::ctx] = _ctx GenContext
     (on_entry::node, true, &_ctx, fbuf)visit(void*) = _
     (_(Value*))destroy
 
@@ -2400,7 +2462,7 @@ GenContext {
 
     (fbuf, "jmp L%\nL%:\n", &whileCond, 2)write_file_bufferf
 
-    [table::(scope::node(NodeRoot*)), whileEnd, whileCond, strbuf::ctx] = _ctx GenContext
+    [table::(scope::node(NodeRoot*)), whileEnd, whileCond, null(byte*), strbuf::ctx] = _ctx GenContext
     (scope::node, true, &_ctx, fbuf)visit
     (fbuf, "L%:\n", &whileCond, 1)write_file_bufferf
 
@@ -2426,11 +2488,21 @@ GenContext {
 } (node NodeWhile*, ctx GenContext*, fbuf FileBuffer*)visit_NodeWhile Value*
 
 {
-    [table::(scope::node(NodeRoot*)), breaklbl::ctx, continuelbl::ctx, strbuf::ctx] = _ctx GenContext
     (condition::node, true, ctx, fbuf)visit = condition Value*
 
-    ((false)iota)itoa = ifEnd byte*
+    null(byte*) = ifEnd byte*
+    {
+        ((false)iota)itoa = ifEnd 
+    } else
+    {
+        ifEndlbl::ctx = ifEnd
+    } (ifEndlbl::ctx != null) if
+
+
+    ((false)iota)itoa = ifNext byte*
     (condition)value_to_str = conditionStr byte*
+
+    [table::(scope::node(NodeRoot*)), breaklbl::ctx, continuelbl::ctx, ifEnd, strbuf::ctx] = _ctx GenContext
 
     { 
         (RAX, QWORD)create_reg(Value*) = reg Value*
@@ -2440,13 +2512,29 @@ GenContext {
         (reg)destroy 
     } (type::condition == IMMVALUE) if
 
-    (fbuf, "cmp %,0\nje L%\n", &conditionStr, 2)write_file_bufferf
+    (fbuf, "cmp %,0\n", &conditionStr, 1)write_file_bufferf
 
-    (scope::node, true, &_ctx, fbuf)visit
+    {
+        (fbuf, "je L%\n", &ifEnd, 1)write_file_bufferf
+        (scope::node, true, &_ctx, fbuf)visit
+    } else
+    {
+        (fbuf, "je L%\n", &ifNext, 1)write_file_bufferf
+        (scope::node, true, &_ctx, fbuf)visit
+        (fbuf, "jmp L%\n", &ifEnd, 1)write_file_bufferf
+        (fbuf, "L%:\n", &ifNext, 1)write_file_bufferf
 
-    (fbuf, "L%:\n", &ifEnd, 1)write_file_bufferf
+        [table::ctx, breaklbl::ctx, continuelbl::ctx, ifEnd, strbuf::ctx] = _ctx
+        (_else::node, true, &_ctx, fbuf)visit
+    } (_else::node != null) if
+
+    {
+        (fbuf, "L%:\n", &ifEnd, 1)write_file_bufferf
+        (heap, ifEnd(void*))heap_free
+    } (ifEndlbl::ctx == null) if
+
     (heap, conditionStr(void*))heap_free
-    (heap, ifEnd(void*))heap_free
+    (heap, ifNext(void*))heap_free
     (condition)destroy
     null(Value*) return
 } (node NodeIf*, ctx GenContext*, fbuf FileBuffer*) visit_NodeIf Value*
@@ -3247,6 +3335,7 @@ heapinfo_t {
 { 
     # nchunks::heap - 1 = chunk_index long
     0 = chunk_index long
+    bytes+7&~7 = bytes
 
     {
         ((chunks::heap) + i * @heapchunk_t) = chunk heapchunk_t*
