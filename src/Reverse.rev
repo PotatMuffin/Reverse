@@ -177,7 +177,7 @@ Settings {
     null(Result*) = res Result*
     (source_fd)read_file = src byte*
     (source_fd)close
-
+    
     (LOG_INFO, "Tokenizing file\n")log
     [src, [source_fn::settings, 1, 1], 0] = lexer Lexer
     (&lexer)tokenize = res
@@ -1263,7 +1263,7 @@ Parser {
 {
     (heap, @Result)heap_alloc(Result*) = res Result*
 
-    (res, (parser, true)parse_atom)result_register = left void*
+    (res, (parser, true)parse_atom)result_register(Node*) = left Node*
     { res return } (err::res != null) if 
 
     {
@@ -1276,14 +1276,42 @@ Parser {
         { break } (prec < min_prec) if  
         (parser)parser_consume
 
-        (res, (parser, prec + 1)parse_bin_expr)result_register = right void*
+        (res, (parser, prec + 1)parse_bin_expr)result_register(Node*) = right Node*
         { res return } (err::res != null) if 
 
-        (&pos::op, left(Node*), type::op, right(Node*))create_node_binop(void*) = left
+	{
+	    (left(NodeIntLit*), right(NodeIntLit*), type::op)calculate_bin_expr
+	    continue
+	} (type::left == NODE_INT_LIT && type::right == NODE_INT_LIT) if
+
+        (&pos::op, left(Node*), type::op, right(Node*))create_node_binop(Node*) = left
     } (true) while
 
-    (res, left)result_success return
+    (res, left(void*))result_success return
 } (parser Parser*, min_prec byte) parse_bin_expr Result*
+
+{
+    0 = value long
+    { val::arg1 >= val::arg2 = value } (op == TT_GTE)     if else
+    { val::arg1 > val::arg2 = value  } (op == TT_GTH)     if else
+    { val::arg1 <= val::arg2 = value } (op == TT_LTE)     if else
+    { val::arg1 < val::arg2 = value  } (op == TT_LTH)     if else
+    { val::arg1 == val::arg2 = value } (op == TT_IS)      if else
+    { val::arg1 != val::arg2 = value } (op == TT_ISNT)    if else
+    { val::arg1 + val::arg2 = value  } (op == TT_AND)     if else
+    { val::arg1 - val::arg2 = value  } (op == TT_MIN)     if else
+    { val::arg1 * val::arg2 = value  } (op == TT_STAR)    if else
+    { val::arg1 + val::arg2 = value  } (op == TT_PLUS)    if else
+    { val::arg1 / val::arg2 = value  } (op == TT_FSLASH)  if else
+    { val::arg1 % val::arg2 = value  } (op == TT_PERCENT) if else
+    { val::arg1 | val::arg2 = value  } (op == TT_OR)      if else
+    { val::arg1 ^ val::arg2 = value  } (op == TT_XOR)     if else
+    { val::arg1 << val::arg2 = value } (op == TT_SHL)     if else
+    { val::arg1 >> val::arg2 = value } (op == TT_SHR)     if
+    value = val::arg1
+    return
+} (arg1 NodeIntLit*, arg2 NodeIntLit*, op short)calculate_bin_expr void
+
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result*
@@ -1300,7 +1328,19 @@ Parser {
         { res return } (err::res != null) if
 
         (&pos::tok, node(Node*), type::tok)create_node_unop(Node*) = node
-    } (type::tok == TT_MIN || type::tok == TT_STAR || type::tok == TT_AND) if else
+    } (type::tok == TT_STAR || type::tok == TT_AND) if else
+    {
+        (parser)parser_consume
+        (res, (parser, false)parse_atom)result_register(Node*) = node
+        { res return } (err::res != null) if
+
+	{
+            (&pos::tok, node(Node*), type::tok)create_node_unop(Node*) = node
+	} else
+	{
+	    -val::(node(NodeIntLit*)) = val::(node(NodeIntLit*))
+	} (type::node == NODE_INT_LIT) if
+    } (type::tok == TT_MIN) if else
     {
         (parser)parser_consume
         0 = i int
@@ -2139,46 +2179,6 @@ GenContext {
 } (node Node*, lhs byte, reg Reg*) uses_reg byte 
 
 {
-    {
-        true return
-    } (type::node == NODE_INT_LIT) if
-
-    {
-        (left::(node(NodeBinop*)))returns_immValue = left byte
-        (right::(node(NodeBinop*)))returns_immValue = right byte
-        left && right return
-    } (type::node == NODE_BINOP) if
-
-    {
-        (node::(node(NodeUnop*)))returns_immValue = n byte
-        n return
-    } (type::node == NODE_UNOP) if
-    false return
-} (node Node*) returns_immValue byte
-
-{
-    0 = value long
-    { val::arg1 >= val::arg2 = value } (op == TT_GTE)     if else
-    { val::arg1 > val::arg2 = value  } (op == TT_GTH)     if else
-    { val::arg1 <= val::arg2 = value } (op == TT_LTE)     if else
-    { val::arg1 < val::arg2 = value  } (op == TT_LTH)     if else
-    { val::arg1 == val::arg2 = value } (op == TT_IS)      if else
-    { val::arg1 != val::arg2 = value } (op == TT_ISNT)    if else
-    { val::arg1 + val::arg2 = value  } (op == TT_AND)     if else
-    { val::arg1 - val::arg2 = value  } (op == TT_MIN)     if else
-    { val::arg1 * val::arg2 = value  } (op == TT_STAR)    if else
-    { val::arg1 + val::arg2 = value  } (op == TT_PLUS)    if else
-    { val::arg1 / val::arg2 = value  } (op == TT_FSLASH)  if else
-    { val::arg1 % val::arg2 = value  } (op == TT_PERCENT) if else
-    { val::arg1 | val::arg2 = value  } (op == TT_OR)      if else
-    { val::arg1 ^ val::arg2 = value  } (op == TT_XOR)     if else
-    { val::arg1 << val::arg2 = value } (op == TT_SHL)     if else
-    { val::arg1 >> val::arg2 = value } (op == TT_SHR)     if
-    value = val::arg1
-    return
-} (arg1 ImmValue*, arg2 ImmValue*, op short)calculate_binexpr void
-
-{
     (heap, @FileBuffer)heap_alloc(FileBuffer*) = fbuf FileBuffer*
     (fbuf, fn, 256 << 10)open_file_buffer = code int
 
@@ -2572,12 +2572,6 @@ GenContext {
     null(Reg*) = reg Reg*
 
     {
-        value(ImmValue*) = immvalue ImmValue*
-        -val::immvalue = val::immvalue
-        value return
-    } (type::value == IMMVALUE && op::node == TT_MIN) if
-
-    {
         (RDI, QWORD)create_reg = reg
         (reg(Value*), value, fbuf)move
         (value)destroy
@@ -2602,16 +2596,6 @@ GenContext {
 {
     null(Value*) = left Value*
     null(Value*) = right Value*
-    {
-        (left::node, true, ctx, fbuf)visit  = left
-        (right::node, false, ctx, fbuf)visit = right
-        val::(left(ImmValue*)) = leftValue long
-        val::(right(ImmValue*)) = rightValue long
-        (left(ImmValue*), right(ImmValue*), op::node)calculate_binexpr
-        (heap, right(void*))heap_free
-        IMMVALUE = type::left
-        left return
-    } ((node(Node*))returns_immValue) if
 
     (left::node, true, ctx, fbuf)visit = left
 
