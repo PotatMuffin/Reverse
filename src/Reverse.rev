@@ -165,7 +165,7 @@ Settings {
     {   
         (LOG_ERROR, "Could not initialize heap\n")log
         1 return
-    } ((&_heap, memory::settings)init_heap != 0) if
+    } ((heap, memory::settings)init_heap != 0) if
 
     (0, O_RDONLY, source_fn::settings)open = source_fd int
 
@@ -324,7 +324,6 @@ Result {
 #####################################################################
 # List
 #####################################################################
-
 List {
     count int
     capacity int
@@ -1298,7 +1297,7 @@ Parser {
     { val::arg1 < val::arg2 = value  } (op == TT_LTH)     if else
     { val::arg1 == val::arg2 = value } (op == TT_IS)      if else
     { val::arg1 != val::arg2 = value } (op == TT_ISNT)    if else
-    { val::arg1 + val::arg2 = value  } (op == TT_AND)     if else
+    { val::arg1 & val::arg2 = value  } (op == TT_AND)     if else
     { val::arg1 - val::arg2 = value  } (op == TT_MIN)     if else
     { val::arg1 * val::arg2 = value  } (op == TT_STAR)    if else
     { val::arg1 + val::arg2 = value  } (op == TT_PLUS)    if else
@@ -2569,22 +2568,21 @@ GenContext {
 
 {
     (node::node, true, ctx, fbuf)visit = value Value*
-    null(Reg*) = reg Reg*
-
-    {
-        (RDI, QWORD)create_reg = reg
-        (reg(Value*), value, fbuf)move
-        (value)destroy
-        (reg::reg, size::(type::node(Type*)), 0)create_mempos(Value*) = value
-        (reg(Value*))destroy
-        value return
-    } (op::node == TT_STAR) if
 
     RAX = _reg short
     { RDI = _reg } (!lhs) if
 
     QWORD = reg_size short
     {size::(value(Mempos*)) = reg_size} (type::value == MEMPOS && op::node != TT_AND) if
+
+    (_reg, reg_size)create_reg = reg Reg*
+    {
+        (reg(Value*), value, fbuf)move
+        (value)destroy
+        (reg::reg, size::(type::node(Type*)), 0)create_mempos(Value*) = value
+        (reg(Value*))destroy
+        value return
+    } (op::node == TT_STAR) if
 
     (_reg, reg_size)create_reg = reg
     (op::node, value, reg, fbuf)unary_instr = res Value*
