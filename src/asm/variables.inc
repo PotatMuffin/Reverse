@@ -99,6 +99,7 @@ keywords:
 types:
    dq _void
    dq __byte
+
    dq _short
    dq _int
    dq _long
