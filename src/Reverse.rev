@@ -2537,9 +2537,15 @@ GenContext {
 
     (forCond, fbuf)insert_label
 
+    -1 = conditionOp short
+    { op::(condition::node(NodeBinop*)) = conditionOp } (type::condition::node == NODE_BINOP) if
+    { -1 = conditionOp } (conditionOp != TT_LOGOR && conditionOp != TT_LOGAND) if
+
+    [table::(scope::node(NodeRoot*)), -forEnd, -forLoop, -1, strbuf::ctx, forEnd, forStart, -1] = _ctx
     (condition::node, true, &_ctx, fbuf)visit = condition Value*
 
-    (condition)value_to_str = str1 byte*
+    null(byte*) = str1 byte*
+    { (condition)value_to_str = str1 } (conditionOp == -1) if
 
     { 
         (RAX, QWORD)create_reg(Value*) = reg Value*
@@ -2547,18 +2553,16 @@ GenContext {
         (heap, str1(void*))heap_free
         (reg)value_to_str = str1
         (reg)destroy 
-    } (type::condition == IMMVALUE) if
+    } (conditionOp == -1 && type::condition == IMMVALUE) if
 
-    (fbuf, "cmp %,0\n", &str1, 1)write_file_bufferf
-    (forStart, JNE, fbuf)jmp
+    {
+        (fbuf, "cmp %,0\n", &str1, 1)write_file_bufferf
+        (forStart, JNE, fbuf)jmp
+	(heap, str1(void*))heap_free
+	(condition)destroy
+    } (conditionOp == -1) if
     (forEnd, fbuf)insert_label
 
-    (condition)destroy
-    (heap, str1(void*))heap_free
-    (heap, forStart(void*))heap_free
-    (heap, forLoop(void*))heap_free
-    (heap, forCond(void*))heap_free
-    (heap, forEnd(void*))heap_free
     null(Value*) return
 } (node NodeFor*, ctx GenContext*, fbuf FileBuffer*) visit_NodeFor Value*
 
@@ -2567,6 +2571,10 @@ GenContext {
     (false)iota = whileCond  long
     (false)iota = whileEnd   long
 
+    -1 = conditionOp short
+    { op::(condition::node(NodeBinop*)) = conditionOp } (type::condition::node == NODE_BINOP) if
+    { -1 = conditionOp } (conditionOp != TT_LOGOR && conditionOp != TT_LOGAND) if
+
     (whileCond, JMP, fbuf)jmp
     (whileStart, fbuf)insert_label
 
@@ -2574,8 +2582,11 @@ GenContext {
     (scope::node, true, &_ctx, fbuf)visit
     (whileCond, fbuf)insert_label
 
+    [table::ctx, whileEnd, whileCond, -1, strbuf::ctx, whileEnd, whileStart, -1] = _ctx
     (condition::node, true, &_ctx, fbuf)visit = condition Value*
-    (condition)value_to_str = str1 byte*
+
+    null(byte*) = str1 byte*
+    { (condition)value_to_str = str1 } (conditionOp == -1) if
 
     { 
         (RAX, QWORD)create_reg(Value*) = reg Value*
@@ -2583,20 +2594,20 @@ GenContext {
         (heap, str1(void*))heap_free
         (reg)value_to_str = str1
         (reg)destroy 
-    } (type::condition == IMMVALUE) if
+    } (conditionOp == -1 && type::condition == IMMVALUE) if
 
-    (fbuf, "cmp %,0\n", &str1, 1)write_file_bufferf
-    (whileStart, JNE, fbuf)jmp
+    {
+        (fbuf, "cmp %,0\n", &str1, 1)write_file_bufferf
+    	(whileStart, JNE, fbuf)jmp
+	(heap, str1(void*))heap_free
+    	(condition)destroy
+    } (conditionOp == -1) if
     (whileEnd, fbuf)insert_label
 
-    (condition)destroy
-    (heap, str1(void*))heap_free
     null(Value*) return
 } (node NodeWhile*, ctx GenContext*, fbuf FileBuffer*)visit_NodeWhile Value*
 
 {
-    (condition::node, true, ctx, fbuf)visit = condition Value*
-
     -1 = ifEnd long
     {
         (false)iota = ifEnd 
@@ -2604,12 +2615,26 @@ GenContext {
     {
         ifEndlbl::ctx = ifEnd
     } (ifEndlbl::ctx != -1) if
-
-
     (false)iota = ifNext long
-    (condition)value_to_str = conditionStr byte*
+    -1 = ifStart long
 
-    [table::(scope::node(NodeRoot*)), breaklbl::ctx, continuelbl::ctx, ifEnd, strbuf::ctx, -1, -1, -1549] = _ctx GenContext
+    {
+	op::(condition::node(NodeBinop*)) = op short
+	{
+	    (false)iota = ifStart
+	} (op == TT_LOGOR || op == TT_LOGAND) if
+    } (type::condition::node == NODE_BINOP) if
+
+    [table::ctx, -1, -1, ifEnd, strbuf::ctx, ifEnd, ifStart, -1] = _ctx GenContext
+
+    {
+	ifNext = logFalse::_ctx
+    } (_else::node != null) if
+
+    (condition::node, true, &_ctx, fbuf)visit = condition Value*
+    null(byte*) = conditionStr byte*
+
+    { (condition)value_to_str = conditionStr } (ifStart == -1) if
 
     { 
         (RAX, QWORD)create_reg(Value*) = reg Value*
@@ -2617,17 +2642,21 @@ GenContext {
         (heap, conditionStr(void*))heap_free
         (reg)value_to_str = conditionStr
         (reg)destroy 
-    } (type::condition == IMMVALUE) if
-
-    (fbuf, "cmp %,0\n", &conditionStr, 1)write_file_bufferf
+    } (ifStart == -1 && type::condition == IMMVALUE) if
 
     {
-        (ifEnd, JE, fbuf)jmp
-        (scope::node, true, &_ctx, fbuf)visit
+        (ifStart, fbuf)insert_label    
     } else
     {
-	(ifNext, JE, fbuf)jmp
-        (scope::node, true, &_ctx, fbuf)visit
+        (fbuf, "cmp %,0\n", &conditionStr, 1)write_file_bufferf
+        { (ifEnd,  JE, fbuf)jmp } else
+	{ (ifNext, JE, fbuf)jmp } (_else::node != null) if
+    } (ifStart == -1) if
+
+    [table::(scope::node(NodeRoot*)), breaklbl::ctx, continuelbl::ctx, ifEnd, strbuf::ctx, -1, -1, -1] = _ctx
+    (scope::node, true, &_ctx, fbuf)visit
+
+    {
 	(ifEnd, JMP, fbuf)jmp
 	(ifNext, fbuf)insert_label
 
@@ -2673,7 +2702,8 @@ GenContext {
 } (node NodeVarDef*, ctx GenContext*, fbuf FileBuffer*) visit_NodeVarDef Value*
 
 {
-    (node::node, true, ctx, fbuf)visit = value Value*
+    [table::ctx, -1, -1, -1, strbuf::ctx, -1, -1, -1] = _ctx GenContext
+    (node::node, true, &_ctx, fbuf)visit = value Value*
 
     RAX = _reg short
     { RDI = _reg } (!lhs) if
@@ -2705,7 +2735,8 @@ GenContext {
     null(Value*) = left Value*
     null(Value*) = right Value*
 
-    (left::node, true, ctx, fbuf)visit = left
+    [table::ctx, -1, -1, -1, strbuf::ctx, -1, -1, -1] = _ctx GenContext
+    (left::node, true, &_ctx, fbuf)visit = left
 
     QWORD = regSize short
     {
@@ -2730,7 +2761,7 @@ GenContext {
     } ((right::node, false, reg)uses_reg) if
 
     reg = _reg Reg*
-    (right::node, false, ctx, fbuf)visit = right
+    (right::node, false, &_ctx, fbuf)visit = right
 
     (op::node, left, right, reg, fbuf)bin_instr(Reg*) = reg
 
@@ -2815,21 +2846,24 @@ GenContext {
     null(Value*) = result Value*
     null(Value*) = value Value*
     {
-        (RAX, QWORD)create_reg(Value*) = result
-	(1)create_immvalue(Value*) = value
-	
-	{ (logFalse, JMP, fbuf)jmp } (op::node == TT_LOGOR && (rightNodeType != NODE_BINOP || lastLogOp != TT_LOGAND)) if else
-	{ (logFalse, JMP, fbuf)jmp } (op::node == TT_LOGAND && rightNodeType == NODE_BINOP && lastLogOp == TT_LOGOR) if
-	
-	(logTrue, fbuf)insert_label
-	(result, value, fbuf)move
-	(logEnd, JMP, fbuf)jmp
-	(logFalse, fbuf)insert_label
+	{
+	    { (logFalse, JMP, fbuf)jmp } (op::node == TT_LOGOR && (rightNodeType != NODE_BINOP || lastLogOp != TT_LOGAND)) if else
+	    { (logFalse, JMP, fbuf)jmp } (op::node == TT_LOGAND && rightNodeType == NODE_BINOP && lastLogOp == TT_LOGOR) if
+	} (continuelbl::ctx == -1) if
+	{
+  	    (RAX, QWORD)create_reg(Value*) = result
+	    (1)create_immvalue(Value*) = value
 
-	0 = val::(value(ImmValue*))
-	(result, value, fbuf)move
-	(logEnd, fbuf)insert_label
-    } (logTrue::ctx == -1) if
+	    (logTrue, fbuf)insert_label
+	    (result, value, fbuf)move
+	    (logEnd, JMP, fbuf)jmp
+	    (logFalse, fbuf)insert_label
+
+	    0 = val::(value(ImmValue*))
+	    (result, value, fbuf)move
+	    (logEnd, fbuf)insert_label
+	} (logFalse::ctx == -1) if
+    } (logOp::ctx == -1) if
 
     {
 	(logFalse, JMP, fbuf)jmp
