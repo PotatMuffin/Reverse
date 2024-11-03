@@ -146,6 +146,9 @@ null(heapinfo_t*) = heap heapinfo_t*
 14 = R14 short
 15 = R15 short
 
+16 = GLOBAL short
+"global" = _GLOBAL byte*
+
 RDI = ARG0 short; RSI = ARG1 short; RDX = ARG2 short; RCX = ARG3 short; R8 = ARG4 short; R9 = ARG5 short
 &ARG0 = argRegs short*
 
@@ -1711,6 +1714,10 @@ ValContext {
     table = table::node
     [table, null(Type*), false, 0] = ctx ValContext
     (node(Node*),&ctx)valvisit = res Result*
+
+    (table, "main", false)get_symbol = main Symbol*
+    { (res, &pos::super::node, "no main function found")result_fail return } (main == null || type::main != FUNC) if
+
     res return
 } (node NodeRoot*, table SymbolTable*) validate Result*
 
@@ -1774,20 +1781,30 @@ ValContext {
     null(Node**) = Pnode Node**
 
     {
-        {
-            n = pass::_ctx
-            (items::functions::node + i * @void*)(Node**) = Pnode 
-            (res, (*Pnode, &_ctx)valvisit)result_register
-            { res return } (err::res != null) if
-        } (i + 1 = i; i < count::functions::node; 0 = i) for
-    } (n + 1 = n; n < 2; 0 = n int) for
+        0 = pass::_ctx
+        (items::functions::node + i * @void*)(Node**) = Pnode 
+        (res, (*Pnode, &_ctx)valvisit)result_register
+        { res return } (err::res != null) if
+    } (i + 1 = i; i < count::functions::node; 0 = i) for
 
     {
         (items::children::node + i * @void*)(Node**) = Pnode
+	*Pnode = childNode Node*
 
-        (res, (*Pnode, &_ctx)valvisit)result_register
+	{
+	    (res, &pos::childNode, "Expected variable definition, or function")result_fail return
+	} (parent::table::node == null && type::childNode != NODE_VAR_DEF && type::childNode != NODE_FUNC_DEF) if
+
+        (res, (childNode, &_ctx)valvisit)result_register
         { res return } (err::res != null) if
     } (i + 1 = i; i < count::children::node; 0 = i) for
+    
+    {
+        1 = pass::_ctx
+        (items::functions::node + i * @void*)(Node**) = Pnode 
+        (res, (*Pnode, &_ctx)valvisit)result_register
+        { res return } (err::res != null) if
+    } (i + 1 = i; i < count::functions::node; 0 = i) for
 
     (res, null)result_success return
 } (node NodeRoot*, ctx ValContext*) valvisit_NodeRoot Result*
@@ -2150,15 +2167,22 @@ Mempos {
 } (reg short, size short, offset long) create_mempos Mempos*
 
 {
-    (table, name, true)get_symbol(Var*) = symbol Var*
-    { null(Mempos*) return } (type::super::symbol != VAR) if
+    (table, name, false)get_symbol(Var*) = symbol Var*
 
     { 
         parent::table(SymbolTable*) = table
         (table, name, false)get_symbol(Var*) = symbol
-    } (symbol == null || !assigned::symbol) while
+    } (parent::table != null && (symbol == null || !assigned::symbol)) while
+    { null(Mempos*) return } (type::super::symbol != VAR) if
 
-    (RBP, size::type::symbol, pos::symbol)create_mempos return
+    RBP = reg short
+    { GLOBAL = reg } (parent::table == null) if
+    {
+	parent::table(SymbolTable*) = table
+	{ GLOBAL = reg } (parent::table == null) if
+    } (affects_parent::table && parent::table != null) while
+    
+    (reg, size::type::symbol, pos::symbol)create_mempos return
 } (table SymbolTable*, name byte*) get_var_pos Mempos*
 
 ImmValue {
@@ -2198,18 +2222,26 @@ Str {
         (val::immvalue)itoa = str
     } (type::value == IMMVALUE) if else
     {
+	null(byte*) = str4 byte*; null(byte*) = str3 byte*; null(byte*) = str2 byte*; null(byte*) = str1 byte*
+
         value(Mempos*) = mempos Mempos*
         (sizes - size::mempos * @void*) = PSize byte**
-        *PSize = sizeStr byte*
-        (regs - reg::mempos*4 * @void*) = PReg byte**
-        *PReg = regStr byte*
-        "+" = sign byte*
-        { "-" = sign; -offset::mempos = offset::mempos } (offset::mempos < 0) if
-        (offset::mempos)itoa = offsetStr byte*
+        *PSize = str1
 
-        offsetStr = str4 byte*; sign = str3 byte*; *PReg = str2 byte*; *PSize = str1 byte*
+	{
+            (regs - reg::mempos*4 * @void*) = PReg byte**
+            *PReg = str2
+	} else
+	{
+	    _GLOBAL = str2
+	} (reg::mempos == GLOBAL) if
+
+        "+" = str3
+        { "-" = str3; -offset::mempos = offset::mempos } (offset::mempos < 0) if
+        (offset::mempos)itoa = str4
+       
         ("%[%%%]", &str1, 4)strformat = str
-        (heap, offsetStr(void*))heap_free
+        (heap, str4(void*))heap_free
     } (type::value == MEMPOS) if else
     {
         value(Reg*) = reg Reg*
@@ -2284,11 +2316,6 @@ GenContext {
     { (LOG_ERROR, "Could not allocate file buffer\n")log; 1 return } (code == 2) if
 
     (fbuf, "format ELF64 executable\nsegment readable executable\nentry $\n")write_file_buffer
-    (fbuf, "mov rbp,rsp\n")write_file_buffer
-
-    (stack::table)itoa = stackStr byte*
-    (fbuf, "sub rsp, %\n", &stackStr, 1)write_file_bufferf
-    (heap, stackStr(void*))heap_free
 
     [table, -1, -1, -1, strbuf, -1, -1, -1] = ctx GenContext
     (ast(Node*), true, &ctx, fbuf)visit
@@ -2314,6 +2341,10 @@ GenContext {
             (heap, str1(void*))heap_free
         } (j + 1 = j; j < len; 0 = j int) for
     } (i + 1 = i; i < count::strbuf; 0 = i int) for
+
+    (stack::table)itoa = stackStr byte*
+    (fbuf, "rb %\nglobal:\n", &stackStr, 1)write_file_bufferf
+    (heap, stackStr(void*))heap_free
 
     (fbuf)close_file_buffer
     (strbuf)deconstruct_list
@@ -2363,6 +2394,10 @@ GenContext {
         (*Pnode, true, &_ctx, fbuf)visit = value Value*
         { (value)destroy } (value != null) if
     } (i + 1 = i; i < count::children::node; 0 = i) for
+
+    {
+	(fbuf, "mov rdi,[rsp]\nlea rsi,[rsp+8]\ncall func_main\n")write_file_buffer
+    } (parent::table::node == null) if
 
     {
         (fbuf, "mov rdi,0\nmov rax,60\nsyscall\n")write_file_buffer
