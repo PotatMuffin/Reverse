@@ -58,6 +58,8 @@ null(heapinfo_t*) = heap heapinfo_t*
 (false)iota = TT_PARENR  short
 (false)iota = TT_BRACKL  short
 (false)iota = TT_BRACKR  short
+(false)iota = TT_SBRACKL short
+(false)iota = TT_SBRACKR short
 (false)iota = TT_IDENT   short
 (false)iota = TT_KEYWORD short
 (false)iota = TT_NEWLINE short
@@ -81,6 +83,8 @@ null(heapinfo_t*) = heap heapinfo_t*
 (false)iota = NODE_CAST       short
 (false)iota = NODE_PTR_ASSIGN short
 (false)iota = NODE_ASM        short
+(false)iota = NODE_STRUCT     short
+(false)iota = NODE_STRUCT_INI short
 (true)iota  = NODE_COUNT      short
 
 (false)iota = IMMVALUE short
@@ -90,6 +94,7 @@ null(heapinfo_t*) = heap heapinfo_t*
 
 (false)iota = BUILTIN short
 (false)iota = PTR     short
+(false)iota = STRUCT  short
 (false)iota = FUNC    short
 (true)iota  = VAR     short
 
@@ -101,6 +106,7 @@ null(heapinfo_t*) = heap heapinfo_t*
 "break"    = BREAK    byte*
 "return"   = RETURN   byte*
 "asm"      = ASM      byte*
+"struct"   = KSTRUCT  byte*
 
 "rax"  = _RAX byte*; "eax"  = _EAX byte*;  "ax"   = _AX byte*;   "al"   = _AL byte*
 "rbx"  = _RBX byte*; "ebx"  = _EBX byte*;  "bx"   = _BX byte*;   "bl"   = _BL byte*
@@ -454,11 +460,12 @@ Lexer {
     is_keyword || (str, BREAK)strcmp    = is_keyword
     is_keyword || (str, RETURN)strcmp   = is_keyword
     is_keyword || (str, ASM)strcmp      = is_keyword
+    is_keyword || (str, KSTRUCT)strcmp  = is_keyword
     is_keyword return
 } (str byte*) is_keyword byte
 
 {
-    { (LOG_WARN, "Exhaustive handling of token types in 'tokenize'\n")log } (TT_COUNT != 30) if
+    { (LOG_WARN, "Exhaustive handling of token types in 'tokenize'\n")log } (TT_COUNT != 32) if
     
     (heap, @List)heap_alloc(List*) = tokens List*
     (tokens)init_list
@@ -552,6 +559,8 @@ Lexer {
         } (c == '"') if else
         { TT_NEWLINE = type::tok } (c == ';') if else
         { TT_NEWLINE = type::tok } (c == 10 ) if else
+        { TT_SBRACKL = type::tok } (c == '[') if else
+        { TT_SBRACKR = type::tok } (c == ']') if else
         { TT_BRACKL  = type::tok } (c == '{') if else
         { TT_BRACKR  = type::tok } (c == '}') if else
         { TT_PARENL  = type::tok } (c == '(') if else
@@ -886,7 +895,7 @@ NodeReturn {
 NodeCast {
     super Node
     castee Node*
-    cast_type _Type*
+    castType _Type*
 } struct
 
 {
@@ -894,9 +903,9 @@ NodeCast {
     NODE_CAST = type::super::node
     [file::pos, line::pos, column::pos] = pos::super::node
     castee = castee::node
-    cast_type = cast_type::node
+    castType = castType::node
     node return
-} (pos Position*, castee Node*, cast_type _Type*) create_node_cast NodeCast*
+} (pos Position*, castee Node*, castType _Type*) create_node_cast NodeCast*
 
 NodePtrAssign {
     super Node
@@ -925,6 +934,36 @@ NodeAsm {
     _asm = _asm::node
     node return
 } (pos Position*, _asm byte*) create_node_asm NodeAsm*
+
+NodeStruct {
+    super  Node
+    name   byte*
+    fields List*
+} struct
+
+{
+    (heap, @NodeStruct)heap_alloc(NodeStruct*) = node NodeStruct*
+    NODE_STRUCT = type::super::node
+    [file::pos, line::pos, column::pos] = pos::super::node
+    name = name::node
+    fields = fields::node
+    node return
+} (pos Position*, name byte*, fields List*) create_node_struct NodeStruct*
+
+NodeStructIni {
+    super  Node
+    fields List*
+    type   void* # Type*
+} struct
+
+{
+    (heap, @NodeStructIni)heap_alloc(NodeStructIni*) = node NodeStructIni*
+    NODE_STRUCT_INI = type::super::node
+    [file::pos, line::pos, column::pos] = pos::super::node
+    fields = fields::node
+    null = type::node
+    node return
+} (pos Position*, fields List*) create_node_struct_ini NodeStructIni*
 
 Parser {
     tokens List*
@@ -992,7 +1031,7 @@ Parser {
         { res return } (err::res != null) if 
 
         { (&children::root, node(void*))list_append  } else
-        { (&functions::root, node(void*))list_append } (type::node == NODE_FUNC_DEF) if
+        { (&functions::root, node(void*))list_append } (type::node == NODE_FUNC_DEF || type::node == NODE_STRUCT) if
 
         (parser, 0)parser_peek = tok
         {
@@ -1006,9 +1045,12 @@ Parser {
 } (parser Parser*, end short) parse Result*
 
 {
-    (heap, @Result)heap_alloc(Result*) = res Result*
     (parser, 0)parser_peek = tok Token*
-    
+
+    {
+        (parser)parse_struct_expr return
+    } (type::tok == TT_IDENT && type::(parser, 1)parser_peek == TT_BRACKL) if
+
     {
         (parser)parser_consume
         (parser, null(Node*))parse_scope_expr return
@@ -1162,6 +1204,109 @@ Parser {
     (&pos::tok, scope, on_loop, condition, on_entry)create_node_for(Node*) = node Node*
     (res, node(void*))result_success return
 } (parser Parser*, scope Node*) parse_for_expr Result*
+
+{
+    (heap, @Result)heap_alloc(Result*) = res Result*
+    (parser)parser_consume = name Token*
+
+    (parser)parser_consume = tok Token*
+    {
+        (res, &pos::tok, "Expected '{'")result_fail return
+    } (type::tok != TT_BRACKL) if
+
+    (parser, TT_NEWLINE)parser_consume_all
+    (parser, 0)parser_peek = fieldName Token*
+
+    null(Token*) = fieldTypeName Token*
+    null(_Type*) = fieldType _Type*
+
+    (heap, @List)heap_alloc(List*) = fields List*
+    (fields)init_list
+
+    {
+        (parser)parser_consume
+        (parser, 0)parser_peek = fieldTypeName
+
+        {
+            (res, &pos::fieldTypeName, "Expected type")result_fail return
+        } (type::fieldTypeName != TT_IDENT) if
+        (res, (parser)parse_type)result_register(_Type*) = fieldType
+        { res return } (err::res != null) if
+
+        (heap, @_Param)heap_alloc(_Param*) = field _Param*
+        [data::fieldName(byte*), fieldType, [file::pos::fieldName, line::pos::fieldName, column::pos::fieldName]] = *field
+        (fields, field(void*))list_append
+
+        {
+            (parser, TT_NEWLINE)parser_consume_all
+            (parser, 0)parser_peek = fieldName
+	    { break } (type::fieldName == TT_BRACKR) if
+
+            {
+                (res, &pos::fieldName, "Expected identifier")result_fail return
+            } (type::fieldName != TT_IDENT) if
+            (parser)parser_consume
+
+            (parser, 0)parser_peek = fieldTypeName
+            {
+                (res, &pos::fieldTypeName, "Expected type")result_fail return
+            } (type::fieldTypeName != TT_IDENT) if
+            (res, (parser)parse_type)result_register(_Type*) = fieldType
+            { res return } (err::res != null) if
+
+            (heap, @_Param)heap_alloc(_Param*) = field
+            [data::fieldName(byte*), fieldType, [file::pos::fieldName, line::pos::fieldName, column::pos::fieldName]] = *field
+            (fields, field(void*))list_append
+        } (type::(parser, 0)parser_peek == TT_NEWLINE) while
+    } (type::fieldName == TT_IDENT) if
+
+    (parser)parser_consume = tok
+    { (res, &pos::tok, "Expected '}'")result_fail return } (type::tok != TT_BRACKR) if
+
+    (parser)parser_consume = tok
+    {} (type::tok != TT_KEYWORD && !(data::tok(byte*), KSTRUCT)strcmp) if
+
+    (&pos::name, data::name(byte*), fields)create_node_struct = node NodeStruct*
+    (res, node(void*))result_success return
+} (parser Parser*) parse_struct_expr Result*
+
+{
+    (heap, @Result)heap_alloc(Result*) = res Result*
+    (parser)parser_consume = startTok Token*
+    (parser, TT_NEWLINE)parser_consume_all
+    (parser, 0)parser_peek = tok Token*
+
+    (heap, @List)heap_alloc(List*) = fields List*
+    (fields)init_list
+
+    {
+	(res, (parser, 0)parse_bin_expr)result_register(Node*) = field Node*
+	{ res return } (err::res != null) if
+	(fields, field(void*))list_append
+
+	(parser, 0)parser_peek = tok
+	{
+	    (parser)parser_consume
+	    (parser, TT_NEWLINE)parser_consume_all
+
+	    (res, (parser, 0)parse_bin_expr)result_register(Node*) = field
+	    { res return } (err::res != null) if
+	    (fields, field(void*))list_append
+
+	    (parser, 0)parser_peek = tok
+	} (type::tok == TT_COMMA) while
+
+	(parser, TT_NEWLINE)parser_consume_all
+	(parser, 0)parser_peek = tok
+	{
+	    (res, &pos::tok, "Expected ']', or ','")result_fail return
+	} (type::tok != TT_SBRACKR) if
+    } (type::tok != TT_SBRACKR) if
+    (parser)parser_consume
+
+    (&pos::startTok, fields)create_node_struct_ini = node NodeStructIni*
+    (res, node(void*))result_success return
+} (parser Parser*) parse_struct_ini Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result*
@@ -1422,6 +1567,10 @@ Parser {
 	} (type::node == NODE_INT_LIT) if
     } (type::tok == TT_MIN) if else
     {
+	(res, (parser)parse_struct_ini)result_register(Node*) = node
+	{ res return } (err::res != null) if
+    } (type::tok == TT_SBRACKL) if
+    {
         (parser)parser_consume
         0 = i int
         1 = parens int
@@ -1585,6 +1734,18 @@ Func {
     params  List*
 } struct
 
+Struct {
+    super  Type
+    fields List*
+    id     short
+} struct
+
+Field {
+    name   byte*
+    type   Type*
+    offset long
+} struct
+
 {
     5381 = hash long
     {
@@ -1674,6 +1835,17 @@ Func {
 } (table SymbolTable*, name byte*, size int, sizeBytes int) add_builtin void
 
 {
+    (heap, @Struct)heap_alloc(Struct*) = _struct Struct*
+    STRUCT = type::super::super::_struct
+    name = name::super::super::_struct
+    sizeBytes = sizeBytes::super::_struct
+    (false)iota = id::_struct
+    fields = fields::_struct
+    (table, _struct(Symbol*))add_symbol
+    return
+} (table SymbolTable*, name byte*, sizeBytes int, fields List*) add_struct void
+
+{
     (name)hash = _hash long
     (_hash, size::table)umod = index long
 
@@ -1700,6 +1872,7 @@ Func {
 ValContext {
     table   SymbolTable*
     retType Type*
+    varType Type*
     in_loop byte
     pass    byte
 } struct
@@ -1712,12 +1885,14 @@ ValContext {
     (table, "void",  VOID, 0)add_builtin
 
     table = table::node
-    [table, null(Type*), false, 0] = ctx ValContext
+    [table, null(Type*), null(Type*), false, 0] = ctx ValContext
     (node(Node*),&ctx)valvisit = res Result*
-
+    { res return } (err::res != null) if
+    
     (table, "main", false)get_symbol = main Symbol*
     { (res, &pos::super::node, "no main function found")result_fail return } (main == null || type::main != FUNC) if
 
+    (true)iota # reset iota
     res return
 } (node NodeRoot*, table SymbolTable*) validate Result*
 
@@ -1726,7 +1901,7 @@ ValContext {
 
     {
         null(Type*) return
-    } (symbol == null || type::symbol != BUILTIN) if
+    } (symbol == null || (type::symbol != BUILTIN && type::symbol != STRUCT)) if
 
     {
         (symbol(Type*), ptr::type)create_ptr(Symbol*) = symbol
@@ -1739,6 +1914,9 @@ ValContext {
     { false return } (type::super::this != type::super::that) if
 
     {
+	id::(this(Struct*)) == id::(that(Struct*)) return
+    } (type::super::this == STRUCT) if else
+    {
         ptr::(this(Ptr*)) == ptr::(that(Ptr*)) && (ptrType::(this(Ptr*)), ptrType::(that(Ptr*)))type_equals return
     } (type::super::this == PTR) if
 
@@ -1746,6 +1924,8 @@ ValContext {
 } (this Type*, that Type*) type_equals byte 
 
 {
+    { (node(NodeStructIni*),ctx)valvisit_NodeStructIni return } (type::node == NODE_STRUCT_INI) if else
+    { (node(NodeStruct*),ctx)valvisit_NodeStruct       return } (type::node == NODE_STRUCT)     if else
     { (node(NodeAsm*),ctx)valvisit_NodeAsm             return } (type::node == NODE_ASM)        if else
     { (node(NodePtrAssign*),ctx)valvisit_NodePtrAssign return } (type::node == NODE_PTR_ASSIGN) if else
     { (node(NodeCast*),ctx)valvisit_NodeCast           return } (type::node == NODE_CAST)       if else
@@ -1776,7 +1956,7 @@ ValContext {
         table = table::node
     } (table::node == null) if
 
-    [table::node, retType::ctx, in_loop::ctx, 0] = _ctx ValContext
+    [table::node, retType::ctx, null(Type*), in_loop::ctx, 0] = _ctx ValContext
     0 = i int
     null(Node**) = Pnode Node**
 
@@ -1793,7 +1973,7 @@ ValContext {
 
 	{
 	    (res, &pos::childNode, "Expected variable definition, or function")result_fail return
-	} (parent::table::node == null && type::childNode != NODE_VAR_DEF && type::childNode != NODE_FUNC_DEF) if
+	} (parent::table::node == null && type::childNode != NODE_VAR_DEF && type::childNode != NODE_FUNC_DEF && type::childNode != NODE_STRUCT) if
 
         (res, (childNode, &_ctx)valvisit)result_register
         { res return } (err::res != null) if
@@ -1858,9 +2038,6 @@ ValContext {
     (heap, @Result)heap_alloc(Result*) = res Result* 
 
     (table::ctx, name::node, false)get_symbol = symbol Symbol*
-    
-    (res, (val::node, ctx)valvisit)result_register(Type*) = valType Type*
-    {res return } (err::res != null) if
 
     { 
         name::node = name byte*
@@ -1877,6 +2054,10 @@ ValContext {
     {
         (res, &pos::super::node, "Cannot define a variable with type void")result_fail return
     } (size::varType == VOID) if
+
+    [table::ctx, null(Type*), varType, false, 0] = _ctx ValContext
+    (res, (val::node, &_ctx)valvisit)result_register(Type*) = valType Type*
+    {res return } (err::res != null) if
 
     {
         (res, &pos::super::node, "Type mismatch")result_fail return
@@ -1896,15 +2077,14 @@ ValContext {
         (res, &pos::super::node, ("'%' is not a variable", &name::node, 1)strformat)result_fail return
     } (type::super::var != VAR) if
 
-    (res, (val::node, ctx)valvisit)result_register(Type*) = valType Type*
-    {res return } (err::res != null) if
-
     { 
         (res, &pos::super::node, ("'%' is not defined", &name::node, 1)strformat)result_fail return
     } (var == null) if
 
     type::var = varType Type*
-
+    [table::ctx, null(Type*), varType, false, 0] = _ctx ValContext
+    (res, (val::node, &_ctx)valvisit)result_register(Type*) = valType Type*
+    {res return } (err::res != null) if
     {
         (res, &pos::super::node, "Type mismatch")result_fail return
     } (!(varType, valType)type_equals) if
@@ -1934,7 +2114,7 @@ ValContext {
     (table, 128, table::ctx, true)init_symboltable
 
     table = table::(scope::node(NodeRoot*))
-    [table, retType::ctx, true, 0] = _ctx ValContext
+    [table, retType::ctx, null(Type*), true, 0] = _ctx ValContext
 
     (res, (condition::node, ctx)valvisit)result_register
     { res return } (err::res != null) if
@@ -1956,7 +2136,7 @@ ValContext {
     (heap, @SymbolTable)heap_alloc(SymbolTable*) = table SymbolTable*
     (table, 128, table::ctx, true)init_symboltable
     table = table::(scope::node(NodeRoot*))
-    [table, retType::ctx, true, 0] = _ctx ValContext
+    [table, retType::ctx, null(Type*), true, 0] = _ctx ValContext
 
     (res, (condition::node, &_ctx)valvisit)result_register
     { res return } (err::res != null) if
@@ -1973,7 +2153,7 @@ ValContext {
     (heap, @SymbolTable)heap_alloc(SymbolTable*) = table SymbolTable*
     (table, 128, table::ctx, true)init_symboltable
     table = table::(scope::node(NodeRoot*))
-    [table, retType::ctx, true, 0] = _ctx ValContext
+    [table, retType::ctx, null(Type*), true, 0] = _ctx ValContext
 
     (res, (on_entry::node, &_ctx)valvisit)result_register
     { res return } (err::res != null) if
@@ -2038,10 +2218,12 @@ ValContext {
         } (i + 1 = i; i < count::params::node; 0 = i int) for
         
         (table::ctx, retType::node)get_type = retType Type*
+	{ (res, &pos::retType::node, ("'%' is not a type", &name::retType::node, 1)strformat)result_fail return } (retType == null) if
+	
         (table::ctx, name::node, retType, paramTypes)add_func
     } else
     {
-        [table::(scope::node(NodeRoot*)), retType::func, false, 0] = _ctx ValContext
+        [table::(scope::node(NodeRoot*)), retType::func, null(Type*), false, 0] = _ctx ValContext
         (res, (scope::node, &_ctx)valvisit)result_register
         { res return } (err::res != null) if
     } (pass::ctx == 1) if
@@ -2105,17 +2287,26 @@ ValContext {
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result*
-    (table::ctx, cast_type::node)get_type = cast_type Type*
+    (table::ctx, castType::node)get_type = castType Type*
     
-    { (res, &pos::cast_type::node, ("'%' is not a type", &name::cast_type::node, 1)strformat)result_fail return } (cast_type == null) if
-    
-    (res, cast_type(void*))result_success return
+    { (res, &pos::castType::node, ("'%' is not a type", &name::castType::node, 1)strformat)result_fail return } (castType == null) if
+
+    (res, (castee::node, ctx)valvisit)result_register(Type*) = casteeType Type*
+    { res return } (err::res != null) if
+
+    {
+	(res, &pos::super::node, "Invalid cast")result_fail return
+    } (type::super::castType == STRUCT || type::super::casteeType == STRUCT) if
+
+    (res, castType(void*))result_success return
 } (node NodeCast*, ctx ValContext*) valvisit_NodeCast Result*
 
 {
     (heap, @Result)heap_alloc(Result*) = res Result*
     (res, (ptr::node, ctx)valvisit)result_register(Type*) = ptrType Type*
-    (res, (value::node, ctx)valvisit)result_register(Type*) = valueType Type*
+
+    [table::ctx, null(Type*), ptrType, false, 0]  = _ctx ValContext
+    (res, (value::node, &_ctx)valvisit)result_register(Type*) = valueType Type*
 
     {
         (res, &pos::super::node, "Type mismatch")result_fail
@@ -2127,6 +2318,74 @@ ValContext {
     (heap, @Result)heap_alloc(Result*) = res Result*
     (res, null)result_success return
 } (node NodeAsm*, ctx ValContext*)valvisit_NodeAsm Result*
+
+{
+    (heap, @Result)heap_alloc(Result*) = res Result*
+    (table::ctx, name::node, true)get_symbol(Struct*) = _struct Struct*
+
+    {
+	0 = sizeBytes int
+	{
+	    (res, &pos::super::node, ("'%' is already defined", &name::node, 1)strformat)result_fail return
+	} (_struct != null) if
+
+	(heap, @List)heap_alloc(List*) = fields List*
+	(fields)init_list
+
+	{
+	    (items::fields::node + i * @void*)(_Param**) = Pfield _Param**
+	    *Pfield = field _Param*
+
+	    {
+	        (items::fields + j * @void*)(_Param**) = _Pfield _Param**
+	    	*_Pfield = _field _Param*
+		{
+		    name::field = str2 byte*; name::node = str1 byte*
+		    (res, &pos::field, ("'%' already contains a field called '%'", &str1, 2)strformat)result_fail return
+		} ((name::_field, name::field)strcmp) if
+	    } (j + 1 = j; j < count::fields; 0 = j int) for
+
+	    (table::ctx, type::field)get_type = fieldType Type*
+	    { (res, &pos::type::field, ("'%' is not a type", &name::type::field, 1)strformat)result_fail return } (fieldType == null) if
+
+	    (heap, @Field)heap_alloc(Field*) = structField Field*
+	    [name::field, fieldType, sizeBytes] = *structField
+	    (fields, structField(void*))list_append
+	    sizeBytes + sizeBytes::fieldType = sizeBytes
+	} (i + 1 = i; i < count::fields::node; 0 = i int) for
+
+	(table::ctx, name::node, sizeBytes, fields)add_struct
+    } (pass::ctx == 0) if
+
+    (res, null)result_success return
+} (node NodeStruct*,ctx ValContext*)valvisit_NodeStruct Result*
+
+{
+    (heap, @Result*)heap_alloc(Result*) = res Result*
+
+    {
+        (res, &pos::super::node, "Invalid type for constructor")result_fail return
+    } (varType::ctx == null || type::super::varType::ctx != STRUCT) if
+
+    {
+        (items::fields::node + i * @void*)(Node**) = Pnode Node**
+	*Pnode = childNode Node*
+
+	(items::fields::(varType::ctx(Struct*)) + i * @void*)(Field**) = Pfield Field**
+	*Pfield = field Field*
+
+	[table::ctx, null(Type*), type::field, false, 0] = _ctx ValContext
+        (res, (childNode, &_ctx)valvisit)result_register(Type*) = type Type*
+        { res return } (err::res != null) if
+
+	{
+	    (res, &pos::childNode, "Type mismatch")result_fail return
+	} (!(type::field, type)type_equals) if
+    } (i + 1 = i; i < count::fields::(varType::ctx(Struct*)) && i < count::fields::node; 0 = i int) for
+
+    varType::ctx(void*) = type::node
+    (res, varType::ctx(void*))result_success return
+} (node NodeStructIni*, ctx ValContext*)valvisit_NodeStructIni Result*
 
 #####################################################################
 # Generator
@@ -2173,15 +2432,15 @@ Mempos {
         parent::table(SymbolTable*) = table
         (table, name, false)get_symbol(Var*) = symbol
     } (parent::table != null && (symbol == null || !assigned::symbol)) while
-    { null(Mempos*) return } (type::super::symbol != VAR) if
 
     RBP = reg short
     { GLOBAL = reg } (parent::table == null) if
+
     {
 	parent::table(SymbolTable*) = table
 	{ GLOBAL = reg } (parent::table == null) if
     } (affects_parent::table && parent::table != null) while
-    
+
     (reg, size::type::symbol, pos::symbol)create_mempos return
 } (table SymbolTable*, name byte*) get_var_pos Mempos*
 
@@ -2276,10 +2535,11 @@ Str {
 
 GenContext {
     table       SymbolTable*
+    strbuf      List*
+    mempos      Mempos*
     breaklbl    long
     continuelbl long
     ifEndlbl    long
-    strbuf      List*
     logFalse    long
     logTrue     long
     logOp       short
@@ -2317,7 +2577,7 @@ GenContext {
 
     (fbuf, "format ELF64 executable\nsegment readable executable\nentry $\n")write_file_buffer
 
-    [table, -1, -1, -1, strbuf, -1, -1, -1] = ctx GenContext
+    [table, strbuf, null(Mempos*), -1, -1, -1, -1, -1, -1] = ctx GenContext
     (ast(Node*), true, &ctx, fbuf)visit
 
     (fbuf, "segment readable writable\n")write_file_buffer
@@ -2356,6 +2616,7 @@ GenContext {
 
 {
     null(Value*) = value Value*
+    { (node(NodeStructIni*),ctx,fbuf)visit_NodeStructIni = value } (type::node == NODE_STRUCT_INI) if else
     { (node(NodeAsm*),ctx,fbuf)visit_NodeAsm             = value } (type::node == NODE_ASM)        if else
     { (node(NodePtrAssign*),ctx,fbuf)visit_NodePtrAssign = value } (type::node == NODE_PTR_ASSIGN) if else
     { (node(NodeCast*),ctx,fbuf)visit_NodeCast           = value } (type::node == NODE_CAST)       if else
@@ -2382,7 +2643,7 @@ GenContext {
     0 = i int
     null(Node**) = Pnode Node**
 
-    [table::node, breaklbl::ctx, continuelbl::ctx, -1, strbuf::ctx, -1, -1, -1] = _ctx GenContext
+    [table::node, strbuf::ctx, null(Mempos*), breaklbl::ctx, continuelbl::ctx, -1, -1, -1, -1] = _ctx GenContext
 
     {
         (LOG_WARN, "Scope does not contain a symboltable\n")log
@@ -2397,10 +2658,7 @@ GenContext {
 
     {
 	(fbuf, "mov rdi,[rsp]\nlea rsi,[rsp+8]\ncall func_main\n")write_file_buffer
-    } (parent::table::node == null) if
-
-    {
-        (fbuf, "mov rdi,0\nmov rax,60\nsyscall\n")write_file_buffer
+        (fbuf, "mov rdi,rax\nmov rax,60\nsyscall\n")write_file_buffer
     } (parent::table::node == null) if
 
     {
@@ -2412,15 +2670,52 @@ GenContext {
 } (node NodeRoot*, ctx GenContext*, fbuf FileBuffer*) visit_NodeRoot Value*
 
 {
+    (reg::mempos::ctx, QWORD, offset::mempos::ctx)create_mempos = pos Mempos*
+    {
+	(items::fields::(type::node(Struct*)) + i * @void*)(Field**) = Pfield Field**
+	*Pfield = field Field*
+	(items::fields::node + i * @void*)(Node**) = Pnode Node**
+	*Pnode = childNode Node*
+
+	size::type::field = size::pos
+	offset::field+offset::mempos::ctx = offset::pos
+
+	[table::ctx, strbuf::ctx, pos, -1, -1, -1, -1, -1, -1] = _ctx GenContext
+	(childNode, true, &_ctx, fbuf)visit = value Value*
+	{
+	    (pos(Value*), value, fbuf)move
+	} (type::super::type::field != STRUCT) if
+    } (i + 1 = i; i < count::fields::(type::node(Struct*)); 0 = i int) for
+    (heap, pos(void*))heap_free
+    null(Value*) return
+} (node NodeStructIni*, ctx GenContext*, fbuf FileBuffer*)visit_NodeStructIni Value*
+
+{
     (fbuf,"%\n", &_asm::node, 1)write_file_bufferf
     null(Value*) return
 } (node NodeAsm*, ctx GenContext*, fbuf FileBuffer*) visit_NodeAsm Value*
 
 {
-    (value::node, true, ctx, fbuf)visit = value Value*
-    (ptr::node, false, ctx, fbuf)visit = ptr Value*
-    (ptr, value, fbuf)move
-    (heap, ptr(void*))heap_free
+    type::(ptr::node(NodeUnop*))(Type*)  = type Type*
+    null(Value*) = ptr Value*
+
+    {
+	(value::node, true, ctx, fbuf)visit = value Value*
+	(ptr::node, false, ctx, fbuf)visit = ptr 
+	(ptr, value, fbuf)move
+	(heap, ptr(void*))heap_free
+    } else
+    {
+	(ptr::node, false, ctx, fbuf)visit = ptr
+	(R11, QWORD)create_reg = reg1 Reg*
+	((reg::(ptr(Mempos*))), QWORD)create_reg = reg2 Reg*
+	(reg1(Value*), reg2(Value*), fbuf)move
+	R11 = reg::(ptr(Mempos*))
+	[table::ctx, strbuf::ctx, ptr(Mempos*), -1, -1, -1, -1, -1, -1] = _ctx GenContext
+	(value::node, true, &_ctx, fbuf)visit
+	(heap, reg1(void*))heap_free
+	(heap, reg2(void*))heap_free
+    } (type::super::type == STRUCT) if
     value return
 } (node NodePtrAssign*, ctx GenContext*, fbuf FileBuffer*)visit_NodePtrAssign Value*
 
@@ -2486,9 +2781,9 @@ GenContext {
     {
         (stackParams*8)itoa = str byte*
         (fbuf, "add rsp,%\n", &str, 1)write_file_bufferf
+	(heap, str(void*))heap_free
     } (stackParams > 0) if
 
-    (heap, str(void*))heap_free
     (heap, name::node(void*))heap_free
     (heap, items::params::node(void*))heap_free
     (heap, params::node(void*))heap_free
@@ -2556,7 +2851,7 @@ GenContext {
     (false)iota = forEnd   long
 
     null = _ void*
-    [table::(scope::node(NodeRoot*)), forEnd, forLoop, -1, strbuf::ctx, -1, -1, -1] = _ctx GenContext
+    [table::(scope::node(NodeRoot*)), strbuf::ctx, null(Mempos*), forEnd, forLoop, -1, -1, -1, -1] = _ctx GenContext
     (on_entry::node, true, &_ctx, fbuf)visit(void*) = _
     (_(Value*))destroy
 
@@ -2576,7 +2871,7 @@ GenContext {
     { op::(condition::node(NodeBinop*)) = conditionOp } (type::condition::node == NODE_BINOP) if
     { -1 = conditionOp } (conditionOp != TT_LOGOR && conditionOp != TT_LOGAND) if
 
-    [table::(scope::node(NodeRoot*)), -forEnd, -forLoop, -1, strbuf::ctx, forEnd, forStart, -1] = _ctx
+    [table::(scope::node(NodeRoot*)), strbuf::ctx, null(Mempos*), -1, -1, -1, forEnd, forStart, -1] = _ctx
     (condition::node, true, &_ctx, fbuf)visit = condition Value*
 
     null(byte*) = str1 byte*
@@ -2613,11 +2908,11 @@ GenContext {
     (whileCond, JMP, fbuf)jmp
     (whileStart, fbuf)insert_label
 
-    [table::(scope::node(NodeRoot*)), whileEnd, whileCond, -1, strbuf::ctx, -1, -1, -1] = _ctx GenContext
+    [table::(scope::node(NodeRoot*)), strbuf::ctx, null(Mempos*), whileEnd, whileCond, -1, -1, -1, -1] = _ctx GenContext
     (scope::node, true, &_ctx, fbuf)visit
     (whileCond, fbuf)insert_label
 
-    [table::ctx, whileEnd, whileCond, -1, strbuf::ctx, whileEnd, whileStart, -1] = _ctx
+    [table::ctx, strbuf::ctx, null(Mempos*), whileEnd, whileCond, -1, whileEnd, whileStart, -1] = _ctx
     (condition::node, true, &_ctx, fbuf)visit = condition Value*
 
     null(byte*) = str1 byte*
@@ -2660,7 +2955,7 @@ GenContext {
 	} (op == TT_LOGOR || op == TT_LOGAND) if
     } (type::condition::node == NODE_BINOP) if
 
-    [table::ctx, -1, -1, ifEnd, strbuf::ctx, ifEnd, ifStart, -1] = _ctx GenContext
+    [table::ctx, strbuf::ctx, null(Mempos*), -1, -1, ifEnd, ifEnd, ifStart, -1] = _ctx GenContext
 
     {
 	ifNext = logFalse::_ctx
@@ -2688,14 +2983,14 @@ GenContext {
 	{ (ifNext, JE, fbuf)jmp } (_else::node != null) if
     } (ifStart == -1) if
 
-    [table::(scope::node(NodeRoot*)), breaklbl::ctx, continuelbl::ctx, ifEnd, strbuf::ctx, -1, -1, -1] = _ctx
+    [table::(scope::node(NodeRoot*)), strbuf::ctx, null(Mempos*), breaklbl::ctx, continuelbl::ctx, ifEnd, -1, -1, -1] = _ctx
     (scope::node, true, &_ctx, fbuf)visit
 
     {
 	(ifEnd, JMP, fbuf)jmp
 	(ifNext, fbuf)insert_label
 
-        [table::ctx, breaklbl::ctx, continuelbl::ctx, ifEnd, strbuf::ctx, -1, -1, -1] = _ctx
+        [table::ctx, strbuf::ctx, null(Mempos*), breaklbl::ctx, continuelbl::ctx, ifEnd, -1, -1, -1] = _ctx
         (_else::node, true, &_ctx, fbuf)visit
     } (_else::node != null) if
 
@@ -2709,35 +3004,57 @@ GenContext {
 } (node NodeIf*, ctx GenContext*, fbuf FileBuffer*) visit_NodeIf Value*
 
 {
+    (name::node)print; ("\n")print
     (table::ctx, name::node)get_var_pos = pos Mempos*
     (heap, name::node(void*))heap_free
     pos(Value*) return
 } (node NodeVar*, ctx GenContext*, fbuf FileBuffer*) visit_NodeVar Value*
 
 {
-    (val::node, true, ctx, fbuf)visit = val Value*
+    (table::ctx, name::node, true)get_symbol(Var*) = this Var*
     (table::ctx, name::node)get_var_pos = pos Mempos*
-    (pos(Value*), val, fbuf)move
+
+    {
+	(val::node, true, ctx, fbuf)visit = val Value*
+	(pos(Value*), val, fbuf)move
+	(val)destroy
+    } else
+    {
+	[table::ctx, strbuf::ctx, pos, -1, -1, -1, -1, -1, -1] = _ctx GenContext
+	(val::node, true, &_ctx, fbuf)visit
+    } (type::super::type::this == STRUCT) if
+
     (heap, name::node(void*))heap_free
-    (val)destroy
     pos(Value*) return
 } (node NodeVarAssign*, ctx GenContext*, fbuf FileBuffer*) visit_NodeVarAssign Value*
 
 {
-    (val::node, true, ctx, fbuf)visit = val Value*
+    (table::ctx, name::node, false)get_symbol(Var*) = this Var*
+    null(Mempos*) = pos Mempos*
 
-    (table::ctx, name::node, false)get_symbol(Var*) = var Var*
-    true = assigned::var
+    {
+	(val::node, true, ctx, fbuf)visit = val Value*
+	true = assigned::this
+	(table::ctx, name::node)get_var_pos = pos
+	(pos(Value*), val, fbuf)move
+	(val)destroy
+    } else
+    {
+    	true = assigned::this
+	(table::ctx, name::node)get_var_pos = pos
+	false = assigned::this
+	[table::ctx, strbuf::ctx, pos, -1, -1, -1, -1, -1, -1] = _ctx GenContext
+        (val::node, true, &_ctx, fbuf)visit
+	true = assigned::this
+    } (type::super::type::this == STRUCT) if
 
-    (table::ctx, name::node)get_var_pos = pos Mempos*
-    (pos(Value*), val, fbuf)move
-
-    (val)destroy
-    pos(Value*) return
+    (heap, pos(void*))heap_free
+    (heap, name::node(void*))heap_free
+    null(Value*) return
 } (node NodeVarDef*, ctx GenContext*, fbuf FileBuffer*) visit_NodeVarDef Value*
 
 {
-    [table::ctx, -1, -1, -1, strbuf::ctx, -1, -1, -1] = _ctx GenContext
+    [table::ctx, strbuf::ctx, null(Mempos*), -1, -1, -1, -1, -1, -1] = _ctx GenContext
     (node::node, true, &_ctx, fbuf)visit = value Value*
 
     RAX = _reg short
@@ -2752,6 +3069,7 @@ GenContext {
         (value)destroy
         (reg::reg, size::(type::node(Type*)), 0)create_mempos(Value*) = value
         (reg(Value*))destroy
+	((value)value_to_str)print; ("\n")print
         value return
     } (op::node == TT_STAR) if
 
@@ -2770,7 +3088,7 @@ GenContext {
     null(Value*) = left Value*
     null(Value*) = right Value*
 
-    [table::ctx, -1, -1, -1, strbuf::ctx, -1, -1, -1] = _ctx GenContext
+    [table::ctx, strbuf::ctx, null(Mempos*), -1, -1, -1, -1, -1, -1] = _ctx GenContext
     (left::node, true, &_ctx, fbuf)visit = left
 
     QWORD = regSize short
@@ -2839,7 +3157,7 @@ GenContext {
 	} (logOp::ctx == TT_LOGAND && op::node == TT_LOGOR) if
     } (lhs) if
 
-    [table::ctx, -1, -1, -1, strbuf::ctx, logFalse, logTrue, op::node] = _ctx GenContext
+    [table::ctx, strbuf::ctx, null(Mempos*), -1, -1, -1, logFalse, logTrue, op::node] = _ctx GenContext
 
     JNE = condition byte*
     logTrue = target long
