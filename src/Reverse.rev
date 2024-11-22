@@ -2664,7 +2664,7 @@ GenContext {
     } (i + 1 = i; i < count::children::node; 0 = i) for
 
     {
-	(fbuf, "mov rdi,[rsp]\nlea rsi,[rsp+8]\ncall func_main\n")write_file_buffer
+        (fbuf, "mov rdi,[rsp]\nlea rsi,[rsp+8]\ncall func_main\n")write_file_buffer
         (fbuf, "mov rdi,rax\nmov rax,60\nsyscall\n")write_file_buffer
     } (parent::table::node == null) if
 
@@ -2679,19 +2679,19 @@ GenContext {
 {
     (reg::mempos::ctx, QWORD, offset::mempos::ctx)create_mempos = pos Mempos*
     {
-	(items::fields::(type::node(Struct*)) + i * @void*)(Field**) = Pfield Field**
-	*Pfield = field Field*
-	(items::fields::node + i * @void*)(Node**) = Pnode Node**
-	*Pnode = childNode Node*
+        (items::fields::(type::node(Struct*)) + i * @void*)(Field**) = Pfield Field**
+        *Pfield = field Field*
+        (items::fields::node + i * @void*)(Node**) = Pnode Node**
+        *Pnode = childNode Node*
 
-	size::type::field = size::pos
-	offset::field+offset::mempos::ctx = offset::pos
+        size::type::field = size::pos
+        offset::field+offset::mempos::ctx = offset::pos
 
-	[table::ctx, strbuf::ctx, pos, -1, -1, -1, -1, -1, -1] = _ctx GenContext
-	(childNode, true, &_ctx, fbuf)visit = value Value*
-	{
-	    (pos(Value*), value, fbuf)move
-	} (type::super::type::field != STRUCT) if
+        [table::ctx, strbuf::ctx, pos, -1, -1, -1, -1, -1, -1] = _ctx GenContext
+        (childNode, true, &_ctx, fbuf)visit = value Value*
+        {
+            (pos(Value*), value, fbuf)move
+        } (type::super::type::field != STRUCT) if
     } (i + 1 = i; i < count::fields::(type::node(Struct*)); 0 = i int) for
     (heap, pos(void*))heap_free
     null(Value*) return
@@ -2701,20 +2701,20 @@ GenContext {
     (reg::src, QWORD, offset::src)create_mempos = srcPos Mempos*
     (reg::dest, QWORD, offset::dest)create_mempos = destPos Mempos*
     {
-	(items::fields::type + i * @void*)(Field**) = Pfield Field**
-	*Pfield = field Field*
+        (items::fields::type + i * @void*)(Field**) = Pfield Field**
+        *Pfield = field Field*
 
-	size::type::field = size::srcPos
-	offset::field+offset::src = offset::srcPos
-	size::type::field = size::destPos
-	offset::field+offset::dest = offset::destPos
+        size::type::field = size::srcPos
+        offset::field+offset::src = offset::srcPos
+        size::type::field = size::destPos
+        offset::field+offset::dest = offset::destPos
 
-	{
-	    (destPos, srcPos, type::field(Struct*), fbuf)copy_struct
-	} else
-	{
-	    (destPos(Value*), srcPos(Value*), fbuf)move
-	} (type::super::type::field != STRUCT) if
+        {
+            (destPos, srcPos, type::field(Struct*), fbuf)copy_struct
+        } else
+        {
+            (destPos(Value*), srcPos(Value*), fbuf)move
+        } (type::super::type::field != STRUCT) if
     } (i + 1 = i; i < count::fields::type; 0 = i int) for
     (heap, destPos(void*))heap_free
     (heap, srcPos(void*))heap_free
@@ -2731,21 +2731,21 @@ GenContext {
     null(Value*) = ptr Value*
 
     {
-	(value::node, true, ctx, fbuf)visit = value Value*
-	(ptr::node, false, ctx, fbuf)visit = ptr 
-	(ptr, value, fbuf)move
-	(heap, ptr(void*))heap_free
+        (value::node, true, ctx, fbuf)visit = value Value*
+        (ptr::node, false, ctx, fbuf)visit = ptr 
+        (ptr, value, fbuf)move
+        (heap, ptr(void*))heap_free
     } else
     {
-	(ptr::node, false, ctx, fbuf)visit = ptr
-	(R11, QWORD)create_reg = reg1 Reg*
-	((reg::(ptr(Mempos*))), QWORD)create_reg = reg2 Reg*
-	(reg1(Value*), reg2(Value*), fbuf)move
-	R11 = reg::(ptr(Mempos*))
-	[table::ctx, strbuf::ctx, ptr(Mempos*), -1, -1, -1, -1, -1, -1] = _ctx GenContext
-	(value::node, true, &_ctx, fbuf)visit
-	(heap, reg1(void*))heap_free
-	(heap, reg2(void*))heap_free
+        (ptr::node, false, ctx, fbuf)visit = ptr
+        (R11, QWORD)create_reg = reg1 Reg*
+        ((reg::(ptr(Mempos*))), QWORD)create_reg = reg2 Reg*
+        (reg1(Value*), reg2(Value*), fbuf)move
+        R11 = reg::(ptr(Mempos*))
+        [table::ctx, strbuf::ctx, ptr(Mempos*), -1, -1, -1, -1, -1, -1] = _ctx GenContext
+        (value::node, true, &_ctx, fbuf)visit
+        (heap, reg1(void*))heap_free
+        (heap, reg2(void*))heap_free
     } (type::super::type == STRUCT) if
     value return
 } (node NodePtrAssign*, ctx GenContext*, fbuf FileBuffer*)visit_NodePtrAssign Value*
@@ -2812,7 +2812,7 @@ GenContext {
     {
         (stackParams*8)itoa = str byte*
         (fbuf, "add rsp,%\n", &str, 1)write_file_bufferf
-	(heap, str(void*))heap_free
+        (heap, str(void*))heap_free
     } (stackParams > 0) if
 
     (heap, name::node(void*))heap_free
@@ -2919,8 +2919,8 @@ GenContext {
     {
         (fbuf, "cmp %,0\n", &str1, 1)write_file_bufferf
         (forStart, JNE, fbuf)jmp
-	(heap, str1(void*))heap_free
-	(condition)destroy
+        (heap, str1(void*))heap_free
+        (condition)destroy
     } (conditionOp == -1) if
     (forEnd, fbuf)insert_label
 
@@ -2960,7 +2960,7 @@ GenContext {
     {
         (fbuf, "cmp %,0\n", &str1, 1)write_file_bufferf
     	(whileStart, JNE, fbuf)jmp
-	(heap, str1(void*))heap_free
+        (heap, str1(void*))heap_free
     	(condition)destroy
     } (conditionOp == -1) if
     (whileEnd, fbuf)insert_label
@@ -2980,16 +2980,16 @@ GenContext {
     -1 = ifStart long
 
     {
-	op::(condition::node(NodeBinop*)) = op short
-	{
-	    (false)iota = ifStart
-	} (op == TT_LOGOR || op == TT_LOGAND) if
+        op::(condition::node(NodeBinop*)) = op short
+        {
+            (false)iota = ifStart
+        } (op == TT_LOGOR || op == TT_LOGAND) if
     } (type::condition::node == NODE_BINOP) if
 
     [table::ctx, strbuf::ctx, null(Mempos*), -1, -1, ifEnd, ifEnd, ifStart, -1] = _ctx GenContext
 
     {
-	ifNext = logFalse::_ctx
+        ifNext = logFalse::_ctx
     } (_else::node != null) if
 
     (condition::node, true, &_ctx, fbuf)visit = condition Value*
@@ -3011,7 +3011,7 @@ GenContext {
     {
         (fbuf, "cmp %,0\n", &conditionStr, 1)write_file_bufferf
         { (ifEnd,  JE, fbuf)jmp } else
-	{ (ifNext, JE, fbuf)jmp } (_else::node != null) if
+        { (ifNext, JE, fbuf)jmp } (_else::node != null) if
     } (ifStart == -1) if
 
     [table::(scope::node(NodeRoot*)), strbuf::ctx, null(Mempos*), breaklbl::ctx, continuelbl::ctx, ifEnd, -1, -1, -1] = _ctx
@@ -3026,7 +3026,7 @@ GenContext {
     } (_else::node != null) if
 
     {
-	(ifEnd, fbuf)insert_label
+        (ifEnd, fbuf)insert_label
     } (ifEndlbl::ctx == -1) if
 
     (heap, conditionStr(void*))heap_free
@@ -3040,7 +3040,7 @@ GenContext {
     
     {
         (mempos::ctx, pos, type::this(Struct*), fbuf)copy_struct
-	null(Value*) return
+        null(Value*) return
     } (type::super::type::this == STRUCT && mempos::ctx != null) if
 
     (heap, name::node(void*))heap_free
@@ -3052,13 +3052,13 @@ GenContext {
     (table::ctx, name::node)get_var_pos = pos Mempos*
 
     {
-	(val::node, true, ctx, fbuf)visit = val Value*
-	(pos(Value*), val, fbuf)move
-	(val)destroy
+        (val::node, true, ctx, fbuf)visit = val Value*
+        (pos(Value*), val, fbuf)move
+        (val)destroy
     } else
     {
-	[table::ctx, strbuf::ctx, pos, -1, -1, -1, -1, -1, -1] = _ctx GenContext
-	(val::node, true, &_ctx, fbuf)visit
+        [table::ctx, strbuf::ctx, pos, -1, -1, -1, -1, -1, -1] = _ctx GenContext
+        (val::node, true, &_ctx, fbuf)visit
     } (type::super::type::this == STRUCT) if
 
     (heap, name::node(void*))heap_free
@@ -3070,19 +3070,19 @@ GenContext {
     null(Mempos*) = pos Mempos*
 
     {
-	(val::node, true, ctx, fbuf)visit = val Value*
-	true = assigned::this
-	(table::ctx, name::node)get_var_pos = pos
-	(pos(Value*), val, fbuf)move
-	(val)destroy
+        (val::node, true, ctx, fbuf)visit = val Value*
+        true = assigned::this
+        (table::ctx, name::node)get_var_pos = pos
+        (pos(Value*), val, fbuf)move
+        (val)destroy
     } else
     {
     	true = assigned::this
-	(table::ctx, name::node)get_var_pos = pos
-	false = assigned::this
-	[table::ctx, strbuf::ctx, pos, -1, -1, -1, -1, -1, -1] = _ctx GenContext
+        (table::ctx, name::node)get_var_pos = pos
+        false = assigned::this
+        [table::ctx, strbuf::ctx, pos, -1, -1, -1, -1, -1, -1] = _ctx GenContext
         (val::node, true, &_ctx, fbuf)visit
-	true = assigned::this
+        true = assigned::this
     } (type::super::type::this == STRUCT) if
 
     (heap, pos(void*))heap_free
@@ -3094,7 +3094,7 @@ GenContext {
     [table::ctx, strbuf::ctx, null(Mempos*), -1, -1, -1, -1, -1, -1] = _ctx GenContext
     (node::node, true, &_ctx, fbuf)visit = value Value*
 
-    RAX = _reg short
+    RDX = _reg short
     { RDI = _reg } (!lhs) if
 
     QWORD = reg_size short
@@ -3137,8 +3137,8 @@ GenContext {
     QWORD = regSize short
     {
         left(Mempos*) = mempos Mempos*
-	{ QWORD = regSize } else
-	{ DWORD = regSize } (size::mempos != QWORD) if
+        { QWORD = regSize } else
+        { DWORD = regSize } (size::mempos != QWORD) if
     } (type::left == MEMPOS) if
 
     null(Reg*) = reg Reg*
@@ -3187,17 +3187,17 @@ GenContext {
         (false)iota = logEnd
     } else
     {
-	logTrue::ctx = logTrue
-	logFalse::ctx = logFalse
+        logTrue::ctx = logTrue
+        logFalse::ctx = logFalse
     } (logTrue::ctx != -1) if
 
     {
-	{
-	    (false)iota = logFalse
-    	} (logOp::ctx == TT_LOGOR && op::node == TT_LOGAND) if else
-	{
-	    (false)iota = logTrue
-	} (logOp::ctx == TT_LOGAND && op::node == TT_LOGOR) if
+        {
+            (false)iota = logFalse
+            } (logOp::ctx == TT_LOGOR && op::node == TT_LOGAND) if else
+        {
+            (false)iota = logTrue
+        } (logOp::ctx == TT_LOGAND && op::node == TT_LOGOR) if
     } (lhs) if
 
     [table::ctx, strbuf::ctx, null(Mempos*), -1, -1, -1, logFalse, logTrue, op::node] = _ctx GenContext
@@ -3205,8 +3205,8 @@ GenContext {
     JNE = condition byte*
     logTrue = target long
     {
-	logFalse = target
-	JE = condition
+        logFalse = target
+        JE = condition
     } (op::node == TT_LOGAND) if
 
     (left::node, true, &_ctx, fbuf)visit = left Value*
@@ -3215,15 +3215,15 @@ GenContext {
     {
         op::node = lastLogOp # reset lastLogOp incase this child also used the && and || operators but wasn't one itself
         (left)value_to_str = str1
-	(fbuf, "cmp %,0\n", &str1, 1)write_file_bufferf
-	(target, condition, fbuf)jmp
-	(heap, str1(void*))heap_free
+        (fbuf, "cmp %,0\n", &str1, 1)write_file_bufferf
+        (target, condition, fbuf)jmp
+        (heap, str1(void*))heap_free
     } (leftOp == -1) if
 
     {
         {
-	    (false)iota = logTrue::_ctx
-	} else
+            (false)iota = logTrue::_ctx
+        } else
 	{
 	    (false)iota = logFalse::_ctx
 	} (op::node == TT_LOGOR) if
@@ -3234,9 +3234,9 @@ GenContext {
     {
         op::node = lastLogOp # reset lastLogOp incase this child also used the && and || operators but wasn't one itself
         (right)value_to_str = str1
-	(fbuf, "cmp %,0\n", &str1, 1)write_file_bufferf
-	(target, condition, fbuf)jmp
-	(heap, str1(void*))heap_free
+        (fbuf, "cmp %,0\n", &str1, 1)write_file_bufferf
+        (target, condition, fbuf)jmp
+        (heap, str1(void*))heap_free
     } (rightOp == -1) if
 
     null(Value*) = result Value*
