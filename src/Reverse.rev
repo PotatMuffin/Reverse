@@ -537,7 +537,6 @@ Lexer {
         (lexer)lexer_consume
         (heap, size+1)heap_alloc = string byte*
 	    src::lexer + index::lexer = start byte*
-        (size)print_num; ("\n")print
 	    0 = srcIndex int
 	    0 = destIndex int
 
@@ -2444,8 +2443,8 @@ Mempos {
     { GLOBAL = reg } (parent::table == null) if
 
     {
-	parent::table(SymbolTable*) = table
-	{ GLOBAL = reg } (parent::table == null) if
+        parent::table(SymbolTable*) = table
+        { GLOBAL = reg } (parent::table == null) if
     } (affects_parent::table && parent::table != null) while
 
     (reg, size::type::symbol, pos::symbol)create_mempos return
@@ -3086,7 +3085,6 @@ GenContext {
     } (type::super::type::this == STRUCT) if
 
     (heap, pos(void*))heap_free
-    (heap, name::node(void*))heap_free
     null(Value*) return
 } (node NodeVarDef*, ctx GenContext*, fbuf FileBuffer*) visit_NodeVarDef Value*
 
@@ -3102,18 +3100,18 @@ GenContext {
 
     (_reg, reg_size)create_reg = reg Reg*
     {
-	(reg(Value*), value, fbuf)move
-	(value)destroy
-	(reg::reg, size::(type::node(Type*)), 0)create_mempos(Value*) = value
-	(reg(Value*))destroy
-	{
-	    (mempos::ctx, value(Mempos*), type::node(Struct*), fbuf)copy_struct
-	    (reg(Value*))destroy
-	    null(Value*) return
-	} else
-	{
-	    value return
-	} (mempos::ctx == null) if
+        (reg(Value*), value, fbuf)move
+        (value)destroy
+        (reg::reg, size::(type::node(Type*)), 0)create_mempos(Value*) = value
+        (reg(Value*))destroy
+        {
+            (mempos::ctx, value(Mempos*), type::node(Struct*), fbuf)copy_struct
+            (reg(Value*))destroy
+            null(Value*) return
+        } else
+        {
+            value return
+        } (mempos::ctx == null) if
     } (op::node == TT_STAR) if
 
     (_reg, reg_size)create_reg = reg
