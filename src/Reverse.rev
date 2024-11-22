@@ -1839,6 +1839,7 @@ Field {
     STRUCT = type::super::super::_struct
     name = name::super::super::_struct
     sizeBytes = sizeBytes::super::_struct
+    BYTE = size::super::_struct
     (false)iota = id::_struct
     fields = fields::_struct
     (table, _struct(Symbol*))add_symbol
@@ -2691,6 +2692,30 @@ GenContext {
 } (node NodeStructIni*, ctx GenContext*, fbuf FileBuffer*)visit_NodeStructIni Value*
 
 {
+    (reg::src, QWORD, offset::src)create_mempos = srcPos Mempos*
+    (reg::dest, QWORD, offset::dest)create_mempos = destPos Mempos*
+    {
+	(items::fields::type + i * @void*)(Field**) = Pfield Field**
+	*Pfield = field Field*
+
+	size::type::field = size::srcPos
+	offset::field+offset::src = offset::srcPos
+	size::type::field = size::destPos
+	offset::field+offset::dest = offset::destPos
+
+	{
+	    (destPos, srcPos, type::field(Struct*), fbuf)copy_struct
+	} else
+	{
+	    (destPos(Value*), srcPos(Value*), fbuf)move
+	} (type::super::type::field != STRUCT) if
+    } (i + 1 = i; i < count::fields::type; 0 = i int) for
+    (heap, destPos(void*))heap_free
+    (heap, srcPos(void*))heap_free
+    return
+} (dest Mempos*, src Mempos*, type Struct*, fbuf FileBuffer*) copy_struct void
+
+{
     (fbuf,"%\n", &_asm::node, 1)write_file_bufferf
     null(Value*) return
 } (node NodeAsm*, ctx GenContext*, fbuf FileBuffer*) visit_NodeAsm Value*
@@ -3004,8 +3029,14 @@ GenContext {
 } (node NodeIf*, ctx GenContext*, fbuf FileBuffer*) visit_NodeIf Value*
 
 {
-    (name::node)print; ("\n")print
+    (table::ctx, name::node, true)get_symbol(Var*) = this Var*
     (table::ctx, name::node)get_var_pos = pos Mempos*
+    
+    {
+        (mempos::ctx, pos, type::this(Struct*), fbuf)copy_struct
+	null(Value*) return
+    } (type::super::type::this == STRUCT && mempos::ctx != null) if
+
     (heap, name::node(void*))heap_free
     pos(Value*) return
 } (node NodeVar*, ctx GenContext*, fbuf FileBuffer*) visit_NodeVar Value*
@@ -3065,12 +3096,18 @@ GenContext {
 
     (_reg, reg_size)create_reg = reg Reg*
     {
-        (reg(Value*), value, fbuf)move
-        (value)destroy
-        (reg::reg, size::(type::node(Type*)), 0)create_mempos(Value*) = value
-        (reg(Value*))destroy
-	((value)value_to_str)print; ("\n")print
-        value return
+	(reg(Value*), value, fbuf)move
+	(value)destroy
+	(reg::reg, size::(type::node(Type*)), 0)create_mempos(Value*) = value
+	(reg(Value*))destroy
+	{
+	    (mempos::ctx, value(Mempos*), type::node(Struct*), fbuf)copy_struct
+	    (reg(Value*))destroy
+	    null(Value*) return
+	} else
+	{
+	    value return
+	} (mempos::ctx == null) if
     } (op::node == TT_STAR) if
 
     (_reg, reg_size)create_reg = reg
