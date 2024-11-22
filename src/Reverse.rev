@@ -518,44 +518,50 @@ Lexer {
         ident(long) = data::tok
         } ((c >= 'A' && 'Z' >= c) || (c >= 'a' && 'z' >= c) || c == '_') if else
         {
-            0 = i
+        0 = i
 	    0 = size int
-            (lexer, 1)lexer_peek = nc
-	    { size - 1 = size } (nc == '\') if
+        0 = prevnc byte
+        {
+            (lexer, i+1)lexer_peek = nc
+            { (res, &pos::lexer, "string wasnt closed")result_fail return } (nc == 0) if
             {
-                (lexer, i+2)lexer_peek = nc
-                { (res, &pos::lexer, "string wasnt closed")result_fail return } (nc == 0) if
-		{ size + 1 = size } (nc != '\' || (lexer, i+1)lexer_peek == '\') if
-                i + 1 = i
-            } (nc != '"') while
-            (lexer)lexer_consume
-            (heap, size+1)heap_alloc = string byte*
+                {
+                    break
+                } (prevnc != 92) if
+            } (nc == '"') if
+            { size + 1 = size } (nc != 92) if
+            { nc = prevnc } else
+            { size + 1 = size; 0 = prevnc } (nc == 92 && prevnc == 92) if
+            i + 1 = i
+        } (true) while
+        (lexer)lexer_consume
+        (heap, size+1)heap_alloc = string byte*
 	    src::lexer + index::lexer = start byte*
-
+        (size)print_num; ("\n")print
 	    0 = srcIndex int
 	    0 = destIndex int
 
 	    {
-		*(start+srcIndex) = _c byte
-		{
-		    _c = *(string+destIndex)
-		    srcIndex + 1 = srcIndex
-		} else
-		{
-		    *(start+srcIndex+1) = _c
-		    _c = *(string+destIndex)
-		    {
-			10 = *(string+destIndex)
-		    } (_c == 'n') if
-		    srcIndex + 2 = srcIndex	
-		} (_c == '\') if
-		destIndex + 1 = destIndex
+            *(start+srcIndex) = _c byte
+            {
+                _c = *(string+destIndex)
+                srcIndex + 1 = srcIndex
+            } else
+            {
+                *(start+srcIndex+1) = _c
+                _c = *(string+destIndex)
+                {
+                10 = *(string+destIndex)
+                } (_c == 'n') if
+                srcIndex + 2 = srcIndex	
+            } (_c == 92) if
+            destIndex + 1 = destIndex
 	    } (srcIndex < i && destIndex < size) while
-            0 = *(string + size)
+        0 = *(string + size)
 
-            { (lexer)lexer_consume } (i - 1 = i; i > 0; i) for
-            TT_STR = type::tok
-            string(long) = data::tok
+        { (lexer)lexer_consume } (i - 1 = i; i > 0; i) for
+        TT_STR = type::tok
+        string(long) = data::tok
         } (c == '"') if else
         { TT_NEWLINE = type::tok } (c == ';') if else
         { TT_NEWLINE = type::tok } (c == 10 ) if else

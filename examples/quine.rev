@@ -1,0 +1,34 @@
+"{\n    (str)strlen = len long\n    (\"\\\"\")print\n    {\n        *(str + i) = c byte\n        { (1,&c,1)write } else\n        { (\"\\\\\\\"\")print } (c == 34) if else\n        { (\"\\\\\\\\\")print } (c == 92) if else\n        { (\"\\\\n\")print } (c == 10) if\n    } (i+1 = i; i < len; 0 = i int) for\n    (\"\\\" = str byte*\\n\\n\")print\n    (str)print\n    0 return\n} () main int\n\n{\n    asm(\"mov rax, 1\")\n    asm(\"syscall\")\n    return\n} (count long, buf byte*, fd int) write void\n\n{\n    (str)strlen = len long\n    (len, str, 1)write\n    return\n} (str byte*) print void\n\n{   \n    0 = len long\n    { len + 1 = len } (*(str + len)) while\n    len return\n} (str byte*) strlen long" = str byte*
+
+{
+    (str)strlen = len long
+    ("\"")print
+    {
+        *(str + i) = c byte
+        { (1,&c,1)write } else
+        { ("\\\"")print } (c == 34) if else
+        { ("\\\\")print } (c == 92) if else
+        { ("\\n")print } (c == 10) if
+    } (i+1 = i; i < len; 0 = i int) for
+    ("\" = str byte*\n\n")print
+    (str)print
+    0 return
+} () main int
+
+{
+    asm("mov rax, 1")
+    asm("syscall")
+    return
+} (count long, buf byte*, fd int) write void
+
+{
+    (str)strlen = len long
+    (len, str, 1)write
+    return
+} (str byte*) print void
+
+{   
+    0 = len long
+    { len + 1 = len } (*(str + len)) while
+    len return
+} (str byte*) strlen long
