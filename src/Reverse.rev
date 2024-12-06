@@ -148,6 +148,12 @@ null(Result*) = res Result*
 3 = BYTE  short
 4 = VOID  short
 
+null(Type*) = TypeLong  Type*
+null(Type*) = TypeInt   Type*
+null(Type*) = TypeShort Type*
+null(Type*) = TypeByte  Type*
+null(Type*) = TypeVoid  Type*
+
 0  = RAX short
 1  = RBX short
 2  = RCX short
@@ -1814,8 +1820,8 @@ Field {
     } (_symbol != null && !(name::_symbol, name::symbol)strcmp) while
 
     symbol = *Psymbol
-    return
-} (table SymbolTable*, symbol Symbol*) add_symbol void
+    symbol return
+} (table SymbolTable*, symbol Symbol*) add_symbol Symbol*
 
 {
     (heap, @Var)heap_alloc(Var*) = var Var*
@@ -1833,9 +1839,8 @@ Field {
     stack::table + sizeBytes::varType = stack::table
 
     -stack::table = pos::var
-    (table, var(Symbol*))add_symbol
-    return
-} (table SymbolTable*, name byte*, varType Type*, assigned byte) add_var void
+    (table, var(Symbol*))add_symbol return
+} (table SymbolTable*, name byte*, varType Type*, assigned byte) add_var Symbol*
 
 {
     (heap, @Func)heap_alloc(Func*) = func Func*
@@ -1843,9 +1848,8 @@ Field {
     name = name::super::func
     retType = retType::func
     params = params::func
-    (table, func(Symbol*))add_symbol
-    return
-} (table SymbolTable*, name byte*, retType Type*, params List*) add_func void
+    (table, func(Symbol*))add_symbol return
+} (table SymbolTable*, name byte*, retType Type*, params List*) add_func Symbol*
 
 {
     (heap, @Type)heap_alloc(Type*) = primitive Type*
@@ -1854,9 +1858,8 @@ Field {
     size = size::primitive
     sizeBytes = sizeBytes::primitive
 
-    (table, primitive(Symbol*))add_symbol
-    return
-} (table SymbolTable*, name byte*, size int, sizeBytes int) add_primitive void
+    (table, primitive(Symbol*))add_symbol return
+} (table SymbolTable*, name byte*, size int, sizeBytes int) add_primitive Symbol*
 
 {
     (heap, @Struct)heap_alloc(Struct*) = _struct Struct*
@@ -1866,9 +1869,8 @@ Field {
     BYTE = size::super::_struct
     (false)iota = id::_struct
     fields = fields::_struct
-    (table, _struct(Symbol*))add_symbol
-    return
-} (table SymbolTable*, name byte*, sizeBytes int, fields List*) add_struct void
+    (table, _struct(Symbol*))add_symbol return
+} (table SymbolTable*, name byte*, sizeBytes int, fields List*) add_struct Symbol*
 
 {
     (name)hash = _hash long
@@ -1903,11 +1905,11 @@ ValContext {
 } struct
 
 {
-    (table, "long", QWORD, 8)add_primitive
-    (table, "int",  DWORD, 4)add_primitive
-    (table, "short", WORD, 2)add_primitive
-    (table, "byte",  BYTE, 1)add_primitive
-    (table, "void",  VOID, 0)add_primitive
+    (table, "long", QWORD, 8)add_primitive(Type*) = TypeLong
+    (table, "int",  DWORD, 4)add_primitive(Type*) = TypeInt
+    (table, "short", WORD, 2)add_primitive(Type*) = TypeShort
+    (table, "byte",  BYTE, 1)add_primitive(Type*) = TypeByte
+    (table, "void",  VOID, 0)add_primitive(Type*) = TypeVoid
 
     table = table::node
     [table, null(Type*), null(Type*), false, 0] = ctx ValContext
@@ -2027,7 +2029,7 @@ ValContext {
 } (node NodeBinop*, ctx ValContext*) valvisit_NodeBinop Result*
 
 {
-    (res, (table::ctx, "long", true)get_symbol(void*))result_success return
+    (res, TypeLong(void*))result_success return
 } (node NodeIntLit*, ctx ValContext*) valvisit_NodeIntLit Result*
 
 {
@@ -2157,8 +2159,7 @@ ValContext {
 } (node NodeFor*, ctx ValContext*) valvisit_NodeFor Result*
 
 {
-    (table::ctx, "byte", true)get_symbol(Type*) = type Type*
-    (type, 1)create_ptr(Type*) = type
+    (TypeByte, 1)create_ptr(Type*) = type Type*
     (res, type(void*))result_success return
 } (node NodeStrLit*, ctx ValContext*) valvisit_NodeStrLit Result*
 
@@ -2793,7 +2794,7 @@ GenContext {
             (heap, reg1(void*))heap_free
             (heap, reg2(void*))heap_free
         } (reg::(ptr(Mempos*)) != RBP) if
-        
+
         [table::ctx, strbuf::ctx, ptr(Mempos*), -1, -1, -1, -1, -1, -1] = _ctx GenContext
         (value::node, true, &_ctx, fbuf)visit
     } (type::super::type == STRUCT) if
