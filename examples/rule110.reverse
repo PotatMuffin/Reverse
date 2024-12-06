@@ -34,6 +34,7 @@
 	wrbuf = rdbuf
 	temp = wrbuf
     } (i + 1 = i; i < N; 0 = i int) for
+	0 return
 } () main int
 
 
